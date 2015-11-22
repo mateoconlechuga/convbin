@@ -2,9 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #define PGRM_TYPE   0x06
 #define APPVAR_TYPE 0x15
+#define UNARCHIVED  0x00
 #define ARCHIVED    0x80
 
 /* useful functions */
@@ -46,66 +49,69 @@ int main(int argc, char* argv[]) {
     char *prgm_name;
     char *ext;
     char *tmp;
-    char *options;
 
     /* temporary buffer for reading files */
     char tmp_buf[0x300];
 
-    size_t len;
     size_t name_length;
     size_t data_length;
     size_t output_size;
 
     /* header for TI files */
-    unsigned char header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
-    unsigned char archived = 0x00;
-    unsigned char file_type = 0x06;
+    unsigned char header[]  = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
+    unsigned char archived  = UNARCHIVED;
+    unsigned char file_type = PGRM_TYPE;
     unsigned char *output;
     unsigned char len_high;
     unsigned char len_low;
 
-    int i, j;
+    int opt;
+    int i;
     int offset;
     int checksum;
     int line_size;
+    int name_override = 0;
 
     /* separate ouput a bit */
     printf("\n");
 
-    /* execute checks to make sure input is valid */
-    j = 1;
-    if(argc > 1) {
-        while( j < argc ) {
-            options = argv[j];
-            if(options[0] == '-') {
-                i = 1;
-                while( options[i] != '\0' ) {
-                    switch( toupper(options[i++]) ) {
-                        case 'A':   /* archive output */
-                            archived = ARCHIVED;
-                            break;
-                        case 'V':   /* write output to appvar */
-                            file_type = APPVAR_TYPE;
-                            break;
-                        case 'H':   /* show help */
-                            goto show_help;
-                        default:
-                            printf("Unrecognized option: '%c'\n", options[i-1]);
-                            break;
-                    }
-                }
+    if(argc > 1)
+    {
+        while ((opt = getopt(argc, argv, "avhn:")) != -1)
+        {
+            switch (opt)
+            {
+                case 'a':   // archive output
+                    archived = ARCHIVED;
+                    break;
+                case 'v':   // write output to appvar
+                    file_type = APPVAR_TYPE;
+                    break;
+                case 'n':   // specify varname
+                    printf("Varname override: '%s'\n", optarg);
+                    name_override = 1;
+                    prgm_name = strdup(optarg);
+                    name_length = strlen(optarg);
+                    break;
+                case 'h':   // show help
+                    goto show_help;
+                    break;
+                default:
+                    printf("Unrecognized option: '%s'\n", optarg);
+                    goto show_help;
+                    break;
             }
-            j++;
         }
-        } else {
+    } else {
         show_help:
-        printf("ConvHex Utility v1.21 - by M.Waltz\n");
+        printf("ConvHex Utility v1.23 - by M. Waltz\n");
         printf("\nGenerates a formatted TI calculator file from ZDS-generated Intel hex.\n");
         printf("\nUsage:\n\tconvhex [-options] <filename>");
         printf("\nOptions:\n");
-        printf("\tA: Mark output binary as archived (Default is unarchived)\n");
-        printf("\tV: Write output to Appvar (Default is program)\n");
-        printf("\tH: Show this message\n");
+        printf("\ta: Mark output binary as archived (Default is unarchived)\n");
+        printf("\tv: Write output to Appvar (Default is program)\n");
+        printf("\tn: Override varname (example: -n MYPRGM)\n");
+        printf("\th: Show this message\n");
         return 1;
     }
 
@@ -120,27 +126,30 @@ int main(int argc, char* argv[]) {
         ext = strrchr( in_name, '.' );
     }
 
-    /* check if the name is too long */
-    tmp = strrchr( in_name, '\\' );
-    if( tmp != NULL ) {
-        name_length = ext-tmp-1;
-        prgm_name = tmp+1;
-        } else {
-        tmp = strrchr( in_name, '/' );
+    if (!name_override)
+    {
+        /* check if the name is too long */
+        tmp = strrchr( in_name, '\\' );
         if( tmp != NULL ) {
             name_length = ext-tmp-1;
             prgm_name = tmp+1;
+        } else {
+            tmp = strrchr( in_name, '/' );
+            if( tmp != NULL ) {
+                name_length = ext-tmp-1;
+                prgm_name = tmp+1;
             } else {
-            name_length = ext-in_name;
-            prgm_name = in_name;
+                name_length = ext-in_name;
+                prgm_name = in_name;
+            }
         }
     }
-
-    if( name_length > 8 ) { name_length = 8; }
+    if( name_length > 8 ) {
+        name_length = 8;
+    }
 
     /* create the output name */
-    len = strlen( in_name )+5;
-    out_name = malloc( len );
+    out_name = malloc( strlen( in_name )+5 );
     strcpy( out_name, in_name );
     strcpy( out_name+(ext-in_name), ".8x");
     strcat( out_name, (file_type == PGRM_TYPE) ? "p" : "v" );
@@ -148,12 +157,12 @@ int main(int argc, char* argv[]) {
     /* open the specified files */
     in_file = fopen( in_name, "r" );
     if ( !in_file ) {
-        printf("ERROR: Unable to open input file.");
+        fprintf(stderr, "ERROR: Unable to open input file.\n");
         return 1;
     }
     out_file = fopen( out_name, "wb" );
     if ( !out_file ) {
-        printf("ERROR: Unable to open output file.");
+        fprintf(stderr, "ERROR: Unable to open output file.\n");
         return 1;
     }
 
@@ -181,10 +190,11 @@ int main(int argc, char* argv[]) {
         output[offset++] = prgm_name[i];
     }
 
-    /* parse the Intel Hex file, and store it into the data array */
-    /* note fgets() basically can be used to get each line really quick */
     offset = 0x4A;
 
+    /* parse the Intel Hex file, and store it into the data array */
+
+    /* note fgets() basically can be used to get each line really quick */
     fgets( tmp_buf, 0x300, in_file );
 
     /* Ignore initial "Extended Linear Address" line if present */
@@ -195,7 +205,7 @@ int main(int argc, char* argv[]) {
     while( tmp_buf[8] == '0' ) {
 
         if( tmp_buf[0] != ':' ) {
-            printf("ERROR: Invalid Intel Hex format.\n");
+            fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
             return 2;
         }
 
@@ -243,7 +253,7 @@ int main(int argc, char* argv[]) {
 
     /* make sure our output file isn't too big */
     if(output_size > 0x10000) {
-        printf("ERROR: Input file too large.");
+        fprintf(stderr, "ERROR: Input file too large.");
         return 3;
     }
 
