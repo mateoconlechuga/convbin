@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #define PGRM_TYPE   0x06
 #define APPVAR_TYPE 0x15
@@ -47,7 +49,6 @@ int main(int argc, char* argv[]) {
     char *prgm_name;
     char *ext;
     char *tmp;
-    char *options;
 
     /* temporary buffer for reading files */
     char tmp_buf[0x300];
@@ -64,48 +65,53 @@ int main(int argc, char* argv[]) {
     unsigned char len_high;
     unsigned char len_low;
 
-    int i, j;
+    int opt;
+    int i;
     int offset;
     int checksum;
     int line_size;
+    int name_override = 0;
 
     /* separate ouput a bit */
     printf("\n");
 
-    /* execute checks to make sure input is valid */
-    j = 1;
-    if(argc > 1) {
-        while( j < argc ) {
-            options = argv[j];
-            if(options[0] == '-') {
-                i = 1;
-                while( options[i] != '\0' ) {
-                    switch( toupper(options[i++]) ) {
-                        case 'A':   /* archive output */
-                            archived = ARCHIVED;
-                            break;
-                        case 'V':   /* write output to appvar */
-                            file_type = APPVAR_TYPE;
-                            break;
-                        case 'H':   /* show help */
-                            goto show_help;
-                        default:
-                            printf("Unrecognized option: '%c'\n", options[i-1]);
-                            break;
-                    }
-                }
+    if(argc > 1)
+    {
+        while ((opt = getopt(argc, argv, "avhn:")) != -1)
+        {
+            switch (opt)
+            {
+                case 'a':   // archive output
+                    archived = ARCHIVED;
+                    break;
+                case 'v':   // write output to appvar
+                    file_type = APPVAR_TYPE;
+                    break;
+                case 'n':   // specify varname
+                    printf("Varname override: '%s'\n", optarg);
+                    name_override = 1;
+                    prgm_name = strdup(optarg);
+                    name_length = strlen(optarg);
+                    break;
+                case 'h':   // show help
+                    goto show_help;
+                    break;
+                default:
+                    printf("Unrecognized option: '%s'\n", optarg);
+                    goto show_help;
+                    break;
             }
-            j++;
         }
-        } else {
+    } else {
         show_help:
-        printf("ConvHex Utility v1.21 - by M.Waltz\n");
+        printf("ConvHex Utility v1.23 - by M. Waltz\n");
         printf("\nGenerates a formatted TI calculator file from ZDS-generated Intel hex.\n");
         printf("\nUsage:\n\tconvhex [-options] <filename>");
         printf("\nOptions:\n");
-        printf("\tA: Mark output binary as archived (Default is unarchived)\n");
-        printf("\tV: Write output to Appvar (Default is program)\n");
-        printf("\tH: Show this message\n");
+        printf("\ta: Mark output binary as archived (Default is unarchived)\n");
+        printf("\tv: Write output to Appvar (Default is program)\n");
+        printf("\tn: Override varname (example: -n MYPRGM)\n");
+        printf("\th: Show this message\n");
         return 1;
     }
 
@@ -120,19 +126,22 @@ int main(int argc, char* argv[]) {
         ext = strrchr( in_name, '.' );
     }
 
-    /* check if the name is too long */
-    tmp = strrchr( in_name, '\\' );
-    if( tmp != NULL ) {
-        name_length = ext-tmp-1;
-        prgm_name = tmp+1;
-        } else {
-        tmp = strrchr( in_name, '/' );
+    if (!name_override)
+    {
+        /* check if the name is too long */
+        tmp = strrchr( in_name, '\\' );
         if( tmp != NULL ) {
             name_length = ext-tmp-1;
             prgm_name = tmp+1;
+        } else {
+            tmp = strrchr( in_name, '/' );
+            if( tmp != NULL ) {
+                name_length = ext-tmp-1;
+                prgm_name = tmp+1;
             } else {
-            name_length = ext-in_name;
-            prgm_name = in_name;
+                name_length = ext-in_name;
+                prgm_name = in_name;
+            }
         }
     }
     if( name_length > 8 ) {
