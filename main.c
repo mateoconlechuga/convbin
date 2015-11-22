@@ -5,6 +5,7 @@
 
 #define PGRM_TYPE   0x06
 #define APPVAR_TYPE 0x15
+#define UNARCHIVED  0x00
 #define ARCHIVED    0x80
 
 /* useful functions */
@@ -51,15 +52,14 @@ int main(int argc, char* argv[]) {
     /* temporary buffer for reading files */
     char tmp_buf[0x300];
 
-    size_t len;
     size_t name_length;
     size_t data_length;
     size_t output_size;
 
     /* header for TI files */
-    unsigned char header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
-    unsigned char archived = 0x00;
-    unsigned char file_type = 0x06;
+    unsigned char header[]  = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
+    unsigned char archived  = UNARCHIVED;
+    unsigned char file_type = PGRM_TYPE;
     unsigned char *output;
     unsigned char len_high;
     unsigned char len_low;
@@ -135,12 +135,12 @@ int main(int argc, char* argv[]) {
             prgm_name = in_name;
         }
     }
-
-    if( name_length > 8 ) { name_length = 8; }
+    if( name_length > 8 ) {
+        name_length = 8;
+    }
 
     /* create the output name */
-    len = strlen( in_name )+5;
-    out_name = malloc( len );
+    out_name = malloc( strlen( in_name )+5 );
     strcpy( out_name, in_name );
     strcpy( out_name+(ext-in_name), ".8x");
     strcat( out_name, (file_type == PGRM_TYPE) ? "p" : "v" );
@@ -181,10 +181,11 @@ int main(int argc, char* argv[]) {
         output[offset++] = prgm_name[i];
     }
 
-    /* parse the Intel Hex file, and store it into the data array */
-    /* note fgets() basically can be used to get each line really quick */
     offset = 0x4A;
 
+    /* parse the Intel Hex file, and store it into the data array */
+
+    /* note fgets() basically can be used to get each line really quick */
     fgets( tmp_buf, 0x300, in_file );
 
     /* Ignore initial "Extended Linear Address" line if present */
