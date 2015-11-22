@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define PGRM_TYPE   0x06
 #define APPVAR_TYPE 0x15
@@ -176,7 +177,7 @@ int main(int argc, char* argv[]) {
     printf("Mark archived: %s\n", (archived == ARCHIVED) ? "Yes" : "No");
 
     offset = 0x3C;
-    for ( i=0; i<name_length; ++i) {
+    for ( i=0; i<(int)name_length; ++i) {
         output[offset++] = prgm_name[i];
     }
 
@@ -250,7 +251,7 @@ int main(int argc, char* argv[]) {
     /* free the out_name buffer */
     free( in_name );
     free( out_name );
-    printf("Success!\n\nProgram Size: %d\n", output_size);
 
+    printf("Success!\n\nProgram Size: %zu bytes\n", output_size);
     return 0;
 }
