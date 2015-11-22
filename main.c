@@ -184,8 +184,14 @@ int main(int argc, char* argv[]) {
     /* parse the Intel Hex file, and store it into the data array */
     /* note fgets() basically can be used to get each line really quick */
     offset = 0x4A;
+
     fgets( tmp_buf, 0x300, in_file );
-    
+
+    /* Ignore initial "Extended Linear Address" line if present */
+    if ( tmp_buf[8] == '4' ) {
+        fgets( tmp_buf, 0x300, in_file );
+    }
+
     while( tmp_buf[8] == '0' ) {
 
         if( tmp_buf[0] != ':' ) {
