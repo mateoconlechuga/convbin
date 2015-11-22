@@ -1,10 +1,15 @@
-# ConvHex Utility v1.21 - by M.Waltz
-Converts between Intel HEX format and TI usable format.
-Useful for generating programs directly from the output of ZDS
+# ConvHex
+v1.23  
+(C) 2015 M. Waltz
 
-Usage:
-	convhex [-options] <filename>
-Options:
-	A: Mark output binary as archived (Default is unarchived)
-	V: Write output to Appvar (Default is program)
-	H: Show help message
+Converts from Intel HEX format to TI-z80 usable format.  
+Useful for generating programs directly from the output of ZDS  
+
+##### Usage:  
+```convhex [-options] <filename>```
+
+Options:   
+* a: Mark output binary as archived (Default is unarchived)
+* v: Write output to Appvar (Default is program)
+* n: Override varname (example: -n MYPRGM)
+* h: Show help message
