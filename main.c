@@ -148,12 +148,12 @@ int main(int argc, char* argv[]) {
     /* open the specified files */
     in_file = fopen( in_name, "r" );
     if ( !in_file ) {
-        printf("ERROR: Unable to open input file.");
+        fprintf(stderr, "ERROR: Unable to open input file.\n");
         return 1;
     }
     out_file = fopen( out_name, "wb" );
     if ( !out_file ) {
-        printf("ERROR: Unable to open output file.");
+        fprintf(stderr, "ERROR: Unable to open output file.\n");
         return 1;
     }
 
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
     while( tmp_buf[8] == '0' ) {
 
         if( tmp_buf[0] != ':' ) {
-            printf("ERROR: Invalid Intel Hex format.\n");
+            fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
             return 2;
         }
 
@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
 
     /* make sure our output file isn't too big */
     if(output_size > 0x10000) {
-        printf("ERROR: Input file too large.");
+        fprintf(stderr, "ERROR: Input file too large.");
         return 3;
     }
 
