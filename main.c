@@ -53,47 +53,47 @@ int main(int argc, char* argv[]) {
     /* temporary buffer for reading files */
     char tmp_buf[0x300];
 
-    size_t name_length;
-    size_t data_length;
-    size_t output_size;
-
     /* header for TI files */
     unsigned char header[]  = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
     unsigned char archived  = UNARCHIVED;
     unsigned char file_type = PGRM_TYPE;
-    unsigned char *output;
     unsigned char len_high;
     unsigned char len_low;
+    unsigned char *output;
 
-    int opt;
     int i;
+    int opt;
     int offset;
     int checksum;
     int line_size;
     int name_override = 0;
+    
+    int name_length;
+    int data_length;
+    int output_size;
 
     /* separate ouput a bit */
     printf("\n");
 
     if(argc > 1)
     {
-        while ((opt = getopt(argc, argv, "avhn:")) != -1)
+        while ( (opt = getopt(argc, argv, "avhn:") ) != -1)
         {
             switch (opt)
             {
-                case 'a':   // archive output
+                case 'a':   /* archive output */
                     archived = ARCHIVED;
                     break;
-                case 'v':   // write output to appvar
+                case 'v':   /* write output to appvar */
                     file_type = APPVAR_TYPE;
                     break;
-                case 'n':   // specify varname
+                case 'n':   /* specify varname */
                     printf("Varname override: '%s'\n", optarg);
                     name_override = 1;
                     prgm_name = strdup(optarg);
                     name_length = strlen(optarg);
                     break;
-                case 'h':   // show help
+                case 'h':   /* show help */
                     goto show_help;
                     break;
                 default:
@@ -185,38 +185,32 @@ int main(int argc, char* argv[]) {
     printf("Output Calculator Name: %s\n", prgm_name);
     printf("Mark archived: %s\n", (archived == ARCHIVED) ? "Yes" : "No");
 
+    /* store the program name */
     offset = 0x3C;
     for ( i=0; i<(int)name_length; ++i) {
         output[offset++] = prgm_name[i];
     }
 
-    offset = 0x4A;
-
     /* parse the Intel Hex file, and store it into the data array */
+    offset = 0x4A;
+    do {
+	/* note fgets() basically can be used to get each line really quick */
+	fgets( tmp_buf, 0x300, in_file );
+	
+	if( tmp_buf[0] != ':' ) {
+	    fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
+	    return 2;
+	}
+	
+	/* only parse data sections */
+	if( tmp_buf[8] == '0' ) {
+	    /* get the size of the line to convert */
+	    line_size = ascii2HexToByte( tmp_buf+1 );
 
-    /* note fgets() basically can be used to get each line really quick */
-    fgets( tmp_buf, 0x300, in_file );
-
-    /* Ignore initial "Extended Linear Address" line if present */
-    if ( tmp_buf[8] == '4' ) {
-        fgets( tmp_buf, 0x300, in_file );
-    }
-
-    while( tmp_buf[8] == '0' ) {
-
-        if( tmp_buf[0] != ':' ) {
-            fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
-            return 2;
-        }
-
-        /* get the size of the line to convert */
-        line_size = ascii2HexToByte( tmp_buf+1 );
-
-        str2hex( tmp_buf+9, output+offset, line_size<<1 );
-        offset += line_size;
-
-        fgets( tmp_buf, 0x300, in_file );
-    }
+	    str2hex( tmp_buf+9, output+offset, line_size<<1 );
+	    offset += line_size;
+	}
+    } while( !feof( in_file ) );
 
     output[0x37] = 0x0D;        /* nessasary */
     output[0x3B] = file_type;   /* write file type */
@@ -244,7 +238,9 @@ int main(int argc, char* argv[]) {
 
     /* Calculate checksum */
     checksum = 0;
-    for( i=0x37; i<offset; ++i) { checksum = (checksum + output[i]) % 65536; }
+    for( i=0x37; i<offset; ++i) {
+        checksum = (checksum + output[i])&0xFFFF;
+    }
 
     output[offset++] = (checksum&0xFF);
     output[offset++] = (checksum>>8)&0xFF;
@@ -252,7 +248,7 @@ int main(int argc, char* argv[]) {
     output_size = data_length+name_length+7;
 
     /* make sure our output file isn't too big */
-    if(output_size > 0x10000) {
+    if(output_size > 0xFFFF) {
         fprintf(stderr, "ERROR: Input file too large.");
         return 3;
     }
@@ -268,6 +264,6 @@ int main(int argc, char* argv[]) {
     free( in_name );
     free( out_name );
 
-    printf("Success!\n\nProgram Size: %zu bytes\n", output_size);
+    printf("Success!\n\nProgram Size: %d bytes\n", output_size);
     return 0;
 }
