@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
     output_size = data_length+name_length+7;
 
     /* make sure our output file isn't too big */
-    if(output_size > 0xFFFF) {
+    if(output_size > 0xFFFF-30) {
         fprintf(stderr, "ERROR: Input file too large.");
         return 3;
     }
