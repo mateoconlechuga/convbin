@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    tmp_buf = (char*)malloc(0x512);
+    tmp_buf = (char*)malloc(1024);
     
     /* get the filenames for both out and in files */
     in_name = malloc( strlen( argv[argc-1] )+5 );
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
     offset = 0x4A;
     do {
 	/* note fgets() basically can be used to get each line really quick */
-	fgets( tmp_buf, 0x300, in_file );
+	fgets( tmp_buf, 1023, in_file );
 	
 	if( tmp_buf[0] != ':' ) {
 	    fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
