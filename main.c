@@ -211,6 +211,10 @@ int main(int argc, char* argv[]) {
 
 	    str2hex( tmp_buf+9, output+offset, line_size<<1 );
 	    offset += line_size;
+        if (offset > 0xFFFF) {
+            fprintf(stderr, "ERROR: Input file too large.");
+            goto err;
+        }
 	}
     } while( !feof( in_file ) );
 
