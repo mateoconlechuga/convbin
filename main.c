@@ -42,16 +42,16 @@ static inline void strtoupper(char *sPtr) {
 
 int main(int argc, char* argv[]) {
     /* variable declartions */
-    FILE *out_file;
-    FILE *in_file;
-    char *in_name;
-    char *out_name;
-    char *prgm_name;
-    char *ext;
-    char *tmp;
+    FILE *out_file = NULL;
+    FILE *in_file = NULL;
+    char *in_name = NULL;
+    char *out_name = NULL;
+    char *prgm_name = NULL;
+    char *ext = NULL;
+    char *tmp = NULL;
 
     /* temporary buffer for reading files */
-    char tmp_buf[0x300];
+    char *tmp_buf = NULL;
 
     /* header for TI files */
     unsigned char header[]  = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
     unsigned char file_type = PGRM_TYPE;
     unsigned char len_high;
     unsigned char len_low;
-    unsigned char *output;
+    unsigned char *output = NULL;
 
     int i;
     int opt;
@@ -115,6 +115,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    tmp_buf = (char*)malloc(0x512);
+    
     /* get the filenames for both out and in files */
     in_name = malloc( strlen( argv[argc-1] )+5 );
     strcpy(in_name, argv[argc-1]);
@@ -158,16 +160,16 @@ int main(int argc, char* argv[]) {
     in_file = fopen( in_name, "r" );
     if ( !in_file ) {
         fprintf(stderr, "ERROR: Unable to open input file.\n");
-        return 1;
+        goto err;
     }
     out_file = fopen( out_name, "wb" );
     if ( !out_file ) {
         fprintf(stderr, "ERROR: Unable to open output file.\n");
-        return 1;
+        goto err;
     }
 
     /* allocate space for the file */
-    output = (unsigned char*)calloc( 0x10050, 1 );
+    output = (unsigned char*)calloc( 0x10100, 1 );
 
     /* copy the header to the file buffer */
     for( i=0; i<10; ++i) {
@@ -199,7 +201,7 @@ int main(int argc, char* argv[]) {
 	
 	if( tmp_buf[0] != ':' ) {
 	    fprintf(stderr, "ERROR: Invalid Intel Hex format.\n");
-	    return 2;
+	    goto err;
 	}
 	
 	/* only parse data sections */
@@ -250,7 +252,7 @@ int main(int argc, char* argv[]) {
     /* make sure our output file isn't too big */
     if(output_size > 0xFFFF-30) {
         fprintf(stderr, "ERROR: Input file too large.");
-        return 3;
+        goto err;
     }
 
     /* write the buffer to the file */
@@ -263,7 +265,16 @@ int main(int argc, char* argv[]) {
     /* free the out_name buffer */
     free( in_name );
     free( out_name );
-
+    free( output );
+    free( tmp_buf );
     printf("Success!\n\nProgram Size: %d bytes\n", output_size);
     return 0;
+err:
+    fclose( out_file );
+    fclose( in_file );
+    free( in_name );
+    free( out_name );
+    free( output );
+    free( tmp_buf );
+    return 1;
 }
