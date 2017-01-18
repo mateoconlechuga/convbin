@@ -456,9 +456,9 @@ show_help:
     free(output);
     fprintf(stdout, "Success!\n\n");
     if (compress_output) {
-        fprintf(stdout,"Decompressed Size: %u bytes\n", total_size);
+        fprintf(stdout,"Decompressed Size: %zu bytes\n", total_size);
     }
-    fprintf(stdout, "Output Size: %u bytes\n", output_size);
+    fprintf(stdout, "Output Size: %zu bytes\n", output_size);
     if (output_size > total_size) {
         fprintf(stdout,"\n[WARNING] Compressed size larger than input.\n");
     }
