@@ -3,10 +3,10 @@
 Converts from Intel HEX format and other formats to TI usable format.
 Input extension can be .hex, .bin, .8xp
 
-##### Usage:  
+##### Usage
 ```convhex [-options] <filename>```
 
-Options:
+##### Options
 * a: Mark output binary as archived (Default is unarchived)
 * v: Write output to AppVar (Default is program)
 * n: Override varname (example: -n MYPRGM)
@@ -15,7 +15,7 @@ Options:
 * b: Write output to binary file rather than 8x* file
 * h: Show this message
 
-Credits:
+##### Credits
 
 (C) 2017 Matt Waltz
 

@@ -125,8 +125,8 @@ int main(int argc, char* argv[]) {
     
     size_t name_length;
     size_t data_size;
-    size_t output_size;
-    size_t total_size;
+    size_t output_size = 0;
+    size_t total_size = 0;
     
     int opt;
     int input_type = FILE_HEX;
@@ -163,28 +163,28 @@ int main(int argc, char* argv[]) {
                     compress_output = true;
                     add_extractor = true;
                     break;
-                case 'b':
+                case 'b':   /* output a .bin file */
                     output_bin = true;
                     break;
                 case 'h':   /* show help */
                     goto show_help;
                 default:
-                    fprintf(stdout, "[err] Unrecognized option: '%s'\n", optarg);
+                    printf("[err] Unrecognized option: '%s'\n", optarg);
                     goto show_help;
             }
         }
     } else {
 show_help:
-        fprintf(stdout, "ConvHex Utility v2.0 - by M. Waltz\n\n");
-        fprintf(stdout, "Usage:\n\tconvhex [-options] <filename>\n");
-        fprintf(stdout, "Options:\n");
-        fprintf(stdout, "\ta: Mark output binary as archived (Default is unarchived)\n");
-        fprintf(stdout, "\tv: Write output to Appvar (Default is program)\n");
-        fprintf(stdout, "\tn: Override varname (example: -n MYPRGM)\n");
-        fprintf(stdout, "\tx: Create compressed self extracting file (useful for programs, output written to <filename_>)");
-        fprintf(stdout, "\tc: Compress input");
-        fprintf(stdout, "\tb: Write output to binary file rather than 8x* file");
-        fprintf(stdout, "\th: Show this message\n");
+        puts("ConvHex Utility v2.0 - by M. Waltz\n");
+        puts("Usage:\n\tconvhex [-options] <filename>");
+        puts("Options:");
+        puts("\ta: Mark output binary as archived (Default is unarchived)");
+        puts("\tv: Write output to AppVar (Default is program)");
+        puts("\tn: Override varname (Example: -n MYPRGM)");
+        puts("\tx: Create compressed self extracting file\n\t\t(Useful for programs, output written to <filename_>)");
+        puts("\tc: Compress input\n\t\t(Useful for AppVars)");
+        puts("\tb: Write output to binary file rather than 8x* file");
+        puts("\th: Show this message");
         return 0;
     }
     
@@ -230,7 +230,7 @@ show_help:
     }
 
     /* create the output name */
-    if (add_extractor) {
+    if (add_extractor && input_type == FILE_8XP) {
         out_name = malloc(strlen(in_name)+6);
         strcpy(out_name, in_name);
         strcpy(out_name+(ext-in_name), "_.8x");
@@ -342,7 +342,7 @@ show_help:
         unsigned int offset_to_start = 0;
         uint8_t *compressed_data;
         size_t compressed_size;
-        
+	
         offset = DATA_START;
         
         if (add_extractor) {
@@ -454,13 +454,13 @@ show_help:
     free(in_name);
     free(out_name);
     free(output);
-    fprintf(stdout, "Success!\n\n");
+    printf("Success!\n\n");
     if (compress_output) {
-        fprintf(stdout,"Decompressed Size: %u bytes\n", total_size);
+        printf("Decompressed Size: %u bytes\n", total_size);
     }
-    fprintf(stdout, "Output Size: %u bytes\n", output_size);
-    if (output_size > total_size) {
-        fprintf(stdout,"\n[WARNING] Compressed size larger than input.\n");
+    printf("Output Size: %u bytes\n", output_size);
+    if (compress_output && output_size > (total_size+name_length+7)) {
+        puts("\n[WARNING] Compressed size larger than input.");
     }
     return 0;
     
