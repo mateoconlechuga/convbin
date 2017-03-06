@@ -3,13 +3,13 @@ CFLAGS = -Wall -Wextra -fPIE -O3
 LDFLAGS = -flto
 SOURCES = zx7/zx7.c zx7/zx7_opt.c main.c
 OBJECTS = $(SOURCES:.c=.o)
-EXECUTABLE = ConvHex
+EXECUTABLE = convhex
 
-.PHONY: ConvHex clean
+.PHONY: convhex clean
 
-all: ConvHex
+all: convhex
 
-ConvHex: $(SOURCES)
+convhex: $(SOURCES)
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@

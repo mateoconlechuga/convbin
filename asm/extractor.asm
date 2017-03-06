@@ -38,8 +38,8 @@ relocate(plotSScreen)
 	or	a,a
 	sbc	hl,hl
 	ld	(asm_prgm_size),hl
-	ld	hl,0                        ; uncompressed size *here*
-	call	_EnoughMem
+	ld	de,0                        ; uncompressed size *here*
+	call	_memchker
 	jp	c,_ErrMemory
 	ld	(asm_prgm_size),de
 	ex	de,hl
@@ -59,7 +59,12 @@ _inram:
 	add	hl,de
 	ld	de,0                        ; decompression location goes *here* -- add whatever offset bytes nesassary
 	call	_dzx7_Standard
-	jp	0                           ; decompression location goes *here* -- add whatever offset bytes nesassary
+	jp	0                           ; decompression location goes *here* -- add whatever offset bytes nesassary              
+_memchker:
+	call _MemChk
+	or a,a
+	sbc hl,de
+	ret
 	
 #include "decompress.asm"
 
