@@ -1,15 +1,20 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -fPIE -O3
 LDFLAGS = -flto
-SOURCES = zx7/zx7.c zx7/zx7_opt.c main.c
-OBJECTS = $(SOURCES:.c=.o)
+
+ifeq ($(OS),Windows_NT)
+RM = del /f 2>nul
+EXECUTABLE = convhex.exe
+SOURCES = zx7\zx7.c zx7\zx7_opt.c main.c
+else
 EXECUTABLE = convhex
+RM = rm -f
+SOURCES = zx7/zx7.c zx7/zx7_opt.c main.c
+endif
 
-.PHONY: convhex clean
+OBJECTS = $(SOURCES:.c=.o)
 
-all: convhex
-
-convhex: $(SOURCES)
+all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
@@ -18,4 +23,6 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(EXECUTABLE) $(OBJECTS)
+	$(RM) $(EXECUTABLE) $(OBJECTS)
+
+.PHONY: clean
