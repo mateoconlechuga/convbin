@@ -12,7 +12,7 @@ RM = rm -f
 SOURCES = zx7/zx7.c zx7/zx7_opt.c main.c
 endif
 
-OBJECTS = $(SOURCES:.c=.o)
+OBJECTS := $(SOURCES:.c=.o)
 
 all: $(EXECUTABLE)
 

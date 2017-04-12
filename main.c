@@ -124,8 +124,8 @@ int main(int argc, char* argv[]) {
     unsigned int offset;
     unsigned int checksum;
     
-    size_t name_length;
-    size_t data_size;
+    size_t name_length = 0;
+    size_t data_size = 0;
     size_t output_size = 0;
     size_t total_size = 0;
     
@@ -457,9 +457,9 @@ show_help:
     free(output);
     printf("Success!\n\n");
     if (compress_output) {
-        printf("Decompressed Size: %u bytes\n", total_size);
+        printf("Decompressed Size: %u bytes\n", (unsigned int)total_size);
     }
-    printf("Output Size: %u bytes\n", output_size);
+    printf("Output Size: %u bytes\n", (unsigned int)output_size);
     if (compress_output && output_size > (total_size+name_length+7)) {
         puts("\n[WARNING] Compressed size larger than input.");
     }
