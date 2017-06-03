@@ -10,7 +10,7 @@ Input extension can be .hex, .bin, .8xp
 * a: Mark output binary as archived (Default is unarchived)
 * v: Write output to AppVar (Default is program)
 * n: Override varname (example: -n MYPRGM)
-* x: Create compressed self extracting file (useful for programs, output written to <filename_>)
+* x: Create compressed self extracting file (underscore added if compressing 8x*)
 * c: Compress input (useful for AppVars)
 * b: Write output to binary file rather than 8x* file
 * h: Show this message
