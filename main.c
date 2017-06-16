@@ -136,7 +136,6 @@ int main(int argc, char* argv[]) {
     bool compress_output = false;
     bool add_extractor = false;
     bool output_bin = false;
-    bool select_smallest = false;
 
     long delta;
     
@@ -166,7 +165,6 @@ int main(int argc, char* argv[]) {
                     add_extractor = true;
                     break;
                 case 't':   /* choose smallest output */
-                    select_smallest = true;
                     break;
                 case 'b':   /* output a .bin file */
                     output_bin = true;
