@@ -39,12 +39,23 @@ enum {
     USERMEM_START = 0xD1A881,
 };
 
-static char *strduplicate(const char *str) {
-    char *dup = malloc(strlen(str) + 1);
-    if (dup) { strcpy(dup, str); }
-    return dup;
+static char *str_dup(const char *s) {
+    char *d = calloc(strlen(s)+1, 1);
+    if (d) strcpy(d, s);
+    return d;
 }
 
+static char *str_dupcat(const char *s, const char *c) {
+    if (!s) {
+        return str_dup(c);
+    } else
+    if (!c) {
+        return str_dup(s);
+    }
+    char *d = malloc(strlen(s)+strlen(c)+1);
+    if (d) { strcpy(d, s); strcat(d, c); }
+    return d;
+}
 /* useful functions */
 static uint8_t charToHexDigit(char c_in) {
     int c = toupper(c_in);
@@ -128,9 +139,7 @@ enum {
     X_JUMP_START = 97,
 };
 
-static size_t output_size = 0;
-static size_t total_size = 0;
-static bool compress_output = false;
+bool output_bin = false;
 
 void export(const char *name, const char *file_name, uint8_t *data, size_t size, uint8_t type, uint8_t archived) {
     const uint8_t header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
@@ -141,7 +150,7 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
     // gather structure information
     uint8_t *output = calloc(0x10200, sizeof(uint8_t));
     unsigned int offset = size + DATA_START;
-    
+
     // Write header bytes
     memcpy(output, header, sizeof header);
     
@@ -184,11 +193,15 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
         exit(1);
     }
     
-    fwrite(output, 1, offset, out_file);
+    if (output_bin) {
+        fwrite(&output[DATA_START], 1, offset - DATA_START - 2, out_file);
+    } else {
+        fwrite(output, 1, offset, out_file);
+    }
     
-    printf("Output File: %s (%s)\n", file_name, name);
-    printf("Archived: %s\n", (archived == ARCHIVED) ? "Yes" : "No");
-    printf("Output Size: %u bytes\n", offset);
+    printf("Output File: [%s] %s\n", name, file_name);
+    printf("Archived: %s\n", archived == ARCHIVED ? "Yes" : "No");
+    printf("Size: %u bytes\n--------------------\n", offset - DATA_START - 2);
     
     // close the file
     fclose(out_file);
@@ -211,17 +224,19 @@ int main(int argc, char* argv[]) {
     uint8_t var_type = TYPE_PRGM;
     uint8_t *data = NULL;
     
-    unsigned int offset;
+    unsigned int offset = 0;
     
     size_t name_length = 0;
     size_t data_size = 0;
+    size_t output_size = 0;
+    size_t total_size = 0;
+    bool compress_output = false;
     
     int opt;
     int input_type = FILE_HEX;
     
     bool name_override = false;
     bool add_extractor = false;
-    bool output_bin = false;
 
     long delta;
     
@@ -240,7 +255,7 @@ int main(int argc, char* argv[]) {
                 case 'n':   /* specify varname */
                     printf("Varname override: '%s'\n", optarg);
                     name_override = true;
-                    var_name = strduplicate(optarg);
+                    var_name = str_dup(optarg);
                     name_length = strlen(optarg);
                     break;
                 case 'c':   /* compress input */
@@ -450,7 +465,8 @@ show_help:
             w24(r24(&asm_extractor[X_JUMP_START])    + offset_to_start, &asm_extractor[X_JUMP_START]);
         }
         
-        compressed_data = compress(optimize(&data[offset], data_size), &data[offset], data_size, &compressed_size, &delta);
+        Optimal *optimized = optimize(&data[offset], data_size);
+        compressed_data = compress(optimized, &data[offset], data_size, &compressed_size, &delta);
         
         if (add_extractor) {
             memcpy(&data[offset], asm_extractor, sizeof asm_extractor);
@@ -459,11 +475,53 @@ show_help:
         
         memcpy(&data[offset], compressed_data, compressed_size);
         offset += compressed_size;
+        
+        free(compressed_data);
+        free(optimized);
     }
 
-    if (offset > MAX_VAR_SIZE) {
-        exit(0);
+    if (offset > MAX_VAR_SIZE) {    
+        if (name_length == 8) {
+            printf("error: output name too long for size.\n");
+            exit(1);
+        }
+        
+        unsigned int num_appvars = (offset / MAX_VAR_SIZE) + 1;
+        unsigned int pos = 0;
+        unsigned int len = MAX_VAR_SIZE;
+        
+        printf("Input data too large (%u bytes); splitting across %u variable(s).\n", offset, num_appvars);
+        puts("--------------------");
+        
+        for (unsigned int i = 0; i < num_appvars; i++) {
+            char *file_name, *appvar_name;
+            char tmpbuf[10];
+            
+            sprintf(tmpbuf, "appvar%u_", i);
+            file_name = str_dupcat(tmpbuf, out_name);
+            file_name[strlen(file_name)-1] = 'v';
+            sprintf(tmpbuf, "%u", i);
+            appvar_name = str_dupcat(var_name, tmpbuf);
+            
+            export(appvar_name, file_name, data + pos, len, TYPE_APPVAR, ARCHIVED);
+            
+            memcpy(&asm_large_extractor[25+(i*11)], appvar_name, strlen(appvar_name));
+            
+            free(file_name);
+            free(appvar_name);
+            
+            pos += len;
+            offset -= len;
+            if (offset > MAX_VAR_SIZE) {
+                len = MAX_VAR_SIZE;
+            } else {
+                len = offset;
+            }
+        }
+        
+        export(var_name, out_name, asm_large_extractor, sizeof asm_large_extractor, var_type, archived);
     } else {
+        puts("--------------------");
         export(var_name, out_name, data, offset, var_type, archived);
     }
     
@@ -478,7 +536,7 @@ show_help:
     
     /* close the file handler and buffers */
     goto done;
-       
+    
 err_to_large:
     fprintf(stderr, "[error] input file too large.\n");
 err:
@@ -486,5 +544,6 @@ done:
     if (in_file) { fclose(in_file); }
     free(in_name);
     free(out_name);
+    free(data);
     return 1;
 }

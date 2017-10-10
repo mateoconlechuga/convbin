@@ -113,6 +113,9 @@ Optimal* optimize(unsigned char *input_data, size_t input_size) {
 
     /* save time by releasing the largest block only, the O.S. will clean everything else later */
     free(match_slots);
-
+    free(matches);
+    free(max);
+    free(min);
+    
     return optimal;
 }
