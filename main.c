@@ -8,8 +8,13 @@
 
 #include "zx7/zx7.h"
 
-#define m8(x) ((x)&255)
+#define m8(x)  ((x)&255)
+#define mr8(x) (((x)>>8)&255)
 #define m16(x) ((x)&65535)
+
+#define MAX_SIZE 0x100000
+#define MAX_VAR_SIZE 0xFFFF-30
+#define MAX_PRGM_SIZE 0xFFFF-300
 
 enum {
     UNARCHIVED = 0,
@@ -94,6 +99,27 @@ static uint8_t asm_extractor[] = {
     0xE1, 0x30, 0xBC, 0x87, 0xC0, 0x7E, 0x23, 0x17, 0xC9
 };
 
+static uint8_t asm_large_extractor[] = {
+    0xEF, 0x7B, 0x21, 0x93, 0xA8, 0xD1, 0x11, 0x00, 0x08, 0xE3, 0x01, 0xE8, 0x00, 0x00, 0xED, 0xB0,
+    0xC3, 0x00, 0x08, 0xE3, 0xC3, 0x25, 0x08, 0xE3,
+    0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // offset to 1st appvar (offset = 25)
+    0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // offset to 2nd appvar (offset = 36)
+    0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // offset to 3rd appvar (offset = 47)
+    0x21, 0x81, 0xA8, 0xD1, 0xED, 0x5B, 0x8C, 0x11, 0xD0, 0xCD, 0x90, 0x05, 0x02, 0xAF, 0xED, 0x62,
+    0x22, 0x8C, 0x11, 0xD0, 0x21, 0x05, 0x08, 0xE3, 0xBE, 0xCA, 0xA8, 0x08, 0xE3, 0x2B, 0xE5, 0xCD,
+    0x20, 0x03, 0x02, 0xCD, 0x0C, 0x05, 0x02, 0x30, 0x04, 0xC3, 0xA8, 0x08, 0xE3, 0xCD, 0x98, 0x1F,
+    0x02, 0x20, 0x0E, 0xCD, 0x28, 0x06, 0x02, 0xCD, 0x48, 0x14, 0x02, 0xCD, 0xC4, 0x05, 0x02, 0x18,
+    0xDE, 0xEB, 0x11, 0x09, 0x00, 0x00, 0x19, 0x5E, 0x19, 0x23, 0xCD, 0x9C, 0x1D, 0x02, 0xE5, 0xD5,
+    0x11, 0x81, 0xA8, 0xD1, 0x2A, 0x8C, 0x11, 0xD0, 0x19, 0xEB, 0xE1, 0xD5, 0xE5, 0xCD, 0x14, 0x05,
+    0x02, 0xE1, 0xE5, 0xED, 0x5B, 0x8C, 0x11, 0xD0, 0x19, 0x22, 0x8C, 0x11, 0xD0, 0xC1, 0xD1, 0xE1,
+    0xED, 0xB0, 0xE1, 0x01, 0x0C, 0x00, 0x00, 0x09, 0xAF, 0xBE, 0x2B, 0xC2, 0x43, 0x08, 0xE3, 0xC3,
+    0x81, 0xA8, 0xD1, 0xCD, 0x3C, 0x1A, 0x02, 0xCD, 0x14, 0x08, 0x02, 0xCD, 0x28, 0x08, 0x02, 0x21,
+    0xD2, 0x08, 0xE3, 0xCD, 0xC0, 0x07, 0x02, 0xCD, 0x4C, 0x01, 0x02, 0xFE, 0x09, 0x28, 0x06, 0xFE,
+    0x0F, 0x28, 0x02, 0x18, 0xF2, 0xCD, 0x14, 0x08, 0x02, 0xC3, 0x28, 0x08, 0x02, 0x45, 0x52, 0x52,
+    0x4F, 0x52, 0x3A, 0x20, 0x4D, 0x69, 0x73, 0x73, 0x69, 0x6E, 0x67, 0x20, 0x41, 0x70, 0x70, 0x76,
+    0x61, 0x72, 0x00
+};
+
 enum {
     X_DATA_START = 1,
     X_SIZE = 39,
@@ -102,38 +128,98 @@ enum {
     X_JUMP_START = 97,
 };
 
+static size_t output_size = 0;
+static size_t total_size = 0;
+static bool compress_output = false;
+
+void export(const char *name, const char *file_name, uint8_t *data, size_t size, uint8_t type, uint8_t archived) {
+    const uint8_t header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
+    unsigned int data_size;
+    unsigned int i,checksum;
+    FILE *out_file;
+    
+    // gather structure information
+    uint8_t *output = calloc(0x10200, sizeof(uint8_t));
+    unsigned int offset = size + DATA_START;
+    
+    // Write header bytes
+    memcpy(output, header, sizeof header);
+    
+    // write name
+    memcpy(&output[0x3C], name, strlen(name));
+    memcpy(&output[0x4A], data, size);
+    
+    // write config bytes
+    output[0x37] = 0x0D;
+    output[0x3B] = type;
+    output[0x45] = archived;
+
+    data_size = offset - HEADER_START;
+    output[0x35] = m8(data_size);
+    output[0x36] = mr8(data_size);
+
+    data_size = offset - DATA_START;
+    output[0x48] = m8(data_size);
+    output[0x49] = mr8(data_size);
+
+    // size bytes
+    data_size += 2;
+    output[0x39] = m8(data_size);
+    output[0x3A] = mr8(data_size);
+    output[0x46] = m8(data_size);
+    output[0x47] = mr8(data_size);
+
+    // calculate checksum
+    checksum = 0;
+    for (i = HEADER_START; i < offset; ++i) {
+        checksum = m16(checksum + output[i]);
+    }
+
+    output[offset++] = m8(checksum);
+    output[offset++] = mr8(checksum);
+
+    // write the buffer to the file
+    if (!(out_file = fopen(file_name, "wb"))) {
+        fprintf(stderr, "Unable to open output program file.");
+        exit(1);
+    }
+    
+    fwrite(output, 1, offset, out_file);
+    
+    printf("Output File: %s (%s)\n", file_name, name);
+    printf("Archived: %s\n", (archived == ARCHIVED) ? "Yes" : "No");
+    printf("Output Size: %u bytes\n", offset);
+    
+    // close the file
+    fclose(out_file);
+    
+    // free the memory
+    free(output);
+}
+
 int main(int argc, char* argv[]) {
     /* variable declartions */
-    FILE *out_file = NULL;
     FILE *in_file = NULL;
     char *in_name = NULL;
     char *out_name = NULL;
-    char *prgm_name = NULL;
+    char *var_name = NULL;
     char *ext = NULL;
     char *tmp = NULL;
 
     /* header for TI files */
-    uint8_t header[]  = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
     uint8_t archived  = UNARCHIVED;
-    uint8_t file_type = TYPE_PRGM;
-    uint8_t len_high;
-    uint8_t len_low;
-    uint8_t *output = NULL;
-
-    unsigned int i;
+    uint8_t var_type = TYPE_PRGM;
+    uint8_t *data = NULL;
+    
     unsigned int offset;
-    unsigned int checksum;
     
     size_t name_length = 0;
     size_t data_size = 0;
-    size_t output_size = 0;
-    size_t total_size = 0;
     
     int opt;
     int input_type = FILE_HEX;
     
     bool name_override = false;
-    bool compress_output = false;
     bool add_extractor = false;
     bool output_bin = false;
 
@@ -149,12 +235,12 @@ int main(int argc, char* argv[]) {
                     archived = ARCHIVED;
                     break;
                 case 'v':   /* write output to appvar */
-                    file_type = TYPE_APPVAR;
+                    var_type = TYPE_APPVAR;
                     break;
                 case 'n':   /* specify varname */
                     printf("Varname override: '%s'\n", optarg);
                     name_override = true;
-                    prgm_name = strduplicate(optarg);
+                    var_name = strduplicate(optarg);
                     name_length = strlen(optarg);
                     break;
                 case 'c':   /* compress input */
@@ -216,15 +302,15 @@ show_help:
         tmp = strrchr(in_name, '\\');
         if (tmp != NULL) {
             name_length = ext-tmp-1;
-            prgm_name = tmp+1;
+            var_name = tmp+1;
         } else {
             tmp = strrchr(in_name, '/');
             if (tmp != NULL) {
                 name_length = ext-tmp-1;
-                prgm_name = tmp+1;
+                var_name = tmp+1;
             } else {
                 name_length = ext-in_name;
-                prgm_name = in_name;
+                var_name = in_name;
             }
         }
     }
@@ -243,14 +329,14 @@ show_help:
         strcpy(out_name+(ext-in_name), ".8x");
     }
 
-    strcat(out_name, (file_type == TYPE_PRGM) ? "p" : "v");
+    strcat(out_name, (var_type == TYPE_PRGM) ? "p" : "v");
     
     if (output_bin) {
         strcpy((char*)get_ext(out_name), "bin");
     }
     
     /* print out some debug things */
-    printf("Input File: %s\nOutput File: %s\n", in_name, out_name);
+    printf("Input File: %s\n", in_name);
     
     /* open the specified files */
     in_file = fopen(in_name, "rb");
@@ -260,31 +346,15 @@ show_help:
     }
     
     /* write program name */
-    prgm_name[name_length] = '\0';
-    strtoupper(prgm_name);
-    
-    printf("Calculator Name: %s\n", prgm_name);
-    printf("Archived: %s\n", (archived == ARCHIVED) ? "Yes" : "No");
-    
-    /* allocate space for the output file */
-    output = calloc(0x80000, 1);
+    var_name[name_length] = '\0';
+    strtoupper(var_name);
 
-    /* copy the header to the file buffer */
-    for(i=0; i<sizeof(header); ++i) {
-        output[i] = header[i];
-    }
-    
-    /* store the program name */
-    offset = 0x3C;
-    for (i=0; i<name_length; ++i) {
-        output[offset++] = prgm_name[i];
-    }
-
-    /* locate offset at data region */
-    offset = DATA_START;
+    /* set up memory for data section */
+    data = calloc(0x100000, 1);
     
     if (input_type == FILE_HEX) {
         /* parse the Intel Hex file, and store it into the data array */
+        /* don't bother with too many checks */
         do {
             if (fgetc(in_file) == ':') {
                 fseek(in_file, 7, SEEK_CUR);
@@ -297,8 +367,8 @@ show_help:
                         
                         /* if detect a newline, break */
                         if (isxdigit(c_high) && isxdigit(c_low)) {
-                            output[offset++] = (charToHexDigit(c_high) << 4) | charToHexDigit(c_low);
-                             if (offset > 0x7FFFF) {
+                            data[offset++] = (charToHexDigit(c_high) << 4) | charToHexDigit(c_low);
+                            if (offset > MAX_SIZE-1) {
                                 goto err_to_large;
                             }
                         } else {
@@ -316,8 +386,8 @@ show_help:
     if (input_type == FILE_BIN) {
         int c;
         while((c = fgetc(in_file)) != EOF) {
-            output[offset++] = (uint8_t)c;
-            if (offset > 0x7FFFF) {
+            data[offset++] = (uint8_t)c;
+            if (offset > MAX_SIZE-1) {
                 goto err_to_large;
             }
         }
@@ -328,8 +398,8 @@ show_help:
         int c;
         fseek(in_file, DATA_START, SEEK_SET);
         while((c = fgetc(in_file)) != EOF) {
-            output[offset++] = (uint8_t)c;
-            if (offset > 0x7FFFF) {
+            data[offset++] = (uint8_t)c;
+            if (offset > MAX_SIZE-1) {
                 goto err_to_large;
             }
         }
@@ -338,7 +408,7 @@ show_help:
         offset -= 2;
     }
     
-    total_size = data_size = (offset-DATA_START);
+    total_size = data_size = offset;
     
     /* compress the output */
     if (compress_output) {
@@ -346,30 +416,29 @@ show_help:
         uint8_t *compressed_data;
         size_t compressed_size;
     
-        offset = DATA_START;
+        offset = 0;
         
         if (add_extractor) {
-            if (output[offset] == 0xEF && output[offset+1] == 0x7B) {
+            if (data[0] == 0xEF && data[1] == 0x7B) {
                 offset += 2;
                 
                 /* check if we have more meta information */
-                if (output[offset] == 0) {
+                if (data[offset] == 0) {
                     offset++;
-                    offset_to_start++;
                 }
                 /* icon stuff is weird */
-                if (output[offset] == 0xC3) {
+                if (data[offset] == 0xC3) {
                     offset++;
                     
-                    offset_to_start = output[offset] | (output[offset+1]<<8) | (output[offset+2]<<16);
+                    offset_to_start = data[offset] | (data[offset+1]<<8) | (data[offset+2]<<16);
                     offset_to_start -= USERMEM_START;
                     
-                    offset += offset_to_start - (offset - DATA_START) + 2;
+                    offset += offset_to_start - offset + 2;
                 }
             }
             
-            offset_to_start = offset - DATA_START;
-            data_size -= offset_to_start;
+            offset_to_start = offset;
+            data_size -= offset;
             
             /* write uncompressed size */
             w24(total_size, &asm_extractor[X_SIZE]);
@@ -381,99 +450,41 @@ show_help:
             w24(r24(&asm_extractor[X_JUMP_START])    + offset_to_start, &asm_extractor[X_JUMP_START]);
         }
         
-        compressed_data = compress(optimize(&output[offset], data_size), &output[offset], data_size, &compressed_size, &delta);
+        compressed_data = compress(optimize(&data[offset], data_size), &data[offset], data_size, &compressed_size, &delta);
         
         if (add_extractor) {
-            memcpy(&output[offset], asm_extractor, sizeof(asm_extractor));
-            offset += sizeof(asm_extractor);
+            memcpy(&data[offset], asm_extractor, sizeof asm_extractor);
+            offset += sizeof asm_extractor;
         }
         
-        memcpy(&output[offset], compressed_data, compressed_size);
+        memcpy(&data[offset], compressed_data, compressed_size);
         offset += compressed_size;
     }
-    
-    output[HEADER_START] = 0x0D;        /* nessasary */
-    output[0x3B] = file_type;           /* write file type */
-    output[0x45] = archived;            /* write archive status */
 
-    data_size = (offset - HEADER_START);
-    len_high = m8(data_size>>8);
-    len_low = m8(data_size);
-    output[0x35] = len_low;
-    output[0x36] = len_high;
-
-    data_size = (offset-DATA_START);
-    len_high = m8(data_size>>8);
-    len_low = m8(data_size);
-    output[0x48] = len_low;
-    output[0x49] = len_high;
-
-    data_size += 2;               /* for size bytes */
-    len_high = m8(data_size>>8);
-    len_low = m8(data_size);
-    output[0x39] = len_low;
-    output[0x3A] = len_high;
-    output[0x46] = len_low;
-    output[0x47] = len_high;
-
-    /* Calculate checksum */
-    checksum = 0;
-    for(i=0x37; i<offset; ++i) {
-        checksum = m16(checksum + output[i]);
-    }
-
-    output[offset++] = m8(checksum);
-    output[offset++] = m8(checksum>>8);
-
-    output_size = data_size+name_length+7;
-
-    /* make sure our output file isn't too big */
-    if (output_size > 0xFFFF-30) {
-        goto err_to_large;
-    }
-
-    /* close the input file handler */
-    fclose(in_file);
-    
-    /* write the buffer to the file */
-    out_file = fopen(out_name, "wb");
-    if (!out_file) {
-        fprintf(stderr, "[error] unable to open output file.\n");
-        goto err;
-    }
-    
-    if (output_bin) {
-        total_size -= 0x4A+2;
-        output_size -= 0x4A+2;
-        fwrite(&output[0x4A], 1, offset-0x4A-2, out_file);
+    if (offset > MAX_VAR_SIZE) {
+        exit(0);
     } else {
-        fwrite(output, 1, offset, out_file);
+        export(var_name, out_name, data, offset, var_type, archived);
     }
     
-    /* close the file handlers */
-    fclose(out_file);
-
-    /* free the out_name buffer */
-    free(in_name);
-    free(out_name);
-    free(output);
-    printf("Success!\n\n");
     if (compress_output) {
         printf("Decompressed Size: %u bytes\n", (unsigned int)total_size);
     }
-    printf("Output Size: %u bytes\n", (unsigned int)output_size);
     if (compress_output && output_size > (total_size+name_length+7)) {
         puts("\n[WARNING] Compressed size larger than input.");
     }
-    return 0;
     
+    printf("Success!\n\n");
+    
+    /* close the file handler and buffers */
+    goto done;
+       
 err_to_large:
     fprintf(stderr, "[error] input file too large.\n");
 err:
-    if (out_file) { fclose(out_file); }
+done:
     if (in_file) { fclose(in_file); }
     free(in_name);
     free(out_name);
-    free(output);
     return 1;
 }
