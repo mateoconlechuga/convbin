@@ -61,9 +61,9 @@ _inram:
 	call	_dzx7_Standard
 	jp	0                           ; decompression location goes *here* -- add whatever offset bytes nesassary              
 _memchker:
-	call _MemChk
-	or a,a
-	sbc hl,de
+	call	_MemChk
+	or	a,a
+	sbc	hl,de
 	ret
 	
 #include "decompress.asm"
