@@ -243,6 +243,8 @@ int main(int argc, char* argv[]) {
 
     long delta;
     
+    int retVal;
+    
     /* separate ouput a bit */
     fputc('\n', stdout);
 
@@ -558,6 +560,7 @@ show_help:
     }
     
     printf("Success!\n\n");
+    retVal = 0;
     
     /* close the file handler and buffers */
     goto done;
@@ -565,10 +568,12 @@ show_help:
 err_to_large:
     fprintf(stderr, "[error] input file too large.\n");
 err:
+    retVal = 1;
 done:
     if (in_file) { fclose(in_file); }
     free(in_name);
     free(out_name);
     free(data);
-    return 1;
+    
+    return retVal;
 }
