@@ -482,14 +482,12 @@ show_help:
                 case 2: // extended segment address
                     hex_mem = HEX_SEGMENT_ADDRESS;
                     hex_seg_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
-                    hex_got_addr = false;
                     break;
                 case 3: // start segment address
                     break;
                 case 4: // extended linear address
                     hex_mem = HEX_LINEAR_ADDRESS;
                     hex_linear_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
-                    hex_got_addr = false;
                     break;
                 case 5: // start linear address
                     break;
