@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -fPIE -O3
+CFLAGS = -W -Wall -Wextra -std=c99 -fPIE -O3 -flto
 LDFLAGS = -flto
 
 ifeq ($(OS),Windows_NT)
