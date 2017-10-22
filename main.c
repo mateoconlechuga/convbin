@@ -16,6 +16,12 @@
 #define MAX_VAR_SIZE 0xFFFF-30
 #define MAX_PRGM_SIZE 0xFFFF-300
 
+#define HexFirstCharacter   1
+#define HexHeadSize         8
+#define HexChecksumSize     2
+#define HexStringEnd        2
+#define HexLineSize         ((HexFirstCharacter + HexHeadSize + 255 + HexChecksumSize + HexStringEnd) * 2)
+
 enum {
     UNARCHIVED = 0,
     ARCHIVED = 128,
@@ -34,10 +40,22 @@ enum {
 };
 
 enum {
+    ERROR_NONE,
+    ERROR_INCOMPATIBLE,
+    ERROR_MEMORY,
+    ERROR_COMPLETE
+};
+
+enum {
     HEADER_START = 0x37,
     DATA_START = 0x4A,
     USERMEM_START = 0xD1A881,
 };
+
+typedef enum  {
+    HEX_SEGMENT_ADDRESS,
+    HEX_LINEAR_ADDRESS
+} hex_memtype_t;
 
 static char *str_dup(const char *s) {
     char *d = calloc(strlen(s)+1, 1);
@@ -55,15 +73,6 @@ static char *str_dupcat(const char *s, const char *c) {
     char *d = malloc(strlen(s)+strlen(c)+1);
     if (d) { strcpy(d, s); strcat(d, c); }
     return d;
-}
-/* useful functions */
-static uint8_t charToHexDigit(char c_in) {
-    int c = toupper(c_in);
-    if (c >= 'A') {
-        return (c - 'A' + 10);
-    } else {
-        return (c - '0');
-    }
 }
 
 static void strtoupper(char *sPtr) {
@@ -88,6 +97,25 @@ static void w24(unsigned int data, uint8_t *loc) {
 }
 static unsigned int r24(uint8_t *loc) {
     return loc[0] | (loc[1]<<8) | (loc[2]<<16);
+}
+
+int8_t asciiToNumeric(int8_t c) {
+    if (c >= '0' && c <= '9') {
+        return c - 0x30;
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 87;
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 55;
+    }
+    return 0;
+}
+
+static void asciiToNumericArray(int8_t *data, int8_t *converted_data, unsigned int data_size) {
+	unsigned int pos;
+
+    for (pos = 0; pos < data_size; pos += 2) {
+        converted_data[pos/2] = asciiToNumeric(data[pos+1]) + (asciiToNumeric(data[pos]) << 4);
+    }
 }
 
 static uint8_t asm_extractor[] = { 
@@ -377,32 +405,102 @@ show_help:
     if (input_type == FILE_HEX) {
         /* parse the Intel Hex file, and store it into the data array */
         /* don't bother with too many checks */
-        do {
-            if (fgetc(in_file) == ':') {
-                fseek(in_file, 7, SEEK_CUR);
-                
-                /* only parse data sections */
-                if (fgetc(in_file) == '0') {
-                    do {
-                        int c_high = fgetc(in_file);
-                        int c_low = fgetc(in_file);
-                        
-                        /* if detect a newline, break */
-                        if (isxdigit(c_high) && isxdigit(c_low)) {
-                            data[offset++] = (charToHexDigit(c_high) << 4) | charToHexDigit(c_low);
-                            if (offset > MAX_SIZE-1) {
-                                goto err_to_large;
-                            }
-                        } else {
-                            break;
-                        }
-                    } while (true);
-                    
-                    /* back over line checksum */
-                    offset--;
-                }
+        
+        int8_t current_line[HexLineSize];
+        uint8_t err = ERROR_NONE;
+        bool hex_got_addr = false;
+        unsigned int bin_pos;
+        unsigned int max_offset = 0;
+        uint32_t hex_phys_addr = 0;
+        uint16_t hex_linear_addr = 0;
+        uint16_t hex_seg_addr = 0;
+        uint32_t hex_rel_addr = 0;
+
+        hex_memtype_t hex_mem = HEX_LINEAR_ADDRESS;
+        
+        while (err == ERROR_NONE && fgets((char*)current_line, HexLineSize, in_file)) {
+            unsigned int line_length;
+            int8_t *converted_line;
+            
+            /* check start code */
+            if (current_line[0] != ':') {
+                err = ERROR_INCOMPATIBLE;
+                break;
             }
-        } while(!feof(in_file));
+            
+            /* ensure line is all hex */
+            for (line_length = 1; line_length < HexLineSize && current_line[line_length]; line_length++) {
+                if (current_line[line_length] == '\r' || current_line[line_length] == '\n') {
+                    line_length--;
+                    break;
+                }
+                if (!((current_line[line_length] >= '0' && current_line[line_length] <= '9') ||
+                    (current_line[line_length] >= 'a' && current_line[line_length] <= 'f') ||
+                    (current_line[line_length] >= 'A' && current_line[line_length] <= 'F'))) {
+                    line_length = HexLineSize;
+                }
+		    }
+            if (line_length == HexLineSize ) {
+                err = ERROR_INCOMPATIBLE;
+                break;
+            }
+            
+            /* allocate the data for converting the line itself from ascii to numeric */
+            converted_line = malloc(line_length/2);
+
+		    asciiToNumericArray(&current_line[1], converted_line, line_length);
+            
+            uint8_t hex_num_bytes = converted_line[0];
+            uint16_t hex_addr = ((((uint16_t)converted_line[1]) << 8) & 0xFF00) | (((uint16_t)converted_line[2]) & 0xFF);
+            uint8_t hex_type = converted_line[3];
+            uint8_t hex_pos = 4;
+            
+            switch (hex_type) {
+                case 0: // data
+                    if (hex_mem == HEX_LINEAR_ADDRESS) {
+                        hex_phys_addr = ((((uint32_t)hex_linear_addr) << 16) & 0xFFFF0000) | (((uint32_t)hex_addr) & 0xFFFF);
+                    } else {
+                        hex_phys_addr = ((((uint32_t)hex_seg_addr) << 4) & 0xFFFF0) | (((uint32_t)hex_addr) & 0xFFFF);
+                    }
+                    if (!hex_got_addr) {
+                        hex_rel_addr = hex_phys_addr;
+                        hex_got_addr = true;
+                    }
+                    offset = hex_phys_addr - hex_rel_addr;
+                    for (bin_pos = 0; bin_pos < hex_num_bytes; bin_pos++) {
+                        data[offset++] = converted_line[hex_pos++];
+                    }
+                    if (offset > max_offset) {
+                        max_offset = offset;
+                    }
+                    break;
+                case 1: // end of file
+                    err = ERROR_COMPLETE;
+                    break;
+                case 2: // extended segment address
+                    hex_mem = HEX_SEGMENT_ADDRESS;
+                    hex_seg_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
+                    hex_got_addr = false;
+                    break;
+                case 3: // start segment address
+                    break;
+                case 4: // extended linear address
+                    hex_mem = HEX_LINEAR_ADDRESS;
+                    hex_linear_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
+                    hex_got_addr = false;
+                    break;
+                case 5: // start linear address
+                    break;
+                default:
+                    break;
+            }
+            
+            free(converted_line);
+        }
+        offset = max_offset;
+        if (err != ERROR_COMPLETE) {
+            goto err;
+        }
     } else
     
     if (input_type == FILE_BIN) {
