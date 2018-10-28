@@ -8,6 +8,9 @@
 
 #include "zx7/zx7.h"
 
+#define VERSION_MAJOR 2
+#define VERSION_MINOR 1
+
 #define m8(x)  ((x)&255)
 #define mr8(x) (((x)>>8)&255)
 #define m16(x) ((x)&65535)
@@ -28,6 +31,7 @@ enum {
 };
 
 enum {
+    TYPE_AUTO_GROUP = 0,
     TYPE_PRGM = 6,
     TYPE_APPVAR = 21,
 };
@@ -36,7 +40,7 @@ enum {
     FILE_UNKNOWN,
     FILE_BIN,
     FILE_HEX,
-    FILE_8XP,
+    FILE_8X,
 };
 
 enum {
@@ -84,12 +88,6 @@ static void strtoupper(char *sPtr) {
     }
 }
 
-static const char *get_ext(const char *filename) {
-    const char *dot = strrchr(filename, '.');
-    if (!dot || dot == filename) return "";
-    return dot + 1;
-}
-
 static void w24(unsigned int data, uint8_t *loc) {
     loc[0] = m8(data);
     loc[1] = m8(data>>8);
@@ -111,7 +109,7 @@ int8_t asciiToNumeric(int8_t c) {
 }
 
 static void asciiToNumericArray(int8_t *data, int8_t *converted_data, unsigned int data_size) {
-	unsigned int pos;
+    unsigned int pos;
 
     for (pos = 0; pos < data_size; pos += 2) {
         converted_data[pos/2] = asciiToNumeric(data[pos+1]) + (asciiToNumeric(data[pos]) << 4);
@@ -169,10 +167,10 @@ enum {
     L_SIZE = 11,
 };
 
-bool output_bin = false;
+static bool output_bin = false;
+static const uint8_t header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
 
 void export(const char *name, const char *file_name, uint8_t *data, size_t size, uint8_t type, uint8_t archived) {
-    const uint8_t header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A };
     unsigned int data_size;
     unsigned int i,checksum;
     FILE *out_file;
@@ -183,61 +181,129 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
 
     // Write header bytes
     memcpy(output, header, sizeof header);
-    
-    // write name
-    memcpy(&output[0x3C], name, strlen(name));
-    memcpy(&output[0x4A], data, size);
-    
-    // write config bytes
-    output[0x37] = 0x0D;
-    output[0x3B] = type;
-    output[0x45] = archived;
 
-    data_size = offset - HEADER_START;
-    output[0x35] = m8(data_size);
-    output[0x36] = mr8(data_size);
+    if (type != TYPE_AUTO_GROUP)
+    {
+        data_size = offset - HEADER_START;
+        output[0x35] = m8(data_size);
+        output[0x36] = mr8(data_size);
 
-    data_size = offset - DATA_START;
-    output[0x48] = m8(data_size);
-    output[0x49] = mr8(data_size);
+        // write name
+        memcpy(&output[0x3C], name, strlen(name));
+        memcpy(&output[0x4A], data, size);
+        
+        // write config bytes
+        output[0x37] = 0x0D;
+        output[0x3B] = type;
+        output[0x45] = archived;
 
-    // size bytes
-    data_size += 2;
-    output[0x39] = m8(data_size);
-    output[0x3A] = mr8(data_size);
-    output[0x46] = m8(data_size);
-    output[0x47] = mr8(data_size);
+        data_size = offset - DATA_START;
+        output[0x48] = m8(data_size);
+        output[0x49] = mr8(data_size);
+
+        // size bytes
+        data_size += 2;
+        output[0x39] = m8(data_size);
+        output[0x3A] = mr8(data_size);
+        output[0x46] = m8(data_size);
+        output[0x47] = mr8(data_size);
+    } else {
+        offset = size;
+
+        output[0x35] = m8(size);
+        output[0x36] = mr8(size);
+
+        memcpy(&output[0x37], data, size);
+    }
 
     // calculate checksum
     checksum = 0;
-    for (i = HEADER_START; i < offset; ++i) {
+    for (i = HEADER_START; i < (type != TYPE_AUTO_GROUP ? offset : offset + HEADER_START); ++i) {
         checksum = m16(checksum + output[i]);
     }
 
-    output[offset++] = m8(checksum);
-    output[offset++] = mr8(checksum);
-
     // write the buffer to the file
     if (!(out_file = fopen(file_name, "wb"))) {
-        fprintf(stderr, "Unable to open output program file.");
+        fprintf(stderr, "[error] unable to open output program file.\n");
         exit(1);
     }
     
-    if (output_bin) {
-        fwrite(&output[DATA_START], 1, offset - DATA_START - 2, out_file);
+    if (type != TYPE_AUTO_GROUP) {
+
+        output[offset++] = m8(checksum);
+        output[offset++] = mr8(checksum);
+
+        if (output_bin) {
+            fwrite(&output[DATA_START], 1, offset - DATA_START - 2, out_file);
+        } else {
+            fwrite(output, 1, offset, out_file);
+        }
+
+        fprintf(stdout, "output file: [%s] %s\n", name, file_name);
+        fprintf(stdout, "archived: %s\n", archived == ARCHIVED ? "yes" : "no");
+        fprintf(stdout, "size: %u bytes\n", offset - DATA_START - 2);
     } else {
-        fwrite(output, 1, offset, out_file);
+
+        output[HEADER_START + offset++] = m8(checksum);
+        output[HEADER_START + offset++] = mr8(checksum);
+
+        fwrite(output, 1, offset + HEADER_START, out_file);
+
+        fprintf(stdout, "output file: %s\n", file_name);
+        fprintf(stdout, "size: %u bytes\n", offset + HEADER_START);
     }
     
-    printf("Output File: [%s] %s\n", name, file_name);
-    printf("Archived: %s\n", archived == ARCHIVED ? "Yes" : "No");
-    printf("Size: %u bytes\n--------------------\n", offset - DATA_START - 2);
-    
+    fputs("--------------------\n", stdout);
+
     // close the file
     fclose(out_file);
     
     // free the memory
     free(output);
+}
+
+#define MAX_GROUP_SIZE 65000
+
+unsigned int create_auto_8xg(uint8_t *data, char **file, unsigned int num) {
+    unsigned int i;
+    unsigned int size = 0;
+    int c;
+
+    /* place each variable sequentially */
+    for (i = 0; i < num; i++) {
+
+        FILE *fd = fopen(file[i], "rb");
+        if (fd == NULL) {
+            fprintf(stderr, "[error] cannot open variable.\n");
+            exit(1);
+        }
+
+        if (fseek(fd, HEADER_START, SEEK_SET) != 0) {
+            fclose(fd);
+            fprintf(stderr, "[error] reding error.\n");
+            exit(1);
+        }
+
+        fprintf(stdout, "grouping: %s\n", file[i]);
+
+        /* copy the file information */
+        while ((c = fgetc(fd)) != EOF) {
+            data[size] = (uint8_t)c;
+            if (size > MAX_GROUP_SIZE) {
+               fclose(fd);
+               fprintf(stderr, "[error] group too large.\n");
+               exit(1);
+            }
+            size++;
+        }
+
+        /* back up from checksum */
+        size -= 2;
+
+        fclose(fd);
+    }
+
+    return size;
 }
 
 int main(int argc, char* argv[]) {
@@ -253,31 +319,33 @@ int main(int argc, char* argv[]) {
     uint8_t archived  = UNARCHIVED;
     uint8_t var_type = TYPE_PRGM;
     uint8_t *data = NULL;
-    
+    uint8_t buf[20];
+
     unsigned int offset = 0;
     unsigned int max_var_size = MAX_VAR_SIZE;
-    
+    unsigned int group_num = 0;
+
     size_t name_length = 0;
     size_t data_size = 0;
     size_t output_size = 0;
     size_t total_size = 0;
-    bool compress_output = false;
     
     int opt;
-    int input_type = FILE_HEX;
+    int retVal;
+    int input_type;
     
+    bool input_bin = false;
     bool name_override = false;
     bool add_extractor = false;
+    bool compress_output = false;
 
     long delta;
-    
-    int retVal;
     
     /* separate ouput a bit */
     fputc('\n', stdout);
 
     if (argc > 1) {
-        while ((opt = getopt(argc, argv, "atvbxhcm:n:")) != -1) {
+        while ((opt = getopt(argc, argv, "atvbxfhcm:n:g:")) != -1) {
             switch (opt) {
                 case 'a':   /* archive output */
                     archived = ARCHIVED;
@@ -287,13 +355,16 @@ int main(int argc, char* argv[]) {
                     break;
                 case 'm':   /* specify max var size */
                     max_var_size = strtol(optarg, NULL, 10);
-                    printf("Maximum variable size: %u bytes\n", max_var_size);
+                    printf("maximum variable size: %u bytes\n", max_var_size);
                     break;
                 case 'n':   /* specify varname */
-                    printf("Varname override: '%s'\n", optarg);
+                    printf("variable name override: '%s'\n", optarg);
                     name_override = true;
                     var_name = str_dup(optarg);
                     name_length = strlen(optarg);
+                    break;
+                case 'g':   /* convert a group */
+                    group_num = strtol(optarg, NULL, 10);
                     break;
                 case 'c':   /* compress input */
                     compress_output = true;
@@ -304,8 +375,11 @@ int main(int argc, char* argv[]) {
                     break;
                 case 't':   /* choose smallest output */
                     break;
-                case 'b':   /* output a .bin file */
+                case 'b':   /* output binary file */
                     output_bin = true;
+                    break;
+                case 'f':   /* force binary input */
+                    input_bin = true;
                     break;
                 case 'h':   /* show help */
                     goto show_help;
@@ -316,38 +390,27 @@ int main(int argc, char* argv[]) {
         }
     } else {
 show_help:
-        puts("ConvHex Utility v2.0 - by M. Waltz\n");
-        puts("Usage:\n\tconvhex [-options] <filename>");
-        puts("Options:");
-        puts("\ta: Mark output binary as archived (Default is unarchived)");
-        puts("\tv: Write output to AppVar (Default is program)");
-        puts("\tn: Override varname (Example: -n MYPRGM)");
-        puts("\tx: Create compressed self extracting file\n\t\t(underscore added if compressing 8x*)");
-        puts("\tc: Compress input\n\t\t(Useful for AppVars)");
-        puts("\tb: Write output to binary file rather than 8x* file");
-        puts("\th: Show this message");
+        fprintf(stdout, "convhex utility v%u.%u - by m. waltz\n", VERSION_MAJOR, VERSION_MINOR);
+        fprintf(stdout, "usage:\n\t%s [-options] <file(s) in> <file out>", argv[0]);
+        fputs("options:", stdout);
+        fputs("\ta: mark output as archived (default is unarchived)", stdout);
+        fputs("\tv: write output to appvar (default is program)", stdout);
+        fputs("\tx: create compressed self extracting output\n", stdout);
+        fputs("\tc: compress output\n\t\t(useful for appvars)", stdout);
+        fputs("\tb: write output to binary file rather than 8x* file", stdout);
+        fputs("\tb: force input file as binary", stdout);
+        fputs("\tm <size>: maximum size of expanded appvars", stdout);
+        fputs("\tn <name>: override variable name (example: -n MYPRGM)", stdout);
+        fputs("\tg <num>: export auto-extracting group (example: -g 2 file.8xp file2.8xp out.8xg)", stdout);
+        fputs("\th: show this message", stdout);
         return 0;
     }
     
     /* get the filenames for both out and in files */
-    in_name = malloc(strlen(argv[argc-1])+5);
-    strcpy(in_name, argv[argc-1]);
+    in_name = argv[argc - 2];
+    out_name = argv[argc - 1];
 
-    /* change the extension if it exists; otherwise create a new one */
     ext = strrchr(in_name, '.');
-    
-    /* assume hex file by default, otherwise assume from extension */
-    if (ext == NULL) {
-        strcat(in_name, ".hex");
-        ext = strrchr(in_name, '.');
-    } else {
-        if (!strcmp(get_ext(in_name), "bin")) {
-            input_type = FILE_BIN;
-        } else
-        if (!strcmp(get_ext(in_name), "8xp")) {
-            input_type = FILE_8XP;
-        }
-    }
 
     if (!name_override) {
         /* check if the name is too long */
@@ -370,43 +433,47 @@ show_help:
         name_length = 8;
     }
 
-    /* create the output name */
-    if (add_extractor && input_type == FILE_8XP) {
-        out_name = malloc(strlen(in_name)+6);
-        strcpy(out_name, in_name);
-        strcpy(out_name+(ext-in_name), "_.8x");
-    } else {
-        out_name = malloc(strlen(in_name)+5);
-        strcpy(out_name, in_name);
-        strcpy(out_name+(ext-in_name), ".8x");
-    }
-
-    strcat(out_name, (var_type == TYPE_PRGM) ? "p" : "v");
-    
-    if (output_bin) {
-        strcpy((char*)get_ext(out_name), "bin");
-    }
-    
-    /* print out some debug things */
-    printf("Input File: %s\n", in_name);
-    
-    /* open the specified files */
-    in_file = fopen(in_name, "rb");
-    if (!in_file) {
-        fprintf(stderr, "[error] unable to open input file.\n");
-        goto err;
-    }
-    
-    /* write program name */
-    var_name[name_length] = '\0';
-    strtoupper(var_name);
-
     /* set up memory for data section */
-    data = calloc(0x100000, 1);
+    data = calloc(0x100200, sizeof(uint8_t));
     
+    if (group_num > 0) {
+        unsigned int size = create_auto_8xg(data, &argv[argc - group_num - 1], group_num);
+        export(NULL, out_name, data, size, TYPE_AUTO_GROUP, archived);
+        goto success;
+    } else {
+        /* print out some debug things */
+        fputs("--------------------\n", stdout);
+        fprintf(stdout, "input file: %s\n", in_name);
+
+        /* open the specified files */
+        in_file = fopen(in_name, "rb");
+        if (!in_file) {
+            fprintf(stderr, "[error] unable to open input file.\n");
+            goto err;
+        }
+        
+        /* write program name */
+        var_name[name_length] = '\0';
+        strtoupper(var_name);
+    }
+
+    /* determine file type */
+    input_type = FILE_BIN;
+    if (fread(buf, 1, 8, in_file) != 8)
+    {
+        fprintf(stdout, "[warning] verify input file is correct.\n");
+    }
+
+    rewind(in_file);
+    if (!input_bin && buf[0] == ':') {
+        input_type = FILE_HEX;
+    } else if (!input_bin && memcmp(buf, header, 8) == 0) {
+        input_type = FILE_8X;
+    }
+
     if (input_type == FILE_HEX) {
         /* parse the Intel Hex file, and store it into the data array */
-        /* don't bother with too many checks */
+        /* don't bother with too many checks :) */
         
         int8_t current_line[HexLineSize];
         uint8_t err = ERROR_NONE;
@@ -441,7 +508,7 @@ show_help:
                     (current_line[line_length] >= 'A' && current_line[line_length] <= 'F'))) {
                     line_length = HexLineSize;
                 }
-		    }
+            }
             if (line_length == HexLineSize ) {
                 err = ERROR_INCOMPATIBLE;
                 break;
@@ -450,7 +517,7 @@ show_help:
             /* allocate the data for converting the line itself from ascii to numeric */
             converted_line = malloc(line_length/2);
 
-		    asciiToNumericArray(&current_line[1], converted_line, line_length);
+            asciiToNumericArray(&current_line[1], converted_line, line_length);
             
             uint8_t hex_num_bytes = converted_line[0];
             uint16_t hex_addr = ((((uint16_t)converted_line[1]) << 8) & 0xFF00) | (((uint16_t)converted_line[2]) & 0xFF);
@@ -502,10 +569,10 @@ show_help:
             goto err;
         }
     } else
-    
+
     if (input_type == FILE_BIN) {
         int c;
-        while((c = fgetc(in_file)) != EOF) {
+        while ((c = fgetc(in_file)) != EOF) {
             data[offset++] = (uint8_t)c;
             if (offset > MAX_SIZE-1) {
                 goto err_to_large;
@@ -513,11 +580,14 @@ show_help:
         }
     } else
 
-    /* simply copy the 8xp data */
-    if (input_type == FILE_8XP) {
+    /* simply copy the 8x* data */
+    if (input_type == FILE_8X) {
         int c;
-        fseek(in_file, DATA_START, SEEK_SET);
-        while((c = fgetc(in_file)) != EOF) {
+        if (fseek(in_file, DATA_START, SEEK_SET) != 0) {
+            fprintf(stderr, "[error] reding error.\n");
+            exit(1);
+        }
+        while ((c = fgetc(in_file)) != EOF) {
             data[offset++] = (uint8_t)c;
             if (offset > MAX_SIZE-1) {
                 goto err_to_large;
@@ -587,7 +657,7 @@ show_help:
 
     if (offset > max_var_size) {    
         if (name_length == 8) {
-            printf("error: output name too long for size.\n");
+            fprintf(stderr, "[error] output name too long for size.\n");
             exit(1);
         }
         
@@ -600,8 +670,8 @@ show_help:
             len -= 2;
         }
         
-        printf("Input data too large (%u bytes); splitting across %u variable(s).\n", offset, num_appvars);
-        puts("--------------------");
+        fprintf(stdout, "input data too large (%u bytes); splitting across %u variable(s).\n", offset, num_appvars);
+        fputs("--------------------\n", stdout);
         
         uint8_t *appvar_info = calloc(0x10000, 1);
         unsigned int appvar_info_pos = sizeof asm_large_extractor;
@@ -644,18 +714,18 @@ show_help:
         
         free(appvar_info);
     } else {
-        puts("--------------------");
         export(var_name, out_name, data, offset, var_type, archived);
     }
     
     if (compress_output) {
-        printf("Decompressed Size: %u bytes\n", (unsigned int)total_size);
+        fprintf(stdout, "decompressed size: %u bytes\n", (unsigned int)total_size);
     }
     if (compress_output && output_size > (total_size+name_length+7)) {
-        puts("\n[WARNING] Compressed size larger than input.");
+        fputs("\n[warning] compressed size larger than input.", stdout);
     }
-    
-    printf("Success!\n\n");
+
+success:
+    fprintf(stdout, "success!\n\n");
     retVal = 0;
     
     /* close the file handler and buffers */
@@ -666,10 +736,10 @@ err_to_large:
 err:
     retVal = 1;
 done:
-    if (in_file) { fclose(in_file); }
-    free(in_name);
-    free(out_name);
+    if (in_file) {
+        fclose(in_file);
+    }
     free(data);
-    
+
     return retVal;
 }
