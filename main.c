@@ -436,13 +436,14 @@ show_help:
     /* set up memory for data section */
     data = calloc(0x100200, sizeof(uint8_t));
     
+    fputs("--------------------\n", stdout);
+
     if (group_num > 0) {
         unsigned int size = create_auto_8xg(data, &argv[argc - group_num - 1], group_num);
         export(NULL, out_name, data, size, TYPE_AUTO_GROUP, archived);
         goto success;
     } else {
         /* print out some debug things */
-        fputs("--------------------\n", stdout);
         fprintf(stdout, "input file: %s\n", in_name);
 
         /* open the specified files */
