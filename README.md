@@ -1,23 +1,27 @@
 # ConvHex
 
-Converts from Intel HEX format and other formats to TI usable format.
-Input extension can be .hex, .bin, .8xp
+Converts raw binary and hexadecimal formated files to TI-OS readable formats.
 
-##### Usage
-```convhex [-options] <filename>```
+### Usage
 
-##### Options
-* a: Mark output binary as archived (Default is unarchived)
-* v: Write output to AppVar (Default is program)
-* n: Override varname (example: -n MYPRGM)
-* x: Create compressed self extracting file (underscore added if compressing 8x*)
-* c: Compress input (useful for AppVars)
-* b: Write output to binary file rather than 8x* file
-* h: Show this message
+```convhex [-options] <input file(s)> <output file>```
 
-##### Credits
+### Options
 
-(C) 2017 Matt Waltz
+* `a`: mark output as archived (default is unarchived)
+* `v`: write output to appvar (default is program)
+* `x`: create compressed self extracting output for a program
+* `c`: compress output (useful for appvars)
+* `b`: write output to binary file rather than 8x* file
+* `f`: force input file as binary
+* `m <size>`: maximum size of expanded appvars
+* `n <name>`: override variable name (example: -n MYPRGM)
+* `g <num>`: export auto-extracting group (example: -g 2 f1.8xp f2.8xp out.8xg)
+* `h`: show this message
+
+### Credits
+
+(C) 2017-2019 Matthew Waltz
 
 Uses Einar Saukas's [ZX7 compression library](http://www.worldofspectrum.org/infoseekid.cgi?id=0027996) for optimal compression.
 License information can be found in the LICENSE file.
