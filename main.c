@@ -9,7 +9,7 @@
 #include "zx7/zx7.h"
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 2
+#define VERSION_MINOR 3
 
 #define m8(x)  ((x)&255)
 #define mr8(x) (((x)>>8)&255)
@@ -380,7 +380,7 @@ int main(int argc, char* argv[]) {
                 case 'h':   /* show help */
                     goto show_help;
                 default:
-                    printf("[error] unrecognized option: '%s'\n", optarg);
+                    fprintf(stderr, "[error] unrecognized option: '%s'\r\n", optarg);
                     goto show_help;
             }
         }
@@ -394,7 +394,7 @@ show_help:
         fprintf(stdout, "\tx: create compressed self extracting output\r\n");
         fprintf(stdout, "\tc: compress output (useful for appvars)\r\n");
         fprintf(stdout, "\tb: write output to binary file rather than 8x* file\r\n");
-        fprintf(stdout, "\tb: force input file as binary\r\n");
+        fprintf(stdout, "\tf: force input file as binary\r\n");
         fprintf(stdout, "\tm <size>: maximum size of expanded appvars\r\n");
         fprintf(stdout, "\tn <name>: override variable name (example: -n MYPRGM)\r\n");
         fprintf(stdout, "\tg <num>: export auto-extracting group (example: -g 2 f1.8xp f2.8xp out.8xg)\r\n");
