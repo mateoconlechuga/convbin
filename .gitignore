@@ -31,4 +31,5 @@
 # Debug files
 *.dSYM/
 
-ConvHex
+convhex
+convhex.exe
