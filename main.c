@@ -18,6 +18,7 @@
 #define MAX_SIZE 0x100000
 #define MAX_VAR_SIZE 0xFFFF-30
 #define MAX_PRGM_SIZE 0xFFFF-300
+#define MAX_TOTAL_SIZE 0x20000
 
 #define HexFirstCharacter   1
 #define HexHeadSize         8
@@ -665,6 +666,12 @@ show_help:
         unsigned int pos = 0;
         unsigned int len = max_var_size;
         
+        if (num_appvars * max_var_size > MAX_TOTAL_SIZE) {
+            fprintf(stderr, "[error] input data too large to even split.\r\n"
+                            "please reduce your program size!\r\n");
+            exit(1);
+        }
+
         if (data[0] == 0xEF && data[1] == 0x7B && var_type == TYPE_PRGM) {
             pos = 2;
             len -= 2;
