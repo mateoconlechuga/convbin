@@ -455,7 +455,8 @@ show_help:
         
         /* write program name */
         var_name[name_length] = '\0';
-        strtoupper(var_name);
+        if (var_type == TYPE_PRGM)
+            strtoupper(var_name);
     }
 
     /* determine file type */
