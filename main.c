@@ -9,7 +9,7 @@
 #include "zx7/zx7.h"
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 3
+#define VERSION_MINOR 4
 
 #define m8(x)  ((x)&255)
 #define mr8(x) (((x)>>8)&255)
