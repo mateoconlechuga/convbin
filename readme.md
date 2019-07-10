@@ -1,4 +1,5 @@
-# ConvHex
+# convhex [![linux status](https://travis-ci.org/mateoconlechuga/convhex.svg?branch=master)](https://travis-ci.org/mateoconlechuga/convhex) [![windows status](https://ci.appveyor.com/api/projects/status/ufus9k2qyy6o5a8p/branch/master?svg=true)](https://ci.appveyor.com/project/MattWaltz/convhex/branch/master)
+
 
 Converts raw binary and hexadecimal formated files to TI-OS readable formats.
 
