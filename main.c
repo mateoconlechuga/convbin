@@ -118,17 +118,17 @@ static void asciiToNumericArray(int8_t *data, int8_t *converted_data, unsigned i
 }
 
 static uint8_t asm_extractor[] = { 
-    0x21, 0x91, 0xA8, 0xD1, // label to start of extractor section (offset = 1)
+    0x21, 0x91, 0xA8, 0xD1, /* label to start of extractor section (offset = 1) */
     0x11, 0x66, 0x94, 0xD0, 0x01, 0xA8, 0x00, 0x00, 0xED, 0xB0, 0xC3, 0x66, 0x94, 0xD0, 0xED, 0x5B, 0x8C, 0x11, 0xD0, 0x21, 0x81, 0xA8, 0xD1,
     0xCD, 0x90, 0x05, 0x02, 0xB7, 0xED, 0x62, 0x22, 0x8C, 0x11, 0xD0,
-    0x11, 0x00, 0x00, 0x00, // size of uncompressed data (offset = 39)
+    0x11, 0x00, 0x00, 0x00, /* size of uncompressed data (offset = 39) */
     0xCD, 0xB8, 0x94, 0xD0, 0xDA, 0x68, 0x07, 0x02, 0xED, 0x53, 0x8C, 0x11, 0xD0, 0xEB, 0x11, 0x81, 0xA8, 0xD1,
     0xCD, 0x14, 0x05, 0x02, 0xCD, 0x0C, 0x05, 0x02, 0xCD, 0x98, 0x1F, 0x02, 0xEB, 0x28, 0x08, 0x11, 0x09, 0x00, 0x00, 0x19, 0x5E, 0x19, 0x23,
-    0x11, 0xBC, 0x00, 0x00, // offset to actual data (offset = 84)
+    0x11, 0xBC, 0x00, 0x00, /* offset to actual data (offset = 84) */
     0x19,
-    0x11, 0x7F, 0xA8, 0xD1, // offset to start (offset = 89)
+    0x11, 0x7F, 0xA8, 0xD1, /* offset to start (offset = 89) */
     0xCD, 0xC0, 0x94, 0xD0,
-    0xC3, 0x7F, 0xA8, 0xD1, // offset to start (offset = 97)
+    0xC3, 0x7F, 0xA8, 0xD1, /* offset to start (offset = 97) */
     0xCD, 0xFC, 0x04, 0x02,
     0xB7, 0xED, 0x52, 0xC9, 
     0x3E, 0x80, 0xED, 0xA0, 0xCD, 0x08, 0x95, 0xD0, 0x30, 0xF8, 0xD5, 0x11, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x14, 0xCD, 0x08, 0x95,
@@ -139,7 +139,7 @@ static uint8_t asm_extractor[] = {
 
 static uint8_t asm_large_extractor[] = {
     0xEF, 0x7B, 0x21, 0x93, 0xA8, 0xD1, 0x11, 0x00, 0x08, 0xE3, 0x01,
-    0xC3, 0x00, 0x00, // size of code + appvars
+    0xC3, 0x00, 0x00, /* size of code + appvars */
     0xED, 0xB0,
     0xC3, 0x00, 0x08, 0xE3, 0x21, 0x81, 0xA8, 0xD1, 0xED, 0x5B, 0x8C, 0x11, 0xD0, 0xCD, 0x90, 0x05,
     0x02, 0xAF, 0xED, 0x62, 0x22, 0x8C, 0x11, 0xD0, 0x21, 0xC4, 0x08, 0xE3, 0xBE, 0xCA, 0x83, 0x08,
@@ -173,14 +173,14 @@ static const uint8_t header[] = { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0
 
 void export(const char *name, const char *file_name, uint8_t *data, size_t size, uint8_t type, uint8_t archived) {
     unsigned int data_size;
-    unsigned int i,checksum;
+    unsigned int i, checksum;
     FILE *out_file;
     
-    // gather structure information
+    /* gather structure information */
     uint8_t *output = calloc(0x10200, sizeof(uint8_t));
     unsigned int offset = size + DATA_START;
 
-    // Write header bytes
+    /* write header bytes */
     memcpy(output, header, sizeof header);
 
     if (type != TYPE_AUTO_GROUP)
@@ -189,11 +189,11 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
         output[0x35] = m8(data_size);
         output[0x36] = mr8(data_size);
 
-        // write name
+        /* write name */
         memcpy(&output[0x3C], name, strlen(name));
         memcpy(&output[0x4A], data, size);
         
-        // write config bytes
+        /* write config bytes */
         output[0x37] = 0x0D;
         output[0x3B] = type;
         output[0x45] = archived;
@@ -202,7 +202,7 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
         output[0x48] = m8(data_size);
         output[0x49] = mr8(data_size);
 
-        // size bytes
+        /* size bytes */
         data_size += 2;
         output[0x39] = m8(data_size);
         output[0x3A] = mr8(data_size);
@@ -217,13 +217,13 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
         memcpy(&output[0x37], data, size);
     }
 
-    // calculate checksum
+    /* calculate checksum */
     checksum = 0;
     for (i = HEADER_START; i < (type != TYPE_AUTO_GROUP ? offset : offset + HEADER_START); ++i) {
         checksum = m16(checksum + output[i]);
     }
 
-    // write the buffer to the file
+    /* write the buffer to the file */
     if (!(out_file = fopen(file_name, "wb"))) {
         fprintf(stderr, "[error] unable to open output program file.\r\n");
         exit(1);
@@ -256,10 +256,10 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
     
     fprintf(stdout, "--------------------\r\n");
 
-    // close the file
+    /* close the file */
     fclose(out_file);
     
-    // free the memory
+    /* free the file memory */
     free(output);
 }
 
@@ -527,7 +527,7 @@ show_help:
             uint8_t hex_pos = 4;
             
             switch (hex_type) {
-                case 0: // data
+                case 0: /* data */
                     if (hex_mem == HEX_LINEAR_ADDRESS) {
                         hex_phys_addr = ((((uint32_t)hex_linear_addr) << 16) & 0xFFFF0000) | (((uint32_t)hex_addr) & 0xFFFF);
                     } else {
@@ -545,20 +545,20 @@ show_help:
                         max_offset = offset;
                     }
                     break;
-                case 1: // end of file
+                case 1: /* end of file */
                     err = ERROR_COMPLETE;
                     break;
-                case 2: // extended segment address
+                case 2: /* extended segment address */
                     hex_mem = HEX_SEGMENT_ADDRESS;
                     hex_seg_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
                     break;
-                case 3: // start segment address
+                case 3: /* start segment address */
                     break;
-                case 4: // extended linear address
+                case 4: /* extended linear address */
                     hex_mem = HEX_LINEAR_ADDRESS;
                     hex_linear_addr = ((((uint16_t)converted_line[4]) << 8) & 0xFF00) | (((uint16_t)converted_line[5]) & 0xFF);
                     break;
-                case 5: // start linear address
+                case 5: /* start linear address */
                     break;
                 default:
                     break;
@@ -683,11 +683,12 @@ show_help:
         
         uint8_t *appvar_info = calloc(0x10000, 1);
         unsigned int appvar_info_pos = sizeof asm_large_extractor;
-        
+        unsigned int i;
+
         w24(r24(&asm_large_extractor[L_SIZE]) + (num_appvars * 11) + 2, &asm_large_extractor[L_SIZE]);
         memcpy(appvar_info, asm_large_extractor, appvar_info_pos);
         
-        for (unsigned int i = 0; i < num_appvars; i++) {
+        for (i = 0; i < num_appvars; i++) {
             char *file_name, *appvar_name;
             char tmpbuf[10];
             

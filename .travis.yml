@@ -1,0 +1,13 @@
+# Travis CI config
+
+dist: xenial
+
+language: c
+
+branches:
+  only:
+    - master
+
+script:
+  - make
+
