@@ -16,7 +16,6 @@ endif
 OBJECTS := $(SOURCES:.c=.o)
 
 all: $(TARGET)
-	strip --strip-all $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
