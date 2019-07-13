@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -W -Wall -Wextra -std=c89 -fPIE -O3 -flto
-LDFLAGS = -flto -static
+LDFLAGS = -flto
 
 ifeq ($(OS),Windows_NT)
 TARGET := convhex.exe
