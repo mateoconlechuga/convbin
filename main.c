@@ -225,7 +225,7 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
 
     /* write the buffer to the file */
     if (!(out_file = fopen(file_name, "wb"))) {
-        fprintf(stderr, "[error] unable to open output program file.\r\n");
+        fprintf(stderr, "[error] unable to open output program file.\n");
         exit(1);
     }
     
@@ -240,9 +240,9 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
             fwrite(output, 1, offset, out_file);
         }
 
-        fprintf(stdout, "output file: [%s] %s\r\n", name, file_name);
-        fprintf(stdout, "archived: %s\r\n", archived == ARCHIVED ? "yes" : "no");
-        fprintf(stdout, "size: %u bytes\r\n", offset - DATA_START - 2);
+        fprintf(stdout, "output file: [%s] %s\n", name, file_name);
+        fprintf(stdout, "archived: %s\n", archived == ARCHIVED ? "yes" : "no");
+        fprintf(stdout, "size: %u bytes\n", offset - DATA_START - 2);
     } else {
 
         output[HEADER_START + offset++] = m8(checksum);
@@ -250,11 +250,11 @@ void export(const char *name, const char *file_name, uint8_t *data, size_t size,
 
         fwrite(output, 1, offset + HEADER_START, out_file);
 
-        fprintf(stdout, "output file: %s\r\n", file_name);
-        fprintf(stdout, "size: %u bytes\r\n", offset + HEADER_START);
+        fprintf(stdout, "output file: %s\n", file_name);
+        fprintf(stdout, "size: %u bytes\n", offset + HEADER_START);
     }
     
-    fprintf(stdout, "--------------------\r\n");
+    fprintf(stdout, "--------------------\n");
 
     /* close the file */
     fclose(out_file);
@@ -275,24 +275,24 @@ unsigned int create_auto_8xg(uint8_t *data, char **file, unsigned int num) {
 
         FILE *fd = fopen(file[i], "rb");
         if (fd == NULL) {
-            fprintf(stderr, "[error] cannot open variable.\r\n");
+            fprintf(stderr, "[error] cannot open variable.\n");
             exit(1);
         }
 
         if (fseek(fd, HEADER_START, SEEK_SET) != 0) {
             fclose(fd);
-            fprintf(stderr, "[error] reding error.\r\n");
+            fprintf(stderr, "[error] reding error.\n");
             exit(1);
         }
 
-        fprintf(stdout, "grouping: %s\r\n", file[i]);
+        fprintf(stdout, "grouping: %s\n", file[i]);
 
         /* copy the file information */
         while ((c = fgetc(fd)) != EOF) {
             data[size] = (uint8_t)c;
             if (size > MAX_GROUP_SIZE) {
                fclose(fd);
-               fprintf(stderr, "[error] group too large.\r\n");
+               fprintf(stderr, "[error] group too large.\n");
                exit(1);
             }
             size++;
@@ -352,10 +352,10 @@ int main(int argc, char* argv[]) {
                     break;
                 case 'm':   /* specify max var size */
                     max_var_size = strtol(optarg, NULL, 10);
-                    printf("maximum variable size: %u bytes\r\n", max_var_size);
+                    printf("maximum variable size: %u bytes\n", max_var_size);
                     break;
                 case 'n':   /* specify varname */
-                    printf("variable name override: '%s'\r\n", optarg);
+                    printf("variable name override: '%s'\n", optarg);
                     name_override = true;
                     var_name = str_dup(optarg);
                     name_length = strlen(optarg);
@@ -381,31 +381,28 @@ int main(int argc, char* argv[]) {
                 case 'h':   /* show help */
                     goto show_help;
                 default:
-                    fprintf(stderr, "[error] unrecognized option: '%s'\r\n", optarg);
+                    fprintf(stderr, "[error] unrecognized option: '%s'\n", optarg);
                     goto show_help;
             }
         }
     } else {
 show_help:
-        fprintf(stdout, "convhex v%u.%u - by m. waltz\r\n", VERSION_MAJOR, VERSION_MINOR);
-        fprintf(stdout, "usage:\r\n\t%s [-options] <file(s) in> <file out>\r\n", argv[0]);
-        fprintf(stdout, "options:\r\n");
-        fprintf(stdout, "\ta: mark output as archived (default is unarchived)\r\n");
-        fprintf(stdout, "\tv: write output to appvar (default is program)\r\n");
-        fprintf(stdout, "\tx: create compressed self extracting output\r\n");
-        fprintf(stdout, "\tc: compress output (useful for appvars)\r\n");
-        fprintf(stdout, "\tb: write output to binary file rather than 8x* file\r\n");
-        fprintf(stdout, "\tf: force input file as binary\r\n");
-        fprintf(stdout, "\tm <size>: maximum size of expanded appvars\r\n");
-        fprintf(stdout, "\tn <name>: override variable name (example: -n MYPRGM)\r\n");
-        fprintf(stdout, "\tg <num>: export auto-extracting group (example: -g 2 f1.8xp f2.8xp out.8xg)\r\n");
-        fprintf(stdout, "\th: show this message\r\n");
+        fprintf(stdout, "convhex v%u.%u - by m. waltz\n", VERSION_MAJOR, VERSION_MINOR);
+        fprintf(stdout, "usage:\n\t%s [-options] <file(s) in> <file out>\n", argv[0]);
+        fprintf(stdout, "options:\n");
+        fprintf(stdout, "\ta: mark output as archived (default is unarchived)\n");
+        fprintf(stdout, "\tv: write output to appvar (default is program)\n");
+        fprintf(stdout, "\tx: create compressed self extracting output\n");
+        fprintf(stdout, "\tc: compress output (useful for appvars)\n");
+        fprintf(stdout, "\tb: write output to binary file rather than 8x* file\n");
+        fprintf(stdout, "\tf: force input file as binary\n");
+        fprintf(stdout, "\tm <size>: maximum size of expanded appvars\n");
+        fprintf(stdout, "\tn <name>: override variable name (example: -n MYPRGM)\n");
+        fprintf(stdout, "\tg <num>: export auto-extracting group (example: -g 2 f1.8xp f2.8xp out.8xg)\n");
+        fprintf(stdout, "\th: show this message\n");
         return 0;
     }
     
-    /* separate ouput a bit */
-    fprintf(stdout, "\r\n");
-
     /* get the filenames for both out and in files */
     in_name = argv[argc - 2];
     out_name = argv[argc - 1];
@@ -436,7 +433,7 @@ show_help:
     /* set up memory for data section */
     data = calloc(0x100200, sizeof(uint8_t));
     
-    fprintf(stdout, "--------------------\r\n");
+    fprintf(stdout, "--------------------\n");
 
     if (group_num > 0) {
         unsigned int size = create_auto_8xg(data, &argv[argc - group_num - 1], group_num);
@@ -444,12 +441,12 @@ show_help:
         goto success;
     } else {
         /* print out some debug things */
-        fprintf(stdout, "input file: %s\r\n", in_name);
+        fprintf(stdout, "input file: %s\n", in_name);
 
         /* open the specified files */
         in_file = fopen(in_name, "rb");
         if (!in_file) {
-            fprintf(stderr, "[error] unable to open input file.\r\n");
+            fprintf(stderr, "[error] unable to open input file.\n");
             goto err;
         }
         
@@ -463,7 +460,7 @@ show_help:
     input_type = FILE_BIN;
     if (fread(buf, 1, 8, in_file) != 8)
     {
-        fprintf(stdout, "[warning] verify input file is correct.\r\n");
+        fprintf(stdout, "[warning] verify input file is correct.\n");
     }
 
     rewind(in_file);
@@ -659,7 +656,7 @@ show_help:
 
     if (offset > max_var_size) {    
         if (name_length == 8) {
-            fprintf(stderr, "[error] output name too long for size.\r\n");
+            fprintf(stderr, "[error] output name too long for size.\n");
             exit(1);
         }
         
@@ -668,8 +665,8 @@ show_help:
         unsigned int len = max_var_size;
         
         if (num_appvars * max_var_size > MAX_TOTAL_SIZE) {
-            fprintf(stderr, "[error] input data too large to even split.\r\n"
-                            "please reduce your program size!\r\n");
+            fprintf(stderr, "[error] input data too large to even split.\n"
+                            "please reduce your program size!\n");
             exit(1);
         }
 
@@ -678,8 +675,8 @@ show_help:
             len -= 2;
         }
         
-        fprintf(stdout, "input data too large (%u bytes); splitting across %u variable(s).\r\n", offset, num_appvars);
-        fprintf(stdout, "--------------------\r\n");
+        fprintf(stdout, "input data too large (%u bytes); splitting across %u variable(s).\n", offset, num_appvars);
+        fprintf(stdout, "--------------------\n");
         
         uint8_t *appvar_info = calloc(0x10000, 1);
         unsigned int appvar_info_pos = sizeof asm_large_extractor;
@@ -727,21 +724,21 @@ show_help:
     }
     
     if (compress_output) {
-        fprintf(stdout, "decompressed size: %u bytes\r\n", (unsigned int)total_size);
+        fprintf(stdout, "decompressed size: %u bytes\n", (unsigned int)total_size);
     }
     if (compress_output && output_size > (total_size+name_length+7)) {
-        fputs("\r\n[warning] compressed size larger than input.", stdout);
+        fputs("\n[warning] compressed size larger than input.", stdout);
     }
 
 success:
-    fprintf(stdout, "success!\r\n\r\n");
+    fprintf(stdout, "success!\n");
     retVal = 0;
     
     /* close the file handler and buffers */
     goto done;
     
 err_to_large:
-    fprintf(stderr, "[error] input file too large.\r\n");
+    fprintf(stderr, "[error] input file too large.\n");
 err:
     retVal = 1;
 done:
