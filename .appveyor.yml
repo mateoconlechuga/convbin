@@ -5,7 +5,9 @@ install:
 
 build_script:
   - cd %APPVEYOR_BUILD_FOLDER%
+  - mingw32-make clean
   - mingw32-make
+  - mingw32-make release
 
 after_build:
   - cd %APPVEYOR_BUILD_FOLDER%
@@ -17,7 +19,6 @@ on_failure:
   - cd %APPVEYOR_BUILD_FOLDER%
 
 artifacts:
- - path: convhex.exe
-   name: convhex
+ - path: ./bin/convbin.exe
+   name: convbin
    type: auto
-

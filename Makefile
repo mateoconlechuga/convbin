@@ -1,29 +1,58 @@
-CC = gcc
-CFLAGS = -W -Wall -Wextra -std=c89 -fPIE -O3 -flto
-LDFLAGS = -flto
-
 ifeq ($(OS),Windows_NT)
-TARGET := convhex.exe
-SHELL = cmd.exe
-RM = del /f 2>nul
-SOURCES = zx7\zx7.c zx7\zx7_opt.c main.c
+  TARGET ?= convbin.exe
+  SHELL = cmd.exe
+  NATIVEPATH = $(subst /,\,$1)
+  MKDIR = if not exist "$1" mkdir "$1"
+  RMDIR = del /f "$1" 2>nul
+  STRIP = strip --strip-all "$1"
 else
-TARGET := convhex
-RM = rm -f
-SOURCES = zx7/zx7.c zx7/zx7_opt.c main.c
+  TARGET ?= convbin
+  NATIVEPATH = $(subst \,/,$1)
+  MKDIR = mkdir -p "$1"
+  RMDIR = rm -rf "$1"
+  ifeq ($(shell uname -s),Darwin)
+    STRIP = echo "no strip available"
+  else
+    STRIP = strip --strip-all "$1"
+  endif
 endif
 
-OBJECTS := $(SOURCES:.c=.o)
+CC := gcc
+CFLAGS := -Wall -Wextra -O3 -DNDEBUG -DLOG_BUILD_LEVEL=3 -std=c89
+LDFLAGS := -flto
 
-all: $(TARGET)
+BINDIR := ./bin
+OBJDIR := ./obj
+SRCDIR := ./src
+DEPDIR := ./src/deps
+SOURCES := $(SRCDIR)/main.c \
+           $(SRCDIR)/convert.c \
+           $(SRCDIR)/input.c \
+           $(SRCDIR)/output.c \
+           $(SRCDIR)/compress.c \
+           $(SRCDIR)/options.c \
+           $(SRCDIR)/log.c \
+           $(DEPDIR)/zx7/compress.c \
+           $(DEPDIR)/zx7/optimize.c
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+OBJECTS := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+LIBRARIES :=
 
-.cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+all: $(BINDIR)/$(TARGET)
+
+release: $(BINDIR)/$(TARGET)
+	$(call STRIP,$^)
+
+$(BINDIR)/$(TARGET): $(OBJECTS)
+	$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	$(CC) $(LDFLAGS) $(call NATIVEPATH,$^) -o $(call NATIVEPATH,$@) $(addprefix -l, $(LIBRARIES))
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	$(CC) -c $(call NATIVEPATH,$<) $(CFLAGS) -o $(call NATIVEPATH,$@)
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(call RMDIR,$(call NATIVEPATH,$(BINDIR)))
+	$(call RMDIR,$(call NATIVEPATH,$(OBJDIR)))
 
-.PHONY: clean
+.PHONY: all release clean

@@ -23,6 +23,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdlib.h>
+
 #define MAX_OFFSET  2176  /* range 1..2176 */
 #define MAX_LEN    65536  /* range 2..65536 */
 

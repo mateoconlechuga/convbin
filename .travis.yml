@@ -13,5 +13,9 @@ branches:
     - master
 
 script:
+  - make clean
   - make
-
+  - make release
+  - cd ./test
+  - chmod +x test.sh
+  - ./test.sh; res=`expr $?`; return $res
