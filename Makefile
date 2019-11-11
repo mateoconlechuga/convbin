@@ -31,7 +31,9 @@ SOURCES := $(SRCDIR)/main.c \
            $(SRCDIR)/output.c \
            $(SRCDIR)/compress.c \
            $(SRCDIR)/options.c \
+           $(SRCDIR)/ti8x.c \
            $(SRCDIR)/log.c \
+           $(SRCDIR)/asm/decompress_bin.c \
            $(DEPDIR)/zx7/compress.c \
            $(DEPDIR)/zx7/optimize.c
 
@@ -44,11 +46,11 @@ release: $(BINDIR)/$(TARGET)
 	$(call STRIP,$^)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
-	$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	@$(call MKDIR,$(call NATIVEPATH,$(@D)))
 	$(CC) $(LDFLAGS) $(call NATIVEPATH,$^) -o $(call NATIVEPATH,$@) $(addprefix -l, $(LIBRARIES))
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	@$(call MKDIR,$(call NATIVEPATH,$(@D)))
 	$(CC) -c $(call NATIVEPATH,$<) $(CFLAGS) -o $(call NATIVEPATH,$@)
 
 clean:

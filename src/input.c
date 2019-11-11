@@ -29,5 +29,131 @@
  */
 
 #include "input.h"
+#include "ti8x.h"
+#include "log.h"
 
 #include "deps/zx7/zx7.h"
+
+#include <errno.h>
+#include <string.h>
+
+/*
+ * Interprets input as raw binary.
+ */
+static int input_bin(FILE *fdi, unsigned char *arr, size_t *size)
+{
+    int s = 0;
+
+    if (fdi == NULL || arr == NULL || size == NULL)
+    {
+        LL_DEBUG("Invalid param in %s.", __func__);
+        return 1;
+    }
+
+    for (;;)
+    {
+        int c = fgetc(fdi);
+        if (c == EOF)
+        {
+            break;
+        }
+
+        arr[s++] = (unsigned char)c;
+        if (s >= INPUT_MAX_BYTES)
+        {
+            LL_ERROR("Input file too large.");
+            return 1;
+        }
+    }
+
+    *size = s;
+
+    return 0;
+}
+
+/*
+ * Interprets input as TI 8x* formatted file.
+ */
+static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size)
+{
+    int s = 0;
+    int ret;
+
+    if (fdi == NULL || arr == NULL || size == NULL)
+    {
+        LL_DEBUG("Invalid param in %s.", __func__);
+        return 1;
+    }
+
+    ret = fseek(fdi, TI8X_DATA, SEEK_SET);
+    if (ret != 0)
+    {
+        LL_ERROR("Input seek failed.");
+        return ret;
+    }
+
+    for (;;)
+    {
+        int c = fgetc(fdi);
+        if (c == EOF)
+        {
+            break;
+        }
+
+        arr[s++] = (unsigned char)c;
+        if (s >= INPUT_MAX_BYTES)
+        {
+            LL_ERROR("Input file too large.");
+            return 1;
+        }
+    }
+
+    if (s >= TI8X_CHECKSUM_LEN)
+    {
+        s -= TI8X_CHECKSUM_LEN;
+    }
+    else
+    {
+        LL_ERROR("Input file too short.");
+        return 1;
+    }
+
+    *size = s;
+
+    return 0;
+}
+
+/*
+ * Reads a file depending on the format.
+ */
+int input_read_file(input_file_t *file)
+{
+    FILE *fdi;
+    int ret;
+
+    fdi = fopen(file->name, "rb");
+    if (fdi == NULL)
+    {
+        LL_ERROR("Cannot open input file: %s", strerror(errno));
+        return 1;
+    }
+
+    switch (file->format)
+    {
+        case IFORMAT_BIN:
+            ret = input_bin(fdi, file->arr, &file->size);
+            break;
+
+        case IFORMAT_TI8X:
+            ret = input_ti8x(fdi, file->arr, &file->size);
+            break;
+
+        default:
+            ret = 1;
+            break;
+    }
+
+    fclose(fdi);
+
+    return ret;
+}

@@ -49,21 +49,23 @@ static void options_show(const char *prgm)
     LL_PRINT("    %s [options] -j <mode> -k <mode> -i <file> -o <file>\n", prgm);
     LL_PRINT("\n");
     LL_PRINT("Required options:\n");
-    LL_PRINT("    -i, --input <file>        Input file. Can be specified multiple times,\n");
-    LL_PRINT("                              input files are appended in order.\n");
-    LL_PRINT("    -o, --output <file>       Output file after conversion.\n");
-    LL_PRINT("    -j, --iformat <mode>      Set input file format to <mode>.\n");
-    LL_PRINT("                              See 'Input formats' below.\n");
-    LL_PRINT("                              If input has multiple files, place this before\n");
-    LL_PRINT("                              to change the interpreted format for the file.\n");
-    LL_PRINT("    -k, --oformat <mode>      Set output file format to <mode>.\n");
-    LL_PRINT("                              See 'Output formats' below.\n");
-    LL_PRINT("    -n, --name <name>         If converting to a TI file type, overrides\n");
-    LL_PRINT("                              the  on-calc name.\n");
+    LL_PRINT("    -i, --input <file>      Input file. Can be specified multiple times,\n");
+    LL_PRINT("                            input files are appended in order.\n");
+    LL_PRINT("    -o, --output <file>     Output file after conversion.\n");
+    LL_PRINT("    -j, --iformat <mode>    Set input file format to <mode>.\n");
+    LL_PRINT("                            See 'Input formats' below.\n");
+    LL_PRINT("                            This should be placed before the input file.\n");
+    LL_PRINT("                            The default input format is 'bin'.\n");
+    LL_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
+    LL_PRINT("                            See 'Output formats' below.\n");
+    LL_PRINT("    -n, --varname <name>    If converting to a TI file type, sets\n");
+    LL_PRINT("                            the on-calc name.\n");
     LL_PRINT("\n");
     LL_PRINT("Optional options:\n");
+    LL_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
     LL_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
     LL_PRINT("                            Supported modes: zx7\n");
+    LL_PRINT("    -m, --varmaxsize <size> Sets maximum size of TI 8x* variables.\n");
     LL_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
     LL_PRINT("    -h, --help              Show this screen.\n");
     LL_PRINT("    -v, --version           Show program version.\n");
@@ -75,7 +77,6 @@ static void options_show(const char *prgm)
     LL_PRINT("    <mode>: Description.\n");
     LL_PRINT("\n");
     LL_PRINT("    bin: Interpret as raw binary.\n");
-    LL_PRINT("    hex: Interpret as Intel Hex.\n");
     LL_PRINT("    8x: Interpret as TI 8x* formatted. Only the data section is used.\n");
     LL_PRINT("\n");
     LL_PRINT("Output formats:\n");
@@ -104,13 +105,9 @@ static iformat_t options_parse_input_format(const char *str)
     {
         format = IFORMAT_BIN;
     }
-    else if (!strcmp(str, "hex"))
-    {
-        format = IFORMAT_HEX;
-    }
     else if (!strcmp(str, "8x"))
     {
-        format = IFORMAT_8X;
+        format = IFORMAT_TI8X;
     }
 
     return format;
@@ -175,6 +172,37 @@ static compression_t options_parse_compression(const char *str)
 }
 
 /*
+ * Get compression mode from string.
+ */
+static ti8x_var_type_t options_get_var_type(oformat_t format)
+{
+    ti8x_var_type_t type = TI8X_TYPE_UNKNOWN;
+
+    switch (format)
+    {
+        case OFORMAT_8XP:
+        case OFORMAT_8XP_AUTO_DECOMPRESS:
+            type = TI8X_TYPE_PRGM;
+            break;
+
+        case OFORMAT_8XV:
+            type = TI8X_TYPE_APPVAR;
+            break;
+
+        case OFORMAT_8XG:
+        case OFORMAT_8XG_AUTO_EXTRACT:
+            type = TI8X_TYPE_GROUP;
+            break;
+
+        default:
+            type = TI8X_TYPE_UNKNOWN;
+            break;
+    }
+
+    return type;
+}
+
+/*
  * Verify the options supplied are valid.
  * Return 0 if valid, otherwise nonzero.
  */
@@ -182,31 +210,49 @@ static int options_verify(options_t *options)
 {
     if (options->input.numfiles == 0)
     {
-        LL_ERROR("Missing input file.");
+        LL_ERROR("unknown input file(s).");
         goto error;
     }
 
-    if (options->input.format == IFORMAT_INVALID)
+    if (options->input.file[0].format == IFORMAT_INVALID)
     {
-        LL_ERROR("Invalid input format mode.");
+        LL_ERROR("invalid input format mode.");
         goto error;
     }
 
-    if (options->output.file == 0)
+    if (options->output.file.name == 0)
     {
-        LL_ERROR("Missing output file.");
+        LL_ERROR("unknown output file.");
         goto error;
     }
 
-    if (options->output.format == OFORMAT_INVALID)
+    if (options->output.file.format == OFORMAT_INVALID)
     {
-        LL_ERROR("Invalid output format mode.");
+        LL_ERROR("invalid output format mode.");
         goto error;
     }
 
-    if (options->output.compression == COMPRESS_INVALID)
+    if (options->output.file.compression == COMPRESS_INVALID)
     {
-        LL_ERROR("Invalid output compression mode.");
+        LL_ERROR("invalid output compression mode.");
+        goto error;
+    }
+
+    if (options->output.file.var.maxsize < TI8X_MINIMUM_MAXVAR_SIZE)
+    {
+        LL_ERROR("maximum variable size too small.");
+        goto error;
+    }
+
+    if (options->output.file.var.maxsize > TI8X_MAXDATA_SIZE)
+    {
+        LL_ERROR("maximum variable size too large.");
+        goto error;
+    }
+
+    if (options->output.file.var.name == 0)
+    {
+        LL_ERROR("variable name not supplied.");
         goto error;
     }
 
@@ -229,12 +275,14 @@ static void options_set_default(options_t *options)
 
     options->prgm = 0;
     options->input.numfiles = 0;
-    options->input.format = IFORMAT_INVALID;
-    options->output.file = 0;
-    options->output.name = 0;
-    options->output.format = OFORMAT_INVALID;
-    options->output.compression = COMPRESS_NONE;
-    options->output.append = false;
+    options->input.default_format = IFORMAT_BIN;
+    options->output.file.append = false;
+    options->output.file.compression = COMPRESS_NONE;
+    options->output.file.name = 0;
+    options->output.file.format = OFORMAT_INVALID;
+    options->output.file.var.name = 0;
+    options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
+    options->output.file.var.archive = false;
 }
 
 /*
@@ -243,6 +291,8 @@ static void options_set_default(options_t *options)
  */
 int options_get(int argc, char *argv[], options_t *options)
 {
+    unsigned int numifiles = 0;
+
     log_set_level(LOG_BUILD_LEVEL);
 
     if (argc < 2 || argv == NULL || options == NULL)
@@ -258,20 +308,21 @@ int options_get(int argc, char *argv[], options_t *options)
     {
         static struct option long_options[] =
         {
-            {"input",           required_argument, 0, 'i'},
-            {"output",          required_argument, 0, 'o'},
-            {"input-format",    required_argument, 0, 'k'},
-            {"output-format",   required_argument, 0, 'j'},
-            {"compress",        required_argument, 0, 'c'},
-            {"max-var-size",    required_argument, 0, 'm'},
-            {"name",            required_argument, 0, 'n'},
-            {"append",          no_argument,       0, 'a'},
-            {"help",            no_argument,       0, 'h'},
-            {"version",         no_argument,       0, 'v'},
-            {"log-level",       required_argument, 0, 'l'},
+            {"input",      required_argument, 0, 'i'},
+            {"output",     required_argument, 0, 'o'},
+            {"iformat",    required_argument, 0, 'j'},
+            {"oformat",    required_argument, 0, 'k'},
+            {"compress",   required_argument, 0, 'c'},
+            {"varmaxsize", required_argument, 0, 'm'},
+            {"varname",    required_argument, 0, 'n'},
+            {"archive",    no_argument,       0, 'r'},
+            {"append",     no_argument,       0, 'a'},
+            {"help",       no_argument,       0, 'h'},
+            {"version",    no_argument,       0, 'v'},
+            {"log-level",  required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
-        int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:a:l:ahv", long_options, NULL);
+        int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:a:l:rahv", long_options, NULL);
 
         if (c == - 1)
         {
@@ -281,31 +332,51 @@ int options_get(int argc, char *argv[], options_t *options)
         switch (c)
         {
             case 'i':
-                options->input.file[options->input.numfiles++] = optarg;
+                options->input.file[numifiles].name = optarg;
+                options->input.file[numifiles].format =
+                    options->input.default_format;
+                if (numifiles >= INPUTS_MAX)
+                {
+                    LL_ERROR("too many input files.");
+                    return 1;
+                }
+                numifiles++;
                 break;
 
             case 'o':
-                options->output.file = optarg;
+                options->output.file.name = optarg;
                 break;
 
             case 'n':
-                options->output.name = optarg;
+                options->output.file.var.name = optarg;
+                break;
+
+            case 'r':
+                options->output.file.var.archive = true;
                 break;
 
             case 'j':
-                options->input.format = options_parse_input_format(optarg);
+                options->input.default_format =
+                    options_parse_input_format(optarg);
                 break;
 
             case 'k':
-                options->output.format = options_parse_output_format(optarg);
+                options->output.file.format =
+                    options_parse_output_format(optarg);
                 break;
 
             case 'c':
-                options->output.compression = options_parse_compression(optarg);
+                options->output.file.compression =
+                    options_parse_compression(optarg);
                 break;
 
             case 'a':
-                options->output.append = true;
+                options->output.file.append = true;
+                break;
+
+            case 'm':
+                options->output.file.var.maxsize =
+                    (size_t)strtol(optarg, NULL, 0);
                 break;
 
             case 'v':
@@ -325,6 +396,10 @@ int options_get(int argc, char *argv[], options_t *options)
                 return OPTIONS_FAILED;
         }
     }
+
+    options->input.numfiles = numifiles;
+    options->output.file.var.type =
+        options_get_var_type(options->output.file.format);
 
     return options_verify(options);
 }

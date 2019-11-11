@@ -28,49 +28,55 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef OUTPUT_H
-#define OUTPUT_H
+#ifndef TI8X_H
+#define TI8X_H
+
+#include <stdbool.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "compress.h"
-#include "ti8x.h"
-
-#define MAX_OUTPUT_SIZE 0x40000
-
 typedef enum
 {
-    OFORMAT_C,
-    OFORMAT_ASM,
-    OFORMAT_BIN,
-    OFORMAT_ICE,
-    OFORMAT_8XP,
-    OFORMAT_8XV,
-    OFORMAT_8XG,
-    OFORMAT_8XG_AUTO_EXTRACT,
-    OFORMAT_8XP_AUTO_DECOMPRESS,
-    OFORMAT_INVALID,
-} oformat_t;
+    TI8X_TYPE_UNKNOWN = -1,
+    TI8X_TYPE_PRGM = 6,
+    TI8X_TYPE_APPVAR = 21,
+    TI8X_TYPE_GROUP = 21,
+} ti8x_var_type_t;
 
 typedef struct
 {
     const char *name;
-    oformat_t format;
-    ti8x_var_t var;
-    unsigned char arr[MAX_OUTPUT_SIZE];
-    size_t size;
-    compression_t compression;
-    bool append;
-} output_file_t;
+    bool archive;
+    ti8x_var_type_t type;
+    size_t maxsize;
+} ti8x_var_t;
 
-typedef struct
-{
-    output_file_t file;
-} output_t;
+#define TI8X_CHECKSUM_LEN 2
+#define TI8X_VARB_SIZE_LEN 2
+#define TI8X_VAR_HEADER_LEN 17
 
-int output_write_file(output_file_t *file);
+#define TI8X_FILE_HEADER 0x00
+#define TI8X_DATA_SIZE 0x35
+#define TI8X_VAR_HEADER 0x37
+#define TI8X_VAR_SIZE0 0x39
+#define TI8X_TYPE 0x3b
+#define TI8X_NAME 0x3c
+#define TI8X_ARCHIVE 0x45
+#define TI8X_VAR_SIZE1 0x46
+#define TI8X_VARB_SIZE 0x48
+#define TI8X_DATA 0x4a
+
+#define TI8X_MAGIC 0x0d
+#define TI8X_MAX_FILE_SIZE (1024 * 66)
+#define TI8X_MAXDATA_SIZE (0x10000 - 0x130)
+
+#define TI8X_MINIMUM_MAXVAR_SIZE 4096
+#define TI8X_DEFAULT_MAXVAR_SIZE TI8X_MAXDATA_SIZE
+
+unsigned int ti8x_checksum(unsigned char *arr, size_t size);
 
 #ifdef	__cplusplus
 }

@@ -1,7 +1,10 @@
 #include "output.h"
+#include "log.h"
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 
 #define VALUES_PER_LINE 32
 
@@ -95,4 +98,52 @@ static int output_bin(const char *name, unsigned char *arr, size_t size, FILE *f
     (void)name;
 
     return ret == 1 ? 0 : 1;
+}
+
+/*
+ * Outputs the converted information to a file.
+ */
+int output_write_file(output_file_t *file)
+{
+    FILE *fdo;
+    int ret;
+
+    fdo = fopen(file->name, file->append ? "ab" : "wb");
+    if (fdo == NULL)
+    {
+        LL_ERROR("cannot open output file: %s", strerror(errno));
+        return 1;
+    }
+
+    switch (file->format)
+    {
+        case OFORMAT_C:
+            ret = output_c(file->name, file->arr, file->size, fdo);
+            break;
+
+        case OFORMAT_ASM:
+            ret = output_asm(file->name, file->arr, file->size, fdo);
+            break;
+
+        case OFORMAT_ICE:
+            ret = output_ice(file->name, file->arr, file->size, fdo);
+            break;
+
+        case OFORMAT_BIN:
+        case OFORMAT_8XV:
+        case OFORMAT_8XP:
+        case OFORMAT_8XG:
+        case OFORMAT_8XG_AUTO_EXTRACT:
+        case OFORMAT_8XP_AUTO_DECOMPRESS:
+            ret = output_bin(file->name, file->arr, file->size, fdo);
+            break;
+
+        default:
+            ret = 1;
+            break;
+    }
+
+    fclose(fdo);
+
+    return ret;
 }

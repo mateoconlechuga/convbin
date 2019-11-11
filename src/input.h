@@ -31,26 +31,38 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define MAX_INPUTS 64
+#define INPUTS_MAX 16
+#define INPUT_MAX_BYTES (1024*140)
 
 typedef enum
 {
     IFORMAT_BIN,
-    IFORMAT_HEX,
-    IFORMAT_8X,
+    IFORMAT_TI8X,
     IFORMAT_INVALID,
 } iformat_t;
 
 typedef struct
 {
-    const char *file[MAX_INPUTS];
+    const char *name;
+    unsigned char arr[INPUT_MAX_BYTES];
     iformat_t format;
-    int numfiles;
+    size_t size;
+} input_file_t;
+
+typedef struct
+{
+    input_file_t file[INPUTS_MAX];
+    iformat_t default_format;
+    unsigned int numfiles;
 } input_t;
+
+int input_read_file(input_file_t *file);
 
 #ifdef	__cplusplus
 }
