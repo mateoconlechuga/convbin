@@ -172,8 +172,8 @@ int convert_auto_8xg(input_t *input, output_file_t *outfile)
         return ret;
     }
 
-    file_size = size + TI8X_DATA + TI8X_CHECKSUM_LEN;
-    data_size = size + TI8X_VAR_HEADER_LEN + TI8X_VARB_SIZE_LEN;
+    file_size = size + TI8X_FILE_HEADER_LEN + TI8X_CHECKSUM_LEN;
+    data_size = size;
 
     ti8x = outfile->arr;
     outfile->size = file_size;
@@ -188,8 +188,8 @@ int convert_auto_8xg(input_t *input, output_file_t *outfile)
 
     checksum = ti8x_checksum(ti8x, data_size);
 
-    ti8x[TI8X_DATA + size + 0] = (checksum >> 0) & 0xff;
-    ti8x[TI8X_DATA + size + 1] = (checksum >> 8) & 0xff;
+    ti8x[file_size - 2] = (checksum >> 0) & 0xff;
+    ti8x[file_size - 1] = (checksum >> 8) & 0xff;
 
     return 0;
 }
@@ -212,6 +212,8 @@ int convert_bin(input_t *input, output_file_t *outfile)
 
     memcpy(outfile->arr, arr, size);
     outfile->size = size;
+
+    free(arr);
 
     return ret;
 }
@@ -241,16 +243,13 @@ int convert_input_to_output(input_t *input, output_t *output)
 
         case OFORMAT_8XV:
         case OFORMAT_8XP:
+        case OFORMAT_8XG:
         case OFORMAT_8XP_AUTO_DECOMPRESS:
             ret = convert_8x(input, &output->file);
             break;
 
-        case OFORMAT_8XG:
-            ret = convert_8x(input, &output->file);
-            break;
-
         case OFORMAT_8XG_AUTO_EXTRACT:
-            convert_auto_8xg(input, &output->file);
+            ret = convert_auto_8xg(input, &output->file);
             break;
 
         default:

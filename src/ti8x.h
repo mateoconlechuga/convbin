@@ -58,6 +58,7 @@ typedef struct
 #define TI8X_ASMCOMP_LEN 2
 #define TI8X_VARB_SIZE_LEN 2
 #define TI8X_VAR_HEADER_LEN 17
+#define TI8X_FILE_HEADER_LEN 55
 
 #define TI8X_FILE_HEADER 0x00
 #define TI8X_DATA_SIZE 0x35
