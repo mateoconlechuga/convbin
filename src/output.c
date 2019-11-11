@@ -14,7 +14,7 @@
 static int output_c(const char *name, unsigned char *arr, size_t size, FILE *fdo)
 {
     size_t i;
-
+    fprintf(stdout, "unsigned char %s[%lu] =\n{", name, size);
     fprintf(fdo, "unsigned char %s[%lu] =\n{", name, size);
     for (i = 0; i < size; ++i)
     {
@@ -118,11 +118,11 @@ int output_write_file(output_file_t *file)
     switch (file->format)
     {
         case OFORMAT_C:
-            ret = output_c(file->name, file->arr, file->size, fdo);
+            ret = output_c(file->var.name, file->arr, file->size, fdo);
             break;
 
         case OFORMAT_ASM:
-            ret = output_asm(file->name, file->arr, file->size, fdo);
+            ret = output_asm(file->var.name, file->arr, file->size, fdo);
             break;
 
         case OFORMAT_ICE:

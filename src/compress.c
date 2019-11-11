@@ -29,9 +29,18 @@
  */
 
 #include "compress.h"
+#include "ti8x.h"
 #include "log.h"
 
 #include "deps/zx7/zx7.h"
+
+#include <string.h>
+
+/* from decompress.asm */
+/* run the makefile to print out the offset */
+#define SIZE_OFFSET 41
+extern unsigned char decompress_bin[];
+extern unsigned int decompress_bin_len;
 
 static int compress_zx7(unsigned char **arr, size_t *size)
 {
@@ -41,7 +50,7 @@ static int compress_zx7(unsigned char **arr, size_t *size)
 
     if (size == NULL || arr == NULL)
     {
-        LL_ERROR("Invalid array size.");
+        LL_DEBUG("invalid param in %s.", __func__);
         return 1;
     }
 
@@ -68,4 +77,34 @@ int compress_array(unsigned char **arr, size_t *size, compression_t mode)
     (void)mode;
 
     return compress_zx7(arr, size);
+}
+
+/*
+ * Compress and create an auto-decompressing 8xp.
+ */
+int compress_auto_8xp(unsigned char **arr, size_t *size)
+{
+    unsigned char *compressedarr = malloc(TI8X_MAXDATA_SIZE);
+    unsigned char *newarr = malloc(TI8X_MAXDATA_SIZE);
+    size_t origsize = *size;
+    int ret = 0;
+
+    memcpy(compressedarr, *arr + TI8X_ASMCOMP_LEN, *size);
+
+    ret = compress_array(&compressedarr, size, COMPRESS_ZX7);
+    if (ret == 0)
+    {
+        decompress_bin[SIZE_OFFSET + 0] = (origsize >> 0) & 0xff;
+        decompress_bin[SIZE_OFFSET + 1] = (origsize >> 8) & 0xff;
+        decompress_bin[SIZE_OFFSET + 2] = (origsize >> 16) & 0xff;
+
+        memcpy(newarr, decompress_bin, (size_t)decompress_bin_len);
+        memcpy(newarr + decompress_bin_len, compressedarr, *size);
+
+        free(*arr);
+        *arr = newarr;
+        *size += decompress_bin_len;
+    }
+
+    return ret;
 }

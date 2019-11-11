@@ -55,6 +55,7 @@ typedef struct
 } ti8x_var_t;
 
 #define TI8X_CHECKSUM_LEN 2
+#define TI8X_ASMCOMP_LEN 2
 #define TI8X_VARB_SIZE_LEN 2
 #define TI8X_VAR_HEADER_LEN 17
 

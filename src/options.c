@@ -58,14 +58,15 @@ static void options_show(const char *prgm)
     LL_PRINT("                            The default input format is 'bin'.\n");
     LL_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LL_PRINT("                            See 'Output formats' below.\n");
-    LL_PRINT("    -n, --varname <name>    If converting to a TI file type, sets\n");
-    LL_PRINT("                            the on-calc name.\n");
+    LL_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
+    LL_PRINT("                            the on-calc name. For C and Assembly\n");
+    LL_PRINT("                            outputs, sets the array or label name.\n");
     LL_PRINT("\n");
     LL_PRINT("Optional options:\n");
     LL_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
     LL_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
     LL_PRINT("                            Supported modes: zx7\n");
-    LL_PRINT("    -m, --varmaxsize <size> Sets maximum size of TI 8x* variables.\n");
+    LL_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
     LL_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
     LL_PRINT("    -h, --help              Show this screen.\n");
     LL_PRINT("    -v, --version           Show program version.\n");
@@ -208,6 +209,8 @@ static ti8x_var_type_t options_get_var_type(oformat_t format)
  */
 static int options_verify(options_t *options)
 {
+    oformat_t oformat = options->output.file.format;
+
     if (options->input.numfiles == 0)
     {
         LL_ERROR("unknown input file(s).");
@@ -250,10 +253,20 @@ static int options_verify(options_t *options)
         goto error;
     }
 
-    if (options->output.file.var.name == 0)
+    if (oformat == OFORMAT_C ||
+        oformat == OFORMAT_ASM ||
+        oformat == OFORMAT_8XP ||
+        oformat == OFORMAT_8XV ||
+        oformat == OFORMAT_8XG ||
+        oformat == OFORMAT_8XG ||
+        oformat == OFORMAT_8XG_AUTO_EXTRACT ||
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
-        LL_ERROR("variable name not supplied.");
-        goto error;
+        if (options->output.file.var.name == 0)
+        {
+            LL_ERROR("name not supplied.");
+            goto error;
+        }
     }
 
     return OPTIONS_SUCCESS;

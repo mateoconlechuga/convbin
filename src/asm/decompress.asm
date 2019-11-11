@@ -10,9 +10,11 @@ end macro
 
 relocaddr := ti.plotSScreen
 relocoffset := compressedprgm.relocate - ti.userMem
+asmcompsize := 2
+sizebytessize := 2
 
+	db	ti.tExtTok, ti.tAsm84CeCmp
 	org	ti.userMem
-	db	ti.tExtTok, ti.tAsm84CePrgm
 
 compressedprgm:
 	ld	hl,.relocate
@@ -51,7 +53,7 @@ decompressprgm:
 	add	hl,de
 	inc	hl
 .inram:
-	ld	de,(compresseddata - relocaddr) + relocoffset
+	ld	de,(compresseddata - relocaddr) + relocoffset + asmcompsize + sizebytessize
 	add	hl,de
 	ld	de,ti.userMem
 	call	decompress
@@ -111,4 +113,4 @@ decompress:
 
 compresseddata:
 
-print "uncompressed size offset: ", (decompressprgm.uncompressedsize - relocaddr) + relocoffset
+print "uncompressed size offset: ", (decompressprgm.uncompressedsize - relocaddr) + relocoffset + asmcompsize
