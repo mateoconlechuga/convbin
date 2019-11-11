@@ -43,7 +43,7 @@ typedef enum
     TI8X_TYPE_UNKNOWN = -1,
     TI8X_TYPE_PRGM = 6,
     TI8X_TYPE_APPVAR = 21,
-    TI8X_TYPE_GROUP = 21,
+    TI8X_TYPE_GROUP = 23,
 } ti8x_var_type_t;
 
 typedef struct
@@ -76,6 +76,8 @@ typedef struct
 
 #define TI8X_MINIMUM_MAXVAR_SIZE 4096
 #define TI8X_DEFAULT_MAXVAR_SIZE TI8X_MAXDATA_SIZE
+
+extern const unsigned char ti8x_file_header[10];
 
 unsigned int ti8x_checksum(unsigned char *arr, size_t size);
 

@@ -14,7 +14,7 @@
 static int output_c(const char *name, unsigned char *arr, size_t size, FILE *fdo)
 {
     size_t i;
-    fprintf(stdout, "unsigned char %s[%lu] =\n{", name, size);
+
     fprintf(fdo, "unsigned char %s[%lu] =\n{", name, size);
     for (i = 0; i < size; ++i)
     {

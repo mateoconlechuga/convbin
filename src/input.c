@@ -74,7 +74,8 @@ static int input_bin(FILE *fdi, unsigned char *arr, size_t *size)
 /*
  * Interprets input as TI 8x* formatted file.
  */
-static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size)
+static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size,
+                      bool header)
 {
     int s = 0;
     int ret;
@@ -85,7 +86,7 @@ static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size)
         return 1;
     }
 
-    ret = fseek(fdi, TI8X_DATA, SEEK_SET);
+    ret = fseek(fdi, header ? TI8X_VAR_HEADER : TI8X_DATA, SEEK_SET);
     if (ret != 0)
     {
         LL_ERROR("Input seek failed.");
@@ -124,6 +125,22 @@ static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size)
 }
 
 /*
+ * Interprets input as TI 8x* data section.
+ */
+static int input_ti8x_data(FILE *fdi, unsigned char *arr, size_t *size)
+{
+    return input_ti8x(fdi, arr, size, false);
+}
+
+/*
+ * Interprets input as TI 8x* data and variable header section.
+ */
+static int input_ti8x_data_var(FILE *fdi, unsigned char *arr, size_t *size)
+{
+    return input_ti8x(fdi, arr, size, true);
+}
+
+/*
  * Reads a file depending on the format.
  */
 int input_read_file(input_file_t *file)
@@ -144,8 +161,12 @@ int input_read_file(input_file_t *file)
             ret = input_bin(fdi, file->arr, &file->size);
             break;
 
-        case IFORMAT_TI8X:
-            ret = input_ti8x(fdi, file->arr, &file->size);
+        case IFORMAT_TI8X_DATA:
+            ret = input_ti8x_data(fdi, file->arr, &file->size);
+            break;
+
+        case IFORMAT_TI8X_DATA_VAR:
+            ret = input_ti8x_data_var(fdi, file->arr, &file->size);
             break;
 
         default:

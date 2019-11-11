@@ -78,21 +78,22 @@ static void options_show(const char *prgm)
     LL_PRINT("    <mode>: Description.\n");
     LL_PRINT("\n");
     LL_PRINT("    bin: Interpret as raw binary.\n");
-    LL_PRINT("    8x: Interpret as TI 8x* formatted. Only the data section is used.\n");
+    LL_PRINT("    8x: Interprets the TI 8x* data section.\n");
     LL_PRINT("\n");
     LL_PRINT("Output formats:\n");
     LL_PRINT("    Below is a list of available output formats, listed as\n");
     LL_PRINT("    <mode>: Description.\n");
     LL_PRINT("\n");
-    LL_PRINT("    c: Output C source.\n");
-    LL_PRINT("    asm: Output Assembly source.\n");
-    LL_PRINT("    ice: Output ICE source.\n");
-    LL_PRINT("    bin: Output raw binary.\n");
-    LL_PRINT("    8xp: Output TI Program.\n");
-    LL_PRINT("    8xv: Output TI Appvar.\n");
-    LL_PRINT("    8xg: Output TI Group.\n");
-    LL_PRINT("    8xg-auto-extract: Output TI Auto-Extracting Group.\n");
-    LL_PRINT("    8xp-auto-decompress: Output TI Auto-Decompressing Compressed Program.\n");
+    LL_PRINT("    c: C source.\n");
+    LL_PRINT("    asm: Assembly source.\n");
+    LL_PRINT("    ice: ICE source.\n");
+    LL_PRINT("    bin: raw binary.\n");
+    LL_PRINT("    8xp: TI Program.\n");
+    LL_PRINT("    8xv: TI Appvar.\n");
+    LL_PRINT("    8xg: TI Group. Input format must be 8x.\n");
+    LL_PRINT("    8xg-auto-extract: TI Auto-Extracting Group.\n");
+    LL_PRINT("                      Input format must be 8x.\n");
+    LL_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
 }
 
 /*
@@ -108,7 +109,7 @@ static iformat_t options_parse_input_format(const char *str)
     }
     else if (!strcmp(str, "8x"))
     {
-        format = IFORMAT_TI8X;
+        format = IFORMAT_TI8X_DATA;
     }
 
     return format;
@@ -128,6 +129,10 @@ static oformat_t options_parse_output_format(const char *str)
     else if (!strcmp(str, "asm"))
     {
         format = OFORMAT_ASM;
+    }
+    else if (!strcmp(str, "ice"))
+    {
+        format = OFORMAT_ICE;
     }
     else if (!strcmp(str, "bin"))
     {
@@ -305,6 +310,7 @@ static void options_set_default(options_t *options)
 int options_get(int argc, char *argv[], options_t *options)
 {
     unsigned int numifiles = 0;
+    unsigned int i;
 
     log_set_level(LOG_BUILD_LEVEL);
 
@@ -413,6 +419,15 @@ int options_get(int argc, char *argv[], options_t *options)
     options->input.numfiles = numifiles;
     options->output.file.var.type =
         options_get_var_type(options->output.file.format);
+
+    if (options->output.file.format == OFORMAT_8XG ||
+        options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
+    {
+        for (i = 0; i < numifiles; ++i)
+        {
+            options->input.file[i].format = IFORMAT_TI8X_DATA_VAR;
+        }
+    }
 
     return options_verify(options);
 }
