@@ -37,7 +37,7 @@
 int main(int argc, char **argv)
 {
     int ret;
-    options_t options;
+    static options_t options;
 
     ret = options_get(argc, argv, &options);
     if (ret == OPTIONS_SUCCESS)

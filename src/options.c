@@ -59,7 +59,7 @@ static void options_show(const char *prgm)
     LL_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LL_PRINT("                            See 'Output formats' below.\n");
     LL_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
-    LL_PRINT("                            the on-calc name. For C and Assembly\n");
+    LL_PRINT("                            the on-calc name. For C, Assembly, and ICE\n");
     LL_PRINT("                            outputs, sets the array or label name.\n");
     LL_PRINT("\n");
     LL_PRINT("Optional options:\n");
@@ -91,8 +91,7 @@ static void options_show(const char *prgm)
     LL_PRINT("    8xp: TI Program.\n");
     LL_PRINT("    8xv: TI Appvar.\n");
     LL_PRINT("    8xg: TI Group. Input format must be 8x.\n");
-    LL_PRINT("    8xg-auto-extract: TI Auto-Extracting Group.\n");
-    LL_PRINT("                      Input format must be 8x.\n");
+    LL_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
     LL_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
 }
 
@@ -260,6 +259,7 @@ static int options_verify(options_t *options)
 
     if (oformat == OFORMAT_C ||
         oformat == OFORMAT_ASM ||
+        oformat == OFORMAT_ICE ||
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
@@ -331,8 +331,8 @@ int options_get(int argc, char *argv[], options_t *options)
             {"iformat",    required_argument, 0, 'j'},
             {"oformat",    required_argument, 0, 'k'},
             {"compress",   required_argument, 0, 'c'},
-            {"varmaxsize", required_argument, 0, 'm'},
-            {"varname",    required_argument, 0, 'n'},
+            {"maxvarsize", required_argument, 0, 'm'},
+            {"name",       required_argument, 0, 'n'},
             {"archive",    no_argument,       0, 'r'},
             {"append",     no_argument,       0, 'a'},
             {"help",       no_argument,       0, 'h'},

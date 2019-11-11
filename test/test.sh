@@ -26,3 +26,18 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+
+../bin/convbin --iformat 8x --input inputs/demo.8xp --input inputs/fileioc.8xv --input inputs/libload.8xv --oformat 8xg-auto-extract --output test.8xg.test || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat bin --output test.bin.test || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/fileioc.8xv --oformat bin --output test.bin.test || { exit 1; }
+../bin/convbin --iformat bin --input inputs/large.bin --oformat c --output test.c.test  --name TEST || { exit 1; }
+../bin/convbin --iformat bin --input inputs/large.bin --oformat asm --output test.asm.test --name TEST || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat ice --output test.ice.test --name TEST || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat 8xp --output test.8xp.test --name TEST || { exit 1; }
+../bin/convbin --iformat bin --input inputs/small.bin --oformat 8xp --output test.8xp.test --name TEST || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat 8xp-auto-decompress --output test.8xp --name TEST || { exit 1; }
+../bin/convbin --iformat bin --input inputs/small.bin --oformat c --output test.c.test  --name TEST --compress zx7 || { exit 1; }
+../bin/convbin --iformat bin --input inputs/large.bin --oformat asm --output test.asm.test --name TEST --compress zx7 || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat ice --output test.ice.test --name TEST --compress zx7 || { exit 1; }
+../bin/convbin --iformat 8x --input inputs/libload.8xv --oformat 8xp --output test.8xp.test --name TEST --compress zx7 || { exit 1; }
+../bin/convbin --iformat bin --input inputs/small.bin --oformat 8xp --output test.8xp.test --name TEST --compress zx7 || { exit 1; }

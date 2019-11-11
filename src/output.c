@@ -126,7 +126,7 @@ int output_write_file(output_file_t *file)
             break;
 
         case OFORMAT_ICE:
-            ret = output_ice(file->name, file->arr, file->size, fdo);
+            ret = output_ice(file->var.name, file->arr, file->size, fdo);
             break;
 
         case OFORMAT_BIN:
