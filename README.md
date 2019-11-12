@@ -1,4 +1,4 @@
-# convbin [![linux status](https://travis-ci.org/mateoconlechuga/convhex.svg?branch=master)](https://travis-ci.org/mateoconlechuga/convhex) [![windows status](https://ci.appveyor.com/api/projects/status/ufus9k2qyy6o5a8p/branch/master?svg=true)](https://ci.appveyor.com/project/MattWaltz/convhex/branch/master)
+# convbin [![linux status](https://travis-ci.org/mateoconlechuga/convhex.svg?branch=master)](https://travis-ci.org/mateoconlechuga/convhex) [![windows status](https://ci.appveyor.com/api/projects/status/jkq338od89qjch4w/branch/master?svg=true)](https://ci.appveyor.com/project/MattWaltz/convbin/branch/master)
 
 This program is used to convert files to other formats, specifically for the TI84+CE and related calculators.
 
