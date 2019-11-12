@@ -5,7 +5,7 @@ This program is used to convert files to other formats, specifically for the TI8
 ## Command Line Help
 
     Usage:
-        convbin [options] -j <mode> -k <mode> -i <file> -o <file>
+        ./convbin [options] -j <mode> -k <mode> -i <file> -o <file>
 
     Required options:
         -i, --input <file>      Input file. Can be specified multiple times,
@@ -18,7 +18,7 @@ This program is used to convert files to other formats, specifically for the TI8
         -k, --oformat <mode>    Set output file format to <mode>.
                                 See 'Output formats' below.
         -n, --name <name>       If converting to a TI file type, sets
-                                the on-calc name. For C and Assembly
+                                the on-calc name. For C, Assembly, and ICE
                                 outputs, sets the array or label name.
 
     Optional options:
@@ -37,6 +37,7 @@ This program is used to convert files to other formats, specifically for the TI8
         <mode>: Description.
 
         bin: Interpret as raw binary.
+        csv: Interprets as csv (comma separated values).
         8x: Interprets the TI 8x* data section.
 
     Output formats:
