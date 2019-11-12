@@ -49,7 +49,7 @@ static int convert_build_data(input_t *input,
 
     if (arr == NULL)
     {
-        LL_ERROR("memory error in %s.", __func__);
+        LL_ERROR("Memory error in %s.", __func__);
         return 1;
     }
 
@@ -59,7 +59,7 @@ static int convert_build_data(input_t *input,
 
         if (size + file->size > maxsize)
         {
-            LL_ERROR("input too large to fit in output file.");
+            LL_ERROR("Input too large to fit in output file.");
             return 1;
         }
 
@@ -72,7 +72,7 @@ static int convert_build_data(input_t *input,
         int ret = compress_array(&arr, &size, compression);
         if (ret != 0)
         {
-            LL_ERROR("could not compress.");
+            LL_ERROR("Could not compress.");
             return ret;
         }
     }
@@ -110,7 +110,7 @@ static int convert_8x(input_t *input, output_file_t *outfile)
         ret = compress_auto_8xp(&arr, &size);
         if (ret != 0)
         {
-            LL_ERROR("could not compress.");
+            LL_ERROR("Could not compress.");
             return ret;
         }
     }
@@ -229,7 +229,11 @@ int convert_input_to_output(input_t *input, output_t *output)
 
     for (i = 0; i < input->numfiles; ++i)
     {
-        input_read_file(&input->file[i]);
+        ret = input_read_file(&input->file[i]);
+        if (ret != 0)
+        {
+            return ret;
+        }
     }
 
     switch (output->file.format)

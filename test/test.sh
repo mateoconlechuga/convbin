@@ -40,4 +40,7 @@
 ../bin/convbin --iformat bin --input inputs/large.bin --oformat asm --output test.asm.test --name TEST --compress zx7 || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat ice --output test.ice.test --name TEST --compress zx7 || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/libload.8xv --oformat 8xp --output test.8xp.test --name TEST --compress zx7 || { exit 1; }
-../bin/convbin --iformat bin --input inputs/small.bin --oformat 8xp --output test.8xp.test --name TEST --compress zx7 || { exit 1; }
+../bin/convbin --iformat csv --input inputs/csv.csv --oformat c --output test.c.test --name TEST || { exit 1; }
+../bin/convbin --iformat csv --input inputs/csv.csv --oformat asm --output test.asm.test --name TEST || { exit 1; }
+../bin/convbin --iformat csv --input inputs/csv.csv --oformat ice --output test.ice.test --name TEST || { exit 1; }
+../bin/convbin --iformat csv --input inputs/csv.csv --oformat 8xp --output test.8xp.test --name TEST || { exit 1; }

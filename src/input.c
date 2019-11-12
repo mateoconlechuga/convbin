@@ -36,6 +36,9 @@
 
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
+
+#define REALLOC_BYTES 256
 
 /*
  * Interprets input as raw binary.
@@ -141,6 +144,94 @@ static int input_ti8x_data_var(FILE *fdi, unsigned char *arr, size_t *size)
 }
 
 /*
+ * Read a line from an input file; strips whitespace.
+ * Returns NULL if error.
+ */
+static char *input_csv_line(FILE *fdi)
+{
+    char *line = NULL;
+    int i = 0;
+    int c;
+
+    do
+    {
+        c = fgetc(fdi);
+
+        if (c < ' ')
+        {
+            c = 0;
+        }
+
+        if (!isspace(c))
+        {
+            if (i % REALLOC_BYTES == 0)
+            {
+                line = realloc(line, ((i / REALLOC_BYTES) + 1) * REALLOC_BYTES);
+                if (line == NULL)
+                {
+                    LL_ERROR("%s", strerror(errno));
+                    return NULL;
+                }
+            }
+
+            line[i] = (char)c;
+            i++;
+        }
+    } while (c);
+
+    return line;
+}
+
+/*
+ * Reads each line of a CSV file and stores into an array.
+ */
+static int input_csv(FILE *fdi, unsigned char *arr, size_t *size)
+{
+    char *line;
+    size_t s = 0;
+
+    if (arr == NULL || size == NULL)
+    {
+        LL_DEBUG("Invalid param in %s", __func__);
+        return 1;
+    }
+
+    do
+    {
+        char *token;
+
+        line = input_csv_line(fdi);
+        if (line == NULL)
+        {
+            break;
+        }
+
+        token = strtok(line, ",");
+
+        while (token)
+        {
+            int value = strtol(token, NULL, 0);
+            arr[s++] = (unsigned char)(value == -1 ? 0 : value);
+
+            if (s > INPUT_MAX_BYTES)
+            {
+                LL_ERROR("Exceeded maximum csv values.");
+                free(line);
+                return 1;
+            }
+
+            token = strtok(NULL, ",");
+        }
+
+        free(line);
+    } while (!feof(fdi));
+
+    *size = s;
+
+    return 0;
+}
+
+/*
  * Reads a file depending on the format.
  */
 int input_read_file(input_file_t *file)
@@ -151,7 +242,9 @@ int input_read_file(input_file_t *file)
     fdi = fopen(file->name, "rb");
     if (fdi == NULL)
     {
-        LL_ERROR("Cannot open input file: %s", strerror(errno));
+        LL_ERROR("Cannot open input file \"%s\": %s",
+            file->name,
+            strerror(errno));
         return 1;
     }
 
@@ -167,6 +260,10 @@ int input_read_file(input_file_t *file)
 
         case IFORMAT_TI8X_DATA_VAR:
             ret = input_ti8x_data_var(fdi, file->arr, &file->size);
+            break;
+
+        case IFORMAT_CSV:
+            ret = input_csv(fdi, file->arr, &file->size);
             break;
 
         default:

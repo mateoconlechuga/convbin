@@ -45,6 +45,7 @@ typedef enum
     IFORMAT_BIN,
     IFORMAT_TI8X_DATA,
     IFORMAT_TI8X_DATA_VAR,
+    IFORMAT_CSV,
     IFORMAT_INVALID,
 } iformat_t;
 

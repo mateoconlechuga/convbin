@@ -78,6 +78,7 @@ static void options_show(const char *prgm)
     LL_PRINT("    <mode>: Description.\n");
     LL_PRINT("\n");
     LL_PRINT("    bin: Interpret as raw binary.\n");
+    LL_PRINT("    csv: Interprets as csv (comma separated values).\n");
     LL_PRINT("    8x: Interprets the TI 8x* data section.\n");
     LL_PRINT("\n");
     LL_PRINT("Output formats:\n");
@@ -109,6 +110,10 @@ static iformat_t options_parse_input_format(const char *str)
     else if (!strcmp(str, "8x"))
     {
         format = IFORMAT_TI8X_DATA;
+    }
+    else if (!strcmp(str, "csv"))
+    {
+        format = IFORMAT_CSV;
     }
 
     return format;
@@ -217,43 +222,43 @@ static int options_verify(options_t *options)
 
     if (options->input.numfiles == 0)
     {
-        LL_ERROR("unknown input file(s).");
+        LL_ERROR("Unknown input file(s).");
         goto error;
     }
 
     if (options->input.file[0].format == IFORMAT_INVALID)
     {
-        LL_ERROR("invalid input format mode.");
+        LL_ERROR("Invalid input format mode.");
         goto error;
     }
 
     if (options->output.file.name == 0)
     {
-        LL_ERROR("unknown output file.");
+        LL_ERROR("Unknown output file.");
         goto error;
     }
 
     if (options->output.file.format == OFORMAT_INVALID)
     {
-        LL_ERROR("invalid output format mode.");
+        LL_ERROR("Invalid output format mode.");
         goto error;
     }
 
     if (options->output.file.compression == COMPRESS_INVALID)
     {
-        LL_ERROR("invalid output compression mode.");
+        LL_ERROR("Invalid output compression mode.");
         goto error;
     }
 
     if (options->output.file.var.maxsize < TI8X_MINIMUM_MAXVAR_SIZE)
     {
-        LL_ERROR("maximum variable size too small.");
+        LL_ERROR("Maximum variable size too small.");
         goto error;
     }
 
     if (options->output.file.var.maxsize > TI8X_MAXDATA_SIZE)
     {
-        LL_ERROR("maximum variable size too large.");
+        LL_ERROR("Maximum variable size too large.");
         goto error;
     }
 
@@ -268,7 +273,7 @@ static int options_verify(options_t *options)
     {
         if (options->output.file.var.name == 0)
         {
-            LL_ERROR("name not supplied.");
+            LL_ERROR("Name not supplied.");
             goto error;
         }
     }
@@ -355,7 +360,7 @@ int options_get(int argc, char *argv[], options_t *options)
                     options->input.default_format;
                 if (numifiles >= INPUTS_MAX)
                 {
-                    LL_ERROR("too many input files.");
+                    LL_ERROR("Too many input files.");
                     return 1;
                 }
                 numifiles++;

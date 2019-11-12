@@ -111,7 +111,7 @@ int output_write_file(output_file_t *file)
     fdo = fopen(file->name, file->append ? "ab" : "wb");
     if (fdo == NULL)
     {
-        LL_ERROR("cannot open output file: %s", strerror(errno));
+        LL_ERROR("Cannot open output file: %s", strerror(errno));
         return 1;
     }
 
