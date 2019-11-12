@@ -281,7 +281,6 @@ static int options_verify(options_t *options)
     return OPTIONS_SUCCESS;
 
 error:
-    options_show(options->prgm);
     return OPTIONS_FAILED;
 }
 
