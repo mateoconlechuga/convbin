@@ -1,8 +1,8 @@
-all: decompress_bin.c
+all: decompress.c
 
-decompress_bin.c: decompress.asm
-	fasmg $< decompress.bin
-	xxd -i decompress.bin > $@
-	rm -f decompress.bin
+decompress.c: decompress.asm
+	fasmg $< decompress
+	xxd -i decompress > $@
+	rm -f decompress
 
 .PHONY: all clean

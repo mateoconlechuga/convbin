@@ -78,6 +78,15 @@ typedef struct
 #define TI8X_MINIMUM_MAXVAR_SIZE 4096
 #define TI8X_DEFAULT_MAXVAR_SIZE TI8X_MAXDATA_SIZE
 
+#define TI8X_USERMEM_ADDRESS 0xd1a881
+#define TI8X_TOKEN_EXT 0xef
+#define TI8X_TOKEN_ASM84CECMP 0x7b
+#define TI8X_ICON_MAGIC 1
+#define TI8X_DESCRIPTION_MAGIC 2
+#define TI8X_MAGIC_JUMP 0xc3
+#define TI8X_MAGIC_JUMP_OFFSET_0 2
+#define TI8X_MAGIC_JUMP_OFFSET_1 3
+
 extern const unsigned char ti8x_file_header[10];
 
 unsigned int ti8x_checksum(unsigned char *arr, size_t size);

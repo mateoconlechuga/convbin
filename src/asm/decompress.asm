@@ -4,7 +4,7 @@ include './ti84pceg.inc'
 macro print msg, offset
 	display msg
 	repeat 1,x:offset
-		display `x
+		display `x, 10
 	end repeat
 end macro
 
@@ -13,37 +13,45 @@ relocoffset := compressedprgm.relocate - ti.userMem
 asmcompsize := 2
 sizebytessize := 2
 
-	db	ti.tExtTok, ti.tAsm84CeCmp
-	org	ti.userMem
-
 compressedprgm:
-	ld	hl,.relocate
-	ld	de,decompressprgm
+	ld	hl,0
+decompressentrylabel := $% - 3
+	ld	de,relocaddr
 	ld	bc,compresseddata - decompressprgm
 	ldir
-	jp	decompressprgm
+	jp	relocaddr
 .relocate:
 	org	relocaddr
 decompressprgm:
-	ld	de,(ti.asm_prgm_size)
-	ld	hl,ti.userMem
-	call	ti.DelMem
-	or	a,a
-	sbc	hl,hl
-	ld	(ti.asm_prgm_size),hl
-	ld	de,0                        ; uncompressed size set by program (constant offset = 3)
-.uncompressedsize := $-3
+	ld	de,0
+compressedsizelabel := $% - 3
+	ld	hl,0
+compressedusermemoffset0label := $% - 3
 	push	de
-	call	ti.MemChk
+	call	ti.DelMem
 	pop	de
+	ld	ix,ti.asm_prgm_size
+	ld	hl,(ix)
+	or	a,a
+	sbc	hl,de
+	ld	(ix),hl
+	push	ix
+	call	ti.MemChk
+	pop	ix
+	ld	de,0
+uncompressedsizelabel := $% - 3
 	or	a,a
 	sbc	hl,de
 	jp	c,ti.ErrMemory
-	ld	(ti.asm_prgm_size),de
+	ld	hl,(ix)
+	add	hl,de
+	ld	(ix),hl
 	ex	de,hl
-	ld	de,ti.userMem
+	ld	de,0
+compressedusermemoffset1label := $% - 3
 	call	ti.InsertMem
 	call	ti.ChkFindSym
+	ret	c
 	call	ti.ChkInRam
 	ex	de,hl
 	jr	z,.inram
@@ -53,11 +61,15 @@ decompressprgm:
 	add	hl,de
 	inc	hl
 .inram:
-	ld	de,(compresseddata - relocaddr) + relocoffset + asmcompsize + sizebytessize
+	ld	de,0
+offsettocompresseddatalabel := $% - 3
 	add	hl,de
-	ld	de,ti.userMem
+	ld	de,0
+compressedusermemoffset2label := $% - 3
+	push	de
 	call	decompress
-	jp	ti.userMem
+	pop	hl
+	jp	(hl)
 
 decompress:
 	ld	a,128
@@ -113,4 +125,13 @@ decompress:
 
 compresseddata:
 
-print "uncompressed size offset: ", (decompressprgm.uncompressedsize - relocaddr) + relocoffset + asmcompsize
+display 10
+print "#define DECOMPRESS_ENTRY_OFFSET ", decompressentrylabel
+print "#define DECOMPRESS_DATA_OFFSET ", offsettocompresseddatalabel
+print "#define DECOMPRESS_COMPRESSED_SIZE_OFFSET ", compressedsizelabel
+print "#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET ", uncompressedsizelabel
+print "#define DECOMPRESS_USERMEM_OFFSET_0 ", compressedusermemoffset0label
+print "#define DECOMPRESS_USERMEM_OFFSET_1 ", compressedusermemoffset1label
+print "#define DECOMPRESS_USERMEM_OFFSET_2 ", compressedusermemoffset2label
+display 10
+print "size: ", $%

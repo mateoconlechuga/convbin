@@ -33,7 +33,7 @@ SOURCES := $(SRCDIR)/main.c \
            $(SRCDIR)/options.c \
            $(SRCDIR)/ti8x.c \
            $(SRCDIR)/log.c \
-           $(SRCDIR)/asm/decompress_bin.c \
+           $(SRCDIR)/asm/decompress.c \
            $(DEPDIR)/zx7/compress.c \
            $(DEPDIR)/zx7/optimize.c
 
