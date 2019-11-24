@@ -94,6 +94,12 @@ static void options_show(const char *prgm)
     LL_PRINT("    8xg: TI Group. Input format must be 8x.\n");
     LL_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
     LL_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
+    LL_PRINT("\n");
+    LL_PRINT("Credits:\n");
+    LL_PRINT("    (c) 2017-2019 by Matt \"MateoConLechuga\" Waltz.\n");
+    LL_PRINT("\n");
+    LL_PRINT("    This program utilizes the following neat libraries:\n");
+    LL_PRINT("        zx7: (c) 2012-2013 by Einar Saukas.\n");
 }
 
 /*
@@ -417,6 +423,12 @@ int options_get(int argc, char *argv[], options_t *options)
                 options_show(options->prgm);
                 return OPTIONS_FAILED;
         }
+    }
+
+    if (numifiles == 1)
+    {
+        options->input.file[numifiles - 1].format =
+            options->input.default_format;
     }
 
     options->input.numfiles = numifiles;
