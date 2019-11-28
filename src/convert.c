@@ -57,9 +57,9 @@ static int convert_build_data(input_t *input,
     {
         input_file_t *file = &input->file[i];
 
-        if (size + file->size > maxsize)
+        if (size + file->size > MAX_OUTPUT_SIZE)
         {
-            LL_ERROR("Input too large to fit in output file.");
+            LL_ERROR("Input too large.");
             return 1;
         }
 
@@ -75,6 +75,12 @@ static int convert_build_data(input_t *input,
             LL_ERROR("Could not compress.");
             return ret;
         }
+    }
+
+    if (size > maxsize)
+    {
+        LL_ERROR("Input too large to fit in output file.");
+        return 1;
     }
 
     *oarr = arr;
