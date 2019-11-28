@@ -81,7 +81,7 @@ static int convert_build_data(input_t *input,
 
     if (size > maxsize)
     {
-        LL_ERROR("Input too large to fit in output file.");
+        LL_ERROR("Input too large.");
         free(arr);
         return 1;
     }
@@ -108,7 +108,7 @@ static int convert_8x(input_t *input, output_file_t *outfile)
     int ret;
 
     ret = convert_build_data(input, &arr, &size,
-                             outfile->var.maxsize, outfile->compression);
+                             INPUT_MAX_SIZE, outfile->compression);
     if (ret != 0)
     {
         return ret;
@@ -122,6 +122,13 @@ static int convert_8x(input_t *input, output_file_t *outfile)
             LL_ERROR("Could not compress.");
             return ret;
         }
+    }
+
+    if (size > outfile->var.maxsize)
+    {
+        LL_ERROR("Input too large.");
+        free(arr);
+        return 1;
     }
 
     file_size = size + TI8X_DATA + TI8X_CHECKSUM_LEN;

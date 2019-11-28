@@ -29,6 +29,7 @@
  */
 
 #include "compress.h"
+#include "input.h"
 #include "ti8x.h"
 #include "log.h"
 
@@ -96,7 +97,7 @@ int compress_auto_8xp(unsigned char **arr, size_t *size)
 {
     extern unsigned char decompress[];
     extern unsigned int decompress_len;
-    unsigned char *compressedarr = malloc(TI8X_MAXDATA_SIZE);
+    unsigned char *compressedarr = malloc(INPUT_MAX_SIZE);
     unsigned char *newarr = malloc(TI8X_MAXDATA_SIZE);
     unsigned char *inarr = *arr;
     unsigned int offset;
