@@ -363,7 +363,7 @@ int options_get(int argc, char *argv[], options_t *options)
                 options->input.file[numifiles].name = optarg;
                 options->input.file[numifiles].format =
                     options->input.default_format;
-                if (numifiles >= INPUTS_MAX)
+                if (numifiles >= INPUT_MAX_NUM)
                 {
                     LL_ERROR("Too many input files.");
                     return 1;

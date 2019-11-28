@@ -37,8 +37,8 @@
 extern "C" {
 #endif
 
-#define INPUTS_MAX 16
-#define INPUT_MAX_BYTES (1024*140)
+#define INPUT_MAX_NUM 16
+#define INPUT_MAX_SIZE 0x80000
 
 typedef enum
 {
@@ -52,14 +52,14 @@ typedef enum
 typedef struct
 {
     const char *name;
-    unsigned char arr[INPUT_MAX_BYTES];
+    unsigned char arr[INPUT_MAX_SIZE];
     iformat_t format;
     size_t size;
 } input_file_t;
 
 typedef struct
 {
-    input_file_t file[INPUTS_MAX];
+    input_file_t file[INPUT_MAX_NUM];
     iformat_t default_format;
     unsigned int numfiles;
 } input_t;

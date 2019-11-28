@@ -62,7 +62,7 @@ static int input_bin(FILE *fdi, unsigned char *arr, size_t *size)
         }
 
         arr[s++] = (unsigned char)c;
-        if (s >= INPUT_MAX_BYTES)
+        if (s >= INPUT_MAX_SIZE)
         {
             LL_ERROR("Input file too large.");
             return 1;
@@ -105,7 +105,7 @@ static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size,
         }
 
         arr[s++] = (unsigned char)c;
-        if (s >= INPUT_MAX_BYTES)
+        if (s >= INPUT_MAX_SIZE)
         {
             LL_ERROR("Input file too large.");
             return 1;
@@ -213,7 +213,7 @@ static int input_csv(FILE *fdi, unsigned char *arr, size_t *size)
             int value = strtol(token, NULL, 0);
             arr[s++] = (unsigned char)(value == -1 ? 0 : value);
 
-            if (s > INPUT_MAX_BYTES)
+            if (s > INPUT_MAX_SIZE)
             {
                 LL_ERROR("Exceeded maximum csv values.");
                 free(line);

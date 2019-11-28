@@ -50,12 +50,8 @@ static int compress_zx7(unsigned char **arr, size_t *size)
 
     opt = optimize(*arr, *size);
     compressed = compress(opt, *arr, *size, size, &delta);
-
-    if (delta > 0)
-    {
-        free(*arr);
-        *arr = compressed;
-    }
+    free(*arr);
+    *arr = compressed;
 
     free(opt);
     return 0;

@@ -43,7 +43,7 @@ static int convert_build_data(input_t *input,
                               size_t maxsize,
                               compression_t compression)
 {
-    unsigned char *arr = malloc(MAX_OUTPUT_SIZE);
+    unsigned char *arr = malloc(INPUT_MAX_SIZE);
     size_t size = 0;
     unsigned int i;
 
@@ -57,9 +57,10 @@ static int convert_build_data(input_t *input,
     {
         input_file_t *file = &input->file[i];
 
-        if (size + file->size > MAX_OUTPUT_SIZE)
+        if (size + file->size > INPUT_MAX_SIZE)
         {
             LL_ERROR("Input too large.");
+            free(arr);
             return 1;
         }
 
@@ -67,12 +68,13 @@ static int convert_build_data(input_t *input,
         size += file->size;
     }
 
-    if (compression)
+    if (compression != COMPRESS_NONE)
     {
         int ret = compress_array(&arr, &size, compression);
         if (ret != 0)
         {
             LL_ERROR("Could not compress.");
+            free(arr);
             return ret;
         }
     }
@@ -80,6 +82,7 @@ static int convert_build_data(input_t *input,
     if (size > maxsize)
     {
         LL_ERROR("Input too large to fit in output file.");
+        free(arr);
         return 1;
     }
 
@@ -210,7 +213,7 @@ int convert_bin(input_t *input, output_file_t *outfile)
     int ret;
 
     ret = convert_build_data(input, &arr, &size,
-                             MAX_OUTPUT_SIZE, outfile->compression);
+                             INPUT_MAX_SIZE, outfile->compression);
     if (ret != 0)
     {
         return ret;
