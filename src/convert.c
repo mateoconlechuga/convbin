@@ -289,13 +289,13 @@ int convert_input_to_output(input_t *input, output_t *output)
         {
             LL_PRINT("[success] %s, %lu bytes. (compressed)\n",
                 output->file.name,
-                output->file.size);
+                (unsigned long)output->file.size);
         }
         else
         {
             LL_PRINT("[success] %s, %lu bytes.\n",
                 output->file.name,
-                output->file.size);
+                (unsigned long)output->file.size);
         }
     }
 

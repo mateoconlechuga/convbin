@@ -15,7 +15,7 @@ static int output_c(const char *name, unsigned char *arr, size_t size, FILE *fdo
 {
     size_t i;
 
-    fprintf(fdo, "unsigned char %s[%lu] =\n{", name, size);
+    fprintf(fdo, "unsigned char %s[%lu] =\n{", name, (unsigned long)size);
     for (i = 0; i < size; ++i)
     {
         bool last = i + 1 == size;
@@ -47,7 +47,7 @@ static int output_asm(const char *name, unsigned char *arr, size_t size, FILE *f
     size_t i;
 
     fprintf(fdo, "%s:\n", name);
-    fprintf(fdo, "; %lu bytes\n\tdb\t", size);
+    fprintf(fdo, "; %lu bytes\n\tdb\t", (unsigned long)size);
     for (i = 0; i < size; ++i)
     {
         bool last = i + 1 == size;
@@ -77,7 +77,7 @@ static int output_ice(const char *name, unsigned char *arr, size_t size, FILE *f
 {
     size_t i;
 
-    fprintf(fdo, "%s | %lu bytes\n\"", name, size);
+    fprintf(fdo, "%s | %lu bytes\n\"", name, (unsigned long)size);
 
     for (i = 0; i < size; ++i)
     {
