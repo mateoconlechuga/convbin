@@ -338,19 +338,19 @@ int options_get(int argc, char *argv[], options_t *options)
     {
         static struct option long_options[] =
         {
-            {"input",          required_argument, 0, 'i'},
-            {"output",         required_argument, 0, 'o'},
-            {"iformat",        required_argument, 0, 'j'},
-            {"oformat",        required_argument, 0, 'k'},
-            {"compress",       required_argument, 0, 'c'},
-            {"maxvarsize",     required_argument, 0, 'm'},
-            {"name",           required_argument, 0, 'n'},
-            {"archive",        no_argument,       0, 'r'},
-            {"uppercase-name", no_argument,       0, 'u'},
-            {"append",         no_argument,       0, 'a'},
-            {"help",           no_argument,       0, 'h'},
-            {"version",        no_argument,       0, 'v'},
-            {"log-level",      required_argument, 0, 'l'},
+            {"input",        required_argument, 0, 'i'},
+            {"output",       required_argument, 0, 'o'},
+            {"iformat",      required_argument, 0, 'j'},
+            {"oformat",      required_argument, 0, 'k'},
+            {"compress",     required_argument, 0, 'c'},
+            {"maxvarsize",   required_argument, 0, 'm'},
+            {"name",         required_argument, 0, 'n'},
+            {"archive",      no_argument,       0, 'r'},
+            {"uppercase",    no_argument,       0, 'u'},
+            {"append",       no_argument,       0, 'a'},
+            {"help",         no_argument,       0, 'h'},
+            {"version",      no_argument,       0, 'v'},
+            {"log-level",    required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
         int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:l:ruahv", long_options, NULL);
