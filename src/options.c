@@ -67,6 +67,7 @@ static void options_show(const char *prgm)
     LL_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
     LL_PRINT("                            Supported modes: zx7\n");
     LL_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
+    LL_PRINT("    -u, --uppercase-name    If a program, forces the name to uppercase.\n");
     LL_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
     LL_PRINT("    -h, --help              Show this screen.\n");
     LL_PRINT("    -v, --version           Show program version.\n");
@@ -304,6 +305,7 @@ static void options_set_default(options_t *options)
     options->input.numfiles = 0;
     options->input.default_format = IFORMAT_BIN;
     options->output.file.append = false;
+    options->output.file.uppercase = false;
     options->output.file.compression = COMPRESS_NONE;
     options->output.file.name = 0;
     options->output.file.format = OFORMAT_INVALID;
@@ -336,21 +338,22 @@ int options_get(int argc, char *argv[], options_t *options)
     {
         static struct option long_options[] =
         {
-            {"input",      required_argument, 0, 'i'},
-            {"output",     required_argument, 0, 'o'},
-            {"iformat",    required_argument, 0, 'j'},
-            {"oformat",    required_argument, 0, 'k'},
-            {"compress",   required_argument, 0, 'c'},
-            {"maxvarsize", required_argument, 0, 'm'},
-            {"name",       required_argument, 0, 'n'},
-            {"archive",    no_argument,       0, 'r'},
-            {"append",     no_argument,       0, 'a'},
-            {"help",       no_argument,       0, 'h'},
-            {"version",    no_argument,       0, 'v'},
-            {"log-level",  required_argument, 0, 'l'},
+            {"input",          required_argument, 0, 'i'},
+            {"output",         required_argument, 0, 'o'},
+            {"iformat",        required_argument, 0, 'j'},
+            {"oformat",        required_argument, 0, 'k'},
+            {"compress",       required_argument, 0, 'c'},
+            {"maxvarsize",     required_argument, 0, 'm'},
+            {"name",           required_argument, 0, 'n'},
+            {"archive",        no_argument,       0, 'r'},
+            {"uppercase-name", no_argument,       0, 'u'},
+            {"append",         no_argument,       0, 'a'},
+            {"help",           no_argument,       0, 'h'},
+            {"version",        no_argument,       0, 'v'},
+            {"log-level",      required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
-        int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:a:l:rahv", long_options, NULL);
+        int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:l:ruahv", long_options, NULL);
 
         if (c == - 1)
         {
@@ -396,6 +399,10 @@ int options_get(int argc, char *argv[], options_t *options)
             case 'c':
                 options->output.file.compression =
                     options_parse_compression(optarg);
+                break;
+
+            case 'u':
+                options->output.file.uppercase = true;
                 break;
 
             case 'a':

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 
 #define VALUES_PER_LINE 32
 
@@ -107,10 +108,43 @@ int output_write_file(output_file_t *file)
 {
     FILE *fdo;
     int ret;
+    char *filename;
+    
+    filename = malloc(strlen(file->name) + 1);
+    if (filename == NULL)
+    {
+        LL_ERROR("Memory allocation error.");
+        return 1;
+    }
 
-    fdo = fopen(file->name, file->append ? "ab" : "wb");
+    strcpy(filename, file->name);
+
+    if (file->format == OFORMAT_8XP ||
+        file->format == OFORMAT_8XP_AUTO_DECOMPRESS)
+    {
+        if (isdigit(filename[0]))
+        {
+            LL_WARNING("Potentially invalid filename (starts with digit)");
+        }
+    }
+    
+    if (file->uppercase)
+    {
+        size_t i;
+
+        for (i = 0; i < strlen(filename); ++i)
+        {
+            if (isalpha(filename[i]))
+            {
+                filename[i] = toupper(filename[i]);
+            }
+        }
+    }
+
+    fdo = fopen(filename, file->append ? "ab" : "wb");
     if (fdo == NULL)
     {
+        free(filename);
         LL_ERROR("Cannot open output file: %s", strerror(errno));
         return 1;
     }
@@ -135,7 +169,7 @@ int output_write_file(output_file_t *file)
         case OFORMAT_8XG:
         case OFORMAT_8XG_AUTO_EXTRACT:
         case OFORMAT_8XP_AUTO_DECOMPRESS:
-            ret = output_bin(file->name, file->arr, file->size, fdo);
+            ret = output_bin(filename, file->arr, file->size, fdo);
             break;
 
         default:
@@ -143,6 +177,7 @@ int output_write_file(output_file_t *file)
             break;
     }
 
+    free(filename);
     fclose(fdo);
 
     return ret;

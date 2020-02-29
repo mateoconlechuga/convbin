@@ -63,6 +63,7 @@ typedef struct
     size_t size;
     compression_t compression;
     bool append;
+    bool uppercase;
 } output_file_t;
 
 typedef struct
