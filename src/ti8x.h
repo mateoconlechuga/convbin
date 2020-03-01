@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#define TI8X_VAR_NAME_LEN 9
+#define TI8X_VAR_NAME_LEN 8
 
 typedef enum
 {

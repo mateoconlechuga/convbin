@@ -285,7 +285,7 @@ static int options_verify(options_t *options)
             goto error;
         }
 
-        if (strlen(options->output.file.var.name) > 9)
+        if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
         {
             LL_ERROR("Name too long.");
             goto error;
