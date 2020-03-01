@@ -130,8 +130,8 @@ int compress_auto_8xp(unsigned char **arr, size_t *size)
     }
     else if (inarr[offset] == TI8X_DESCRIPTION_MAGIC)
     {
-        offset += 1;
 move_to_end_of_description:
+        offset += 1;
         while (inarr[offset])
         {
             offset++;
