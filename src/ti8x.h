@@ -38,6 +38,8 @@
 extern "C" {
 #endif
 
+#define TI8X_VAR_NAME_LEN 9
+
 typedef enum
 {
     TI8X_TYPE_UNKNOWN = -1,
@@ -48,7 +50,7 @@ typedef enum
 
 typedef struct
 {
-    const char *name;
+    char name[TI8X_VAR_NAME_LEN + 1];
     bool archive;
     ti8x_var_type_t type;
     size_t maxsize;

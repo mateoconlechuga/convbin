@@ -32,6 +32,7 @@
 #include "version.h"
 #include "log.h"
 
+#include <ctype.h>
 #include <getopt.h>
 #include <string.h>
 #include <stdlib.h>
@@ -67,7 +68,7 @@ static void options_show(const char *prgm)
     LL_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
     LL_PRINT("                            Supported modes: zx7\n");
     LL_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
-    LL_PRINT("    -u, --uppercase-name    If a program, forces the name to uppercase.\n");
+    LL_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
     LL_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
     LL_PRINT("    -h, --help              Show this screen.\n");
     LL_PRINT("    -v, --version           Show program version.\n");
@@ -239,7 +240,7 @@ static int options_verify(options_t *options)
         goto error;
     }
 
-    if (options->output.file.name == 0)
+    if (options->output.file.name == NULL)
     {
         LL_ERROR("Unknown output file.");
         goto error;
@@ -278,10 +279,25 @@ static int options_verify(options_t *options)
         oformat == OFORMAT_8XG ||
         oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
-        if (options->output.file.var.name == 0)
+        if (options->output.file.var.name[0] == 0)
         {
             LL_ERROR("Name not supplied.");
             goto error;
+        }
+
+        if (strlen(options->output.file.var.name) > 9)
+        {
+            LL_ERROR("Name too long.");
+            goto error;
+        }
+    }
+
+    if (oformat == OFORMAT_8XP ||
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
+    {
+        if (isdigit(options->output.file.var.name[0]))
+        {
+            LL_WARNING("Potentially invalid name (starts with digit)");
         }
     }
 
@@ -309,9 +325,10 @@ static void options_set_default(options_t *options)
     options->output.file.compression = COMPRESS_NONE;
     options->output.file.name = 0;
     options->output.file.format = OFORMAT_INVALID;
-    options->output.file.var.name = 0;
     options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
     options->output.file.var.archive = false;
+
+    memset(options->output.file.var.name, 0, TI8X_VAR_NAME_LEN + 1);
 }
 
 /*
@@ -322,6 +339,7 @@ int options_get(int argc, char *argv[], options_t *options)
 {
     unsigned int numifiles = 0;
     unsigned int i;
+    const char *varname = NULL;
 
     log_set_level(LOG_BUILD_LEVEL);
 
@@ -379,7 +397,7 @@ int options_get(int argc, char *argv[], options_t *options)
                 break;
 
             case 'n':
-                options->output.file.var.name = optarg;
+                varname = optarg;
                 break;
 
             case 'r':
@@ -429,6 +447,23 @@ int options_get(int argc, char *argv[], options_t *options)
             default:
                 options_show(options->prgm);
                 return OPTIONS_FAILED;
+        }
+    }
+
+    if (varname != NULL)
+    {
+        size_t i;
+
+        for (i = 0; i < strlen(varname) && i < TI8X_VAR_NAME_LEN; ++i)
+        {
+            if (options->output.file.uppercase && isalpha(varname[i]))
+            {
+                options->output.file.var.name[i] = toupper(varname[i]);
+            }
+            else
+            {
+                options->output.file.var.name[i] = varname[i];
+            }
         }
     }
 
