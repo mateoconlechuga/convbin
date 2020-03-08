@@ -3,7 +3,7 @@ ifeq ($(OS),Windows_NT)
   SHELL = cmd.exe
   NATIVEPATH = $(subst /,\,$1)
   MKDIR = if not exist "$1" mkdir "$1"
-  RMDIR = del /f "$1" 2>nul
+  RMDIR = del /f /q "$1" 2>nul
   STRIP = strip --strip-all "$1"
 else
   TARGET ?= convbin
