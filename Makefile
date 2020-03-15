@@ -18,7 +18,7 @@ else
 endif
 
 CC := gcc
-CFLAGS := -Wall -Wextra -O3 -DNDEBUG -DLOG_BUILD_LEVEL=3 -std=c89
+CFLAGS := -Wall -Wextra -O3 -DNDEBUG -DLOG_BUILD_LEVEL=3 -std=c89 -flto
 LDFLAGS := -flto
 
 BINDIR := ./bin
