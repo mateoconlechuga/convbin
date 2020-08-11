@@ -2,14 +2,14 @@ ifeq ($(OS),Windows_NT)
   TARGET ?= convbin.exe
   SHELL = cmd.exe
   NATIVEPATH = $(subst /,\,$1)
-  MKDIR = if not exist "$1" mkdir "$1"
-  RMDIR = del /f /q "$1" 2>nul
+  RMDIR = ( rmdir /s /q $1 2>nul || call ) 
+  MKDIR = ( mkdir $1 2>nul || call )
   STRIP = strip --strip-all "$1"
 else
   TARGET ?= convbin
   NATIVEPATH = $(subst \,/,$1)
-  MKDIR = mkdir -p "$1"
-  RMDIR = rm -rf "$1"
+  MKDIR = mkdir -p $1
+  RMDIR = rm -rf $1
   ifeq ($(shell uname -s),Darwin)
     STRIP = echo "no strip available"
   else
