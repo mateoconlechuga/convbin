@@ -217,7 +217,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         {
             LL_WARNING("input too large; split using 1 appvar...");
         }
-        else if (num_appvars >= 10)
+        else if (num_appvars > 10)
         {
             LL_ERROR("input too large.");
             free(arr);
