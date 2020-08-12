@@ -198,7 +198,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
     if (size > outfile->var.maxsize)
     {
         unsigned int num_appvars = (size / outfile->var.maxsize) + 1;
-        char appvar_names[128][10];
+        char appvar_names[10][10];
         unsigned int offset = 0;
         size_t tmpsize;
         unsigned int i;
@@ -217,7 +217,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         {
             LL_WARNING("input too large; split using 1 appvar...");
         }
-        else if (num_appvars >= 128)
+        else if (num_appvars >= 10)
         {
             LL_ERROR("input too large.");
             free(arr);

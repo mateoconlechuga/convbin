@@ -5,7 +5,7 @@ This program is used to convert files to other formats, specifically for the TI8
 ## Command Line Help
 
     Usage:
-        ./convbin [options] -j <mode> -k <mode> -i <file> -o <file>
+        convbin [options] -j <mode> -k <mode> -i <file> -o <file>
 
     Required options:
         -i, --input <file>      Input file. Can be specified multiple times,
@@ -26,6 +26,7 @@ This program is used to convert files to other formats, specifically for the TI8
         -c, --compress <mode>   Compress output using <mode>.
                                 Supported modes: zx7
         -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.
+        -u, --uppercase         If a program, makes on-calc name uppercase.
         -a, --append            Append to output file rather than overwrite.
         -h, --help              Show this screen.
         -v, --version           Show program version.
@@ -53,3 +54,10 @@ This program is used to convert files to other formats, specifically for the TI8
         8xg: TI Group. Input format must be 8x.
         8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.
         8xp-auto-decompress: TI Auto-Decompressing Compressed Program.
+
+    Credits:
+        (c) 2017-2020 by Matt "MateoConLechuga" Waltz.
+
+        This program utilizes the following neat libraries:
+            zx7: (c) 2012-2013 by Einar Saukas.
+
