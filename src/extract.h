@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2020 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,74 +28,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TI8X_H
-#define TI8X_H
+#ifndef EXTRACT_H
+#define EXTRACT_H
 
-#include <stdbool.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define TI8X_VAR_NAME_LEN 8
-
-typedef enum
-{
-    TI8X_TYPE_UNKNOWN = -1,
-    TI8X_TYPE_PRGM = 6,
-    TI8X_TYPE_APPVAR = 21,
-    TI8X_TYPE_GROUP = 23,
-} ti8x_var_type_t;
-
-typedef struct
-{
-    char name[TI8X_VAR_NAME_LEN + 1];
-    bool archive;
-    ti8x_var_type_t type;
-    size_t maxsize;
-} ti8x_var_t;
-
-#define TI8X_CHECKSUM_LEN 2
-#define TI8X_ASMCOMP_LEN 2
-#define TI8X_VARB_SIZE_LEN 2
-#define TI8X_VAR_HEADER_LEN 17
-#define TI8X_FILE_HEADER_LEN 55
-
-#define TI8X_FILE_HEADER 0x00
-#define TI8X_DATA_SIZE 0x35
-#define TI8X_VAR_HEADER 0x37
-#define TI8X_VAR_SIZE0 0x39
-#define TI8X_TYPE 0x3b
-#define TI8X_NAME 0x3c
-#define TI8X_ARCHIVE 0x45
-#define TI8X_VAR_SIZE1 0x46
-#define TI8X_VARB_SIZE 0x48
-#define TI8X_DATA 0x4a
-
-#define TI8X_MAGIC 0x0d
-#define TI8X_MAX_FILE_SIZE (1024 * 66)
-#define TI8X_MAXDATA_SIZE (0x10000 - 0x130)
-
-#define TI8X_MINIMUM_MAXVAR_SIZE 4096
-#define TI8X_DEFAULT_MAXVAR_SIZE TI8X_MAXDATA_SIZE
-
-#define TI8X_USERMEM_ADDRESS 0xd1a881
-#define TI8X_TOKEN_EXT 0xef
-#define TI8X_TOKEN_ASM84CECMP 0x7b
-#define TI8X_ICON_MAGIC 1
-#define TI8X_DESCRIPTION_MAGIC 2
-#define TI8X_MAGIC_JUMP 0xc3
-#define TI8X_MAGIC_JUMP_OFFSET_0 2
-#define TI8X_MAGIC_JUMP_OFFSET_1 3
-
-#define TI8X_VARLOOKUP_LEN 9
-
-#define TI8X_TYPE_APPVAR 0x15
-
-extern const unsigned char ti8x_file_header[10];
-
-unsigned int ti8x_checksum(unsigned char *arr, size_t size);
+int extract_8xp_to_8xv(unsigned char **arr,
+                       size_t *size,
+                       char appvar_names[128][10],
+                       unsigned int num_appvars);
 
 #ifdef	__cplusplus
 }

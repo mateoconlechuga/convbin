@@ -27,6 +27,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+../bin/convbin --iformat bin --input inputs/random_64k.bin --oformat 8xp --output THEISTE.8xp --name TESTTEST || { exit 1; }
+../bin/convbin --iformat bin --input inputs/random_128k.bin --oformat 8xp --output THEISTE.8xp --name TESTTEST || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --input inputs/fileioc.8xv --input inputs/libload.8xv --oformat 8xg-auto-extract --output test.8xg.test || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat bin --output test.bin.test || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/fileioc.8xv --oformat bin --output test.bin.test || { exit 1; }

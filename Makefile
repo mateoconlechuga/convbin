@@ -18,7 +18,7 @@ else
 endif
 
 CC := gcc
-CFLAGS := -Wall -Wextra -O3 -DNDEBUG -DLOG_BUILD_LEVEL=3 -std=c89 -flto
+CFLAGS := -Wall -Wextra -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
 LDFLAGS := -flto
 
 BINDIR := ./bin
@@ -30,10 +30,12 @@ SOURCES := $(SRCDIR)/main.c \
            $(SRCDIR)/input.c \
            $(SRCDIR)/output.c \
            $(SRCDIR)/compress.c \
+           $(SRCDIR)/extract.c \
            $(SRCDIR)/options.c \
            $(SRCDIR)/ti8x.c \
            $(SRCDIR)/log.c \
            $(SRCDIR)/asm/decompress.c \
+           $(SRCDIR)/asm/extractor.c \
            $(DEPDIR)/zx7/compress.c \
            $(DEPDIR)/zx7/optimize.c
 

@@ -28,81 +28,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "compress.h"
+#include "extract.h"
 #include "input.h"
 #include "ti8x.h"
 #include "log.h"
 
-#include "deps/zx7/zx7.h"
-
 #include <string.h>
-
-static int compress_zx7(unsigned char **arr, size_t *size)
-{
-    long delta;
-    Optimal *opt;
-    unsigned char *compressed;
-
-    if (size == NULL || arr == NULL)
-    {
-        LL_DEBUG("invalid param in %s.", __func__);
-        return 1;
-    }
-
-    opt = optimize(*arr, *size);
-    compressed = compress(opt, *arr, *size, size, &delta);
-    free(*arr);
-    *arr = compressed;
-
-    free(opt);
-    return 0;
-}
-
-/*
- * Compress output array before writing to output.
- * Returns compressed array, or NULL if error.
- */
-int compress_array(unsigned char **arr, size_t *size, compression_t mode)
-{
-    /* zx7 is only compression mode */
-    (void)mode;
-
-    return compress_zx7(arr, size);
-}
 
 /*
  * Write 24-bit value into array.
  */
-void compress_write_word(unsigned char *addr, unsigned int value)
+void extract_write_word(unsigned char *addr, unsigned int value)
 {
     addr[0] = (value >> 0) & 0xff;
     addr[1] = (value >> 8) & 0xff;
     addr[2] = (value >> 16) & 0xff;
 }
 
-/* from decompress.asm */
+/* from extractor.asm */
 /* run the asm makefile to print */
-#define DECOMPRESS_ENTRY_OFFSET 1
-#define DECOMPRESS_DATA_OFFSET 102
-#define DECOMPRESS_COMPRESSED_SIZE_OFFSET 19
-#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET 55
-#define DECOMPRESS_USERMEM_OFFSET_0 23
-#define DECOMPRESS_USERMEM_OFFSET_1 74
-#define DECOMPRESS_USERMEM_OFFSET_2 107
+#define EXTRACTOR_ENTRY_OFFSET 1
+#define EXTRACTOR_PRGM_SIZE_OFFSET 9
+#define EXTRACTOR_EXTRACT_SIZE_OFFSET 19
+#define EXTRACTOR_APPVARS_OFFSET 153
 
 /*
- * Compress and create an auto-decompressing 8xp.
+ * Create and 8xp that extracts from 8xv.
  */
-int compress_auto_8xp(unsigned char **arr, size_t *size)
+int extract_8xp_to_8xv(unsigned char **arr,
+                       size_t *size,
+                       char appvar_names[128][10],
+                       unsigned int num_appvars)
 {
-    extern unsigned char decompress[];
-    extern unsigned int decompress_len;
-    unsigned char *compressedarr = malloc(INPUT_MAX_SIZE);
-    unsigned char *newarr = malloc(INPUT_MAX_SIZE);
+    extern unsigned char extractor[];
+    extern unsigned int extractor_len;
+    unsigned char *newarr = malloc(TI8X_MAXDATA_SIZE);
     unsigned char *inarr = *arr;
+    unsigned int extractorsize;
+    unsigned int entryaddr;
     unsigned int offset;
-    size_t compressedsize;
-    size_t uncompressedsize;
+    unsigned int i;
     int ret = 0;
 
     newarr[0] = TI8X_TOKEN_EXT;
@@ -137,7 +102,7 @@ move_to_end_of_description:
             offset++;
             if (offset >= *size)
             {
-                LL_ERROR("Oddly formated 8x file.");
+                LL_ERROR("oddly formated 8x file.");
                 return 1;
             }
         }
@@ -145,46 +110,38 @@ move_to_end_of_description:
         offset++;
         if (offset >= *size)
         {
-            LL_ERROR("Oddly formated 8x file.");
+            LL_ERROR("oddly formated 8x file.");
             return 1;
         }
 
         memcpy(newarr + TI8X_ASMCOMP_LEN, *arr + TI8X_ASMCOMP_LEN, offset);
     }
 
-    uncompressedsize = *size - offset;
-    compressedsize = uncompressedsize;
+    extract_write_word(extractor + EXTRACTOR_EXTRACT_SIZE_OFFSET, *size + 0x10);
 
-    memcpy(compressedarr, inarr + offset, uncompressedsize);
-    free(inarr);
+    entryaddr = offset + TI8X_USERMEM_ADDRESS + 16;
+    extract_write_word(extractor + EXTRACTOR_ENTRY_OFFSET, entryaddr);
 
-    ret = compress_array(&compressedarr, &compressedsize, COMPRESS_ZX7);
-    if (ret == 0)
+    extractorsize = EXTRACTOR_APPVARS_OFFSET - 15 + num_appvars * TI8X_VARLOOKUP_LEN;
+    extract_write_word(extractor + EXTRACTOR_PRGM_SIZE_OFFSET, extractorsize);
+
+    memcpy(newarr + offset, extractor, extractor_len);
+    offset += extractor_len;
+
+    for (i = 0; i < num_appvars; ++i)
     {
-        unsigned int entryaddr;
-        unsigned int dataoffset;
-        unsigned int usermemoffset;
-
-        compress_write_word(decompress + DECOMPRESS_COMPRESSED_SIZE_OFFSET, compressedsize + decompress_len);
-        compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressedsize);
-
-        entryaddr = TI8X_USERMEM_ADDRESS + offset + 16;
-        compress_write_word(decompress + DECOMPRESS_ENTRY_OFFSET, entryaddr);
-
-        dataoffset = offset + decompress_len + TI8X_VARB_SIZE_LEN;
-        compress_write_word(decompress + DECOMPRESS_DATA_OFFSET, dataoffset);
-
-        usermemoffset = TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN + offset;
-        compress_write_word(decompress + DECOMPRESS_USERMEM_OFFSET_0, usermemoffset);
-        compress_write_word(decompress + DECOMPRESS_USERMEM_OFFSET_1, usermemoffset);
-        compress_write_word(decompress + DECOMPRESS_USERMEM_OFFSET_2, usermemoffset);
-
-        memcpy(newarr + offset, decompress, decompress_len);
-        memcpy(newarr + offset + decompress_len, compressedarr, compressedsize);
-
-        *arr = newarr;
-        *size = compressedsize + decompress_len + offset;
+        memcpy(newarr + offset, appvar_names[i], TI8X_VARLOOKUP_LEN);
+        offset += TI8X_VARLOOKUP_LEN;
     }
+
+    newarr[offset] = 0;
+    offset++;
+
+    free(*arr);
+    *arr = NULL;
+
+    *arr = newarr;
+    *size = offset;
 
     return ret;
 }
