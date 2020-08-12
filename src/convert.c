@@ -201,6 +201,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         char appvar_names[10][10];
         unsigned int offset = 0;
         size_t tmpsize;
+        size_t origsize;
         unsigned int i;
         char outname[4096];
         int pos = 0;
@@ -229,7 +230,9 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
                 num_appvars);
         }
 
+        origsize = size;
         tmpsize = outfile->var.maxsize;
+
         for (i = 0; i < num_appvars; ++i)
         {
             size_t slen = strlen(outfile->var.name);
@@ -282,10 +285,10 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
             offset += tmpsize;
 
             /* handle last appvar */
-            size -= tmpsize;
-            if (size <= tmpsize)
+            origsize -= tmpsize;
+            if (origsize <= tmpsize)
             {
-                tmpsize = size;
+                tmpsize = origsize;
             }
         }
 
