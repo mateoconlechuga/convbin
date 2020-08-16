@@ -51,103 +51,94 @@ decompressentrylabel := $% - 3
 .relocate:
 	org	relocaddr
 decompressprgm:
-	ld	de,0
-compressedsizelabel := $% - 3
 	ld	hl,0
-compressedusermemoffset0label := $% - 3
-	push	de
-	call	ti.DelMem
-	pop	de
-	ld	ix,ti.asm_prgm_size
-	ld	hl,(ix)
-	or	a,a
-	sbc	hl,de
-	ld	(ix),hl
-	push	ix
-	call	ti.MemChk
-	pop	ix
-	ld	de,0
-uncompressedsizelabel := $% - 3
-	or	a,a
-	sbc	hl,de
-	jp	c,ti.ErrMemory
-	ld	hl,(ix)
-	add	hl,de
-	ld	(ix),hl
-	ex	de,hl
-	ld	de,0
-compressedusermemoffset1label := $% - 3
-	call	ti.InsertMem
-	call	ti.ChkFindSym
-	ret	c
-	call	ti.ChkInRam
-	ex	de,hl
-	jr	z,.inram
-	ld	de,9
-	add	hl,de
-	ld	e,(hl)
-	add	hl,de
-	inc	hl
-.inram:
-	ld	de,0
-offsettocompresseddatalabel := $% - 3
-	add	hl,de
-	ld	de,0
-compressedusermemoffset2label := $% - 3
-	push	de
-	call	decompress
+deltasizelabel := $% - 3
+	push	hl
+	call	ti.ErrNotEnoughMem
 	pop	hl
-	jp	(hl)
-
-decompress:
-	ld	a,128
-.copybyteloop:
-	ldi
-.mainloop:
-	call	.nextbit
-	jr	nc,.copybyteloop
-	push	de
 	ld	de,0
+deltastartlabel := $% - 3
+	call	ti.InsertMem
+	ld	hl,0
+prgrmsizelabel := $% - 3
+	ld	(ti.asm_prgm_size),hl
+	ld	hl,0
+compressedendlabel := $% - 3
+	ld	de,0
+uncompressedendlabel := $% - 3
+	call	dzx7_standard_back
+	inc	hl
+	ld	de,0 ; compressedstart
+compressedstartlabel := $% - 3
+	push	de
+	ld	bc,0 ; uncompressedsize - 2176
+uncompressedsizelabel := $% - 3
+	ldir
+	ld	de,0 ; 2176
+realsizesizelabel := $% - 3
+	ld	hl,0 ;compressedendlabel - 2176
+resizelabel := $% - 3
+	jp	ti.DelMem
+
+; -----------------------------------------------------------------------------
+; ZX7 decoder by Einar Saukas, Antonio Villena & Metalbrain
+; "Standard" version (69 bytes only) - BACKWARDS VARIANT
+; -----------------------------------------------------------------------------
+; Parameters:
+;   HL: last source address (compressed data)
+;   DE: last destination address (decompressing)
+; -----------------------------------------------------------------------------
+dzx7_standard_back:
+	ld	a,$80
+dzx7s_copy_byte_loop_b:
+	ldd
+dzx7s_main_loop_b:
+	call	dzx7s_next_bit_b
+	jr	nc,dzx7s_copy_byte_loop_b
+	push	de
 	ld	bc,0
-.lensizeloop:
+	ld	d,b
+dzx7s_len_size_loop_b:
 	inc	d
-	call	.nextbit
-	jr	nc,.lensizeloop
-.lenvalueloop:
-	call	nc,.nextbit
+	call	dzx7s_next_bit_b
+	jr	nc,dzx7s_len_size_loop_b
+dzx7s_len_value_loop_b:
+	call	nc,dzx7s_next_bit_b
 	rl	c
 	rl	b
-	jr	c,.exit
+	jr	c,dzx7s_exit_b
 	dec	d
-	jr	nz,.lenvalueloop
+	jr	nz,dzx7s_len_value_loop_b
 	inc	bc
 	ld	e,(hl)
-	inc	hl
-	sla	e
-	inc	e
-	jr	nc,.offsetend
-	ld	d,16
-.rldnextbit:
-	call	.nextbit
+	dec	hl
+	scf
+	rl	e
+	jr	nc,dzx7s_offset_end_b
+	ld	d,$10
+dzx7s_rld_next_bit_b:
+	call	dzx7s_next_bit_b
 	rl	d
-	jr	nc,.rldnextbit
+	jr	nc,dzx7s_rld_next_bit_b
 	inc	d
 	srl	d
-.offsetend:
+dzx7s_offset_end_b:
 	rr	e
+	inc	de
+	dec.s	de
 	ex	(sp),hl
 	push	hl
-	sbc	hl,de
+	adc	hl,de
 	pop	de
-	ldir
-.exit:
+	lddr
+dzx7s_exit_b:
 	pop	hl
-	jr	nc,.mainloop
-.nextbit:
+	jr	nc,dzx7s_main_loop_b
+dzx7s_next_bit_b:
 	add	a,a
 	ret	nz
 	ld	a,(hl)
-	inc	hl
+	dec	hl
 	rla
 	ret
 
@@ -155,11 +146,14 @@ compresseddata:
 
 display 10
 print "#define DECOMPRESS_ENTRY_OFFSET ", decompressentrylabel
-print "#define DECOMPRESS_DATA_OFFSET ", offsettocompresseddatalabel
-print "#define DECOMPRESS_COMPRESSED_SIZE_OFFSET ", compressedsizelabel
+print "#define DECOMPRESS_DELTA_SIZE_OFFSET ", deltasizelabel
+print "#define DECOMPRESS_DELTA_START_OFFSET ", deltastartlabel
+print "#define DECOMPRESS_PRGM_SIZE_OFFSET ", prgrmsizelabel
+print "#define DECOMPRESS_COMPRESSED_END_OFFSET ", compressedendlabel
+print "#define DECOMPRESS_UNCOMPRESSED_END_OFFSET ", uncompressedendlabel
+print "#define DECOMPRESS_COMPRESSED_START_OFFSET ", compressedstartlabel
 print "#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET ", uncompressedsizelabel
-print "#define DECOMPRESS_USERMEM_OFFSET_0 ", compressedusermemoffset0label
-print "#define DECOMPRESS_USERMEM_OFFSET_1 ", compressedusermemoffset1label
-print "#define DECOMPRESS_USERMEM_OFFSET_2 ", compressedusermemoffset2label
+print "#define DECOMPRESS_RESIZE_OFFSET ", resizelabel
+print "#define DECOMPRESS_RESIZE_SIZE_OFFSET ", realsizesizelabel
 display 10
 print "size: ", $%

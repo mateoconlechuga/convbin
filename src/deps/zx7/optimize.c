@@ -1,5 +1,5 @@
 /*
- * (c) Copyright 2012 by Einar Saukas. All rights reserved.
+ * (c) Copyright 2012-2016 by Einar Saukas. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@ int count_bits(int offset, int len) {
     return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
 }
 
-Optimal* optimize(unsigned char *input_data, size_t input_size) {
+Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long skip) {
     size_t *min;
     size_t *max;
     size_t *matches;
@@ -65,15 +65,23 @@ Optimal* optimize(unsigned char *input_data, size_t input_size) {
     optimal = (Optimal *)calloc(input_size, sizeof(Optimal));
 
     if (!min || !max || !matches || !match_slots || !optimal) {
-         fprintf(stderr, "Error: Insufficient memory\n");
-         exit(1);
+         /*fprintf(stderr, "Error: Insufficient memory\n");*/
+         /*exit(1);*/
+         return NULL;
+    }
+
+    /* index skipped bytes */
+    for (i = 1; i <= skip; i++) {
+        match_index = input_data[i-1] << 8 | input_data[i];
+        match_slots[i] = matches[match_index];
+        matches[match_index] = i;
     }
 
     /* first byte is always literal */
-    optimal[0].bits = 8;
+    optimal[skip].bits = 8;
 
     /* process remaining bytes */
-    for (i = 1; i < input_size; i++) {
+    for (; i < input_size; i++) {
 
         optimal[i].bits = optimal[i-1].bits + 9;
         match_index = input_data[i-1] << 8 | input_data[i];
@@ -85,7 +93,7 @@ Optimal* optimize(unsigned char *input_data, size_t input_size) {
                 break;
             }
 
-            for (len = 2; len <= MAX_LEN; len++) {
+            for (len = 2; len <= MAX_LEN && i >= skip+len; len++) {
                 if (len > best_len) {
                     best_len = len;
                     bits = optimal[i-len].bits + count_bits(offset, len);
@@ -111,11 +119,10 @@ Optimal* optimize(unsigned char *input_data, size_t input_size) {
         matches[match_index] = i;
     }
 
-    /* save time by releasing the largest block only, the O.S. will clean everything else later */
-    free(match_slots);
-    free(matches);
-    free(max);
     free(min);
-    
+    free(max);
+    free(matches);
+    free(match_slots);
+
     return optimal;
 }

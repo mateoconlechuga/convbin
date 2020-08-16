@@ -41,10 +41,11 @@ typedef enum
 {
     COMPRESS_NONE,
     COMPRESS_ZX7,
+    COMPRESS_ZX7B,
     COMPRESS_INVALID,
 } compression_t;
 
-int compress_array(unsigned char **arr, size_t *size, compression_t mode);
+int compress_array(unsigned char **arr, size_t *size, long *delta, compression_t mode);
 int compress_auto_8xp(unsigned char **arr, size_t *size);
 
 #ifdef	__cplusplus

@@ -71,7 +71,8 @@ static int convert_build_data(input_t *input,
 
     if (compression != COMPRESS_NONE)
     {
-        int ret = compress_array(&arr, &size, compression);
+	long delta;
+        int ret = compress_array(&arr, &size, &delta, compression);
         if (ret != 0)
         {
             LL_ERROR("could not compress.");
