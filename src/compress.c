@@ -247,28 +247,28 @@ move_to_end_of_description:
         unsigned int compressedend;
         unsigned int uncompressedend;
         unsigned int prgmstart;
-	unsigned int resizesize;
+        unsigned int resizesize;
 
         free(inarr);
 
         /* 512 byte buffer room just for kicks */
-	resizesize = decompress_len + delta + 512;
+        resizesize = decompress_len + delta + 512;
 
         compressedsize = prgmsize + decompress_len;
 
         prgmstart = TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN + offset;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_START_OFFSET, prgmstart);
 
-	deltasize = uncompressedsize - compressedsize + resizesize;
+        deltasize = uncompressedsize - compressedsize + resizesize;
         compress_write_word(decompress + DECOMPRESS_DELTA_SIZE_OFFSET, deltasize);
 
-	deltastart = prgmstart + compressedsize;
+        deltastart = prgmstart + compressedsize;
         compress_write_word(decompress + DECOMPRESS_DELTA_START_OFFSET, deltastart);
 
-	compressedend = deltastart - 1;
+        compressedend = deltastart - 1;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_END_OFFSET, compressedend);
 
-	uncompressedend = prgmstart + uncompressedsize + resizesize;
+        uncompressedend = prgmstart + uncompressedsize + resizesize;
         compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_END_OFFSET, uncompressedend);
 
         entryaddr = TI8X_USERMEM_ADDRESS + offset + 16;
@@ -277,7 +277,7 @@ move_to_end_of_description:
         compress_write_word(decompress + DECOMPRESS_RESIZE_SIZE_OFFSET, resizesize);
         compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressedsize);
         compress_write_word(decompress + DECOMPRESS_RESIZE_OFFSET, uncompressedend - resizesize);
-        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize);
+        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize - TI8X_ASMCOMP_LEN);
 
         memcpy(newarr + offset, decompress, decompress_len);
         memcpy(newarr + offset + decompress_len, compressedarr, prgmsize);
