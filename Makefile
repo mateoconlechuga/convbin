@@ -45,6 +45,13 @@ else
   endif
 endif
 
+V ?= 1
+ifeq ($(V),1)
+Q =
+else
+Q = @
+endif
+
 CC := gcc
 CFLAGS := -Wall -Wextra -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
 LDFLAGS := -flto
@@ -73,21 +80,21 @@ LIBRARIES :=
 all: $(BINDIR)/$(TARGET)
 
 release: $(BINDIR)/$(TARGET)
-	$(call STRIP,$^)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
-	@$(call MKDIR,$(call NATIVEPATH,$(@D)))
-	$(CC) $(LDFLAGS) $(call NATIVEPATH,$^) -o $(call NATIVEPATH,$@) $(addprefix -l, $(LIBRARIES))
+	$(Q)$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	$(Q)$(CC) $(LDFLAGS) $(call NATIVEPATH,$^) -o $(call NATIVEPATH,$@) $(addprefix -l, $(LIBRARIES))
+	$(Q)$(call STRIP,$@)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	@$(call MKDIR,$(call NATIVEPATH,$(@D)))
-	$(CC) -c $(call NATIVEPATH,$<) $(CFLAGS) -o $(call NATIVEPATH,$@)
+	$(Q)$(call MKDIR,$(call NATIVEPATH,$(@D)))
+	$(Q)$(CC) -c $(call NATIVEPATH,$<) $(CFLAGS) -o $(call NATIVEPATH,$@)
 
 test:
 	cd test && bash ./test.sh
 
 clean:
-	$(call RMDIR,$(call NATIVEPATH,$(BINDIR)))
-	$(call RMDIR,$(call NATIVEPATH,$(OBJDIR)))
+	$(Q)$(call RMDIR,$(call NATIVEPATH,$(BINDIR)))
+	$(Q)$(call RMDIR,$(call NATIVEPATH,$(OBJDIR)))
 
 .PHONY: all release test clean
