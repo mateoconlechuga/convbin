@@ -200,7 +200,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
     {
         unsigned int num_appvars = (size / outfile->var.maxsize) + 1;
         char appvar_names[10][10];
-        unsigned int offset = 0;
+        unsigned int offset = TI8X_ASMCOMP_LEN;
         size_t tmpsize;
         size_t origsize;
         unsigned int i;
