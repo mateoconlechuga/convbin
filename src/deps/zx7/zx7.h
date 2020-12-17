@@ -23,7 +23,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define MAX_OFFSET  2175  /* range 1..2176 */
+#define MAX_OFFSET  2176  /* range 1..2176 */
 #define MAX_LEN    65536  /* range 2..65536 */
 
 typedef struct optimal_t {

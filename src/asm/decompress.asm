@@ -1,19 +1,19 @@
 ; Copyright 2017-2020 Matt "MateoConLechuga" Waltz
-; 
+;
 ; Redistribution and use in source and binary forms, with or without
 ; modification, are permitted provided that the following conditions are met:
-; 
+;
 ; 1. Redistributions of source code must retain the above copyright notice,
 ;    this list of conditions and the following disclaimer.
-; 
+;
 ; 2. Redistributions in binary form must reproduce the above copyright notice,
 ;    this list of conditions and the following disclaimer in the documentation
 ;    and/or other materials provided with the distribution.
-; 
+;
 ; 3. Neither the name of the copyright holder nor the names of its contributors
 ;    may be used to endorse or promote products derived from this software
 ;    without specific prior written permission.
-; 
+;
 ; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 ; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -112,8 +112,7 @@ dzx7s_len_value_loop_b:
 	inc	bc
 	ld	e,(hl)
 	dec	hl
-	scf
-	rl	e
+	sla	e
 	jr	nc,dzx7s_offset_end_b
 	ld	d,$10
 dzx7s_rld_next_bit_b:
@@ -124,12 +123,10 @@ dzx7s_rld_next_bit_b:
 	srl	d
 dzx7s_offset_end_b:
 	rr	e
-	inc	de
-	dec.s	de
+	inc.s	de
 	ex	(sp),hl
-	push	hl
-	adc	hl,de
-	pop	de
+	ex	de,hl
+	add	hl,de
 	lddr
 dzx7s_exit_b:
 	pop	hl
