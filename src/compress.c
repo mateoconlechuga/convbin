@@ -164,12 +164,13 @@ void compress_write_word(unsigned char *addr, unsigned int value)
 #define DECOMPRESS_DELTA_SIZE_OFFSET 19
 #define DECOMPRESS_DELTA_START_OFFSET 29
 #define DECOMPRESS_PRGM_SIZE_OFFSET 37
+#define DECOMPRESS_COMPRESSED_COPY_OFFSET 57
 #define DECOMPRESS_COMPRESSED_END_OFFSET 45
 #define DECOMPRESS_UNCOMPRESSED_END_OFFSET 49
-#define DECOMPRESS_COMPRESSED_START_OFFSET 58
-#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET 63
-#define DECOMPRESS_RESIZE_OFFSET 73
-#define DECOMPRESS_RESIZE_SIZE_OFFSET 69
+#define DECOMPRESS_COMPRESSED_START_OFFSET 61
+#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET 66
+#define DECOMPRESS_RESIZE_OFFSET 76
+#define DECOMPRESS_RESIZE_SIZE_OFFSET 72
 
 /*
  * Compress and create an auto-decompressing 8xp.
@@ -248,19 +249,19 @@ move_to_end_of_description:
         unsigned int uncompressedend;
         unsigned int prgmstart;
         unsigned int resizesize;
+        unsigned int copyoffset;
 
         free(inarr);
 
         /* 512 byte buffer room just for kicks */
         resizesize = decompress_len + delta + 512;
-
         compressedsize = prgmsize + decompress_len;
 
-        prgmstart = TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN + offset;
-        compress_write_word(decompress + DECOMPRESS_COMPRESSED_START_OFFSET, prgmstart);
-
-        deltasize = uncompressedsize - compressedsize + resizesize;
+        deltasize = (uncompressedsize - compressedsize) + resizesize;
         compress_write_word(decompress + DECOMPRESS_DELTA_SIZE_OFFSET, deltasize);
+
+        prgmstart = (TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN) + offset;
+        compress_write_word(decompress + DECOMPRESS_COMPRESSED_START_OFFSET, prgmstart);
 
         deltastart = prgmstart + compressedsize;
         compress_write_word(decompress + DECOMPRESS_DELTA_START_OFFSET, deltastart);
@@ -279,6 +280,9 @@ move_to_end_of_description:
         compress_write_word(decompress + DECOMPRESS_RESIZE_OFFSET, uncompressedend - resizesize);
         compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize - TI8X_ASMCOMP_LEN);
 
+        copyoffset = (deltastart - compressedsize) + resizesize + 1;
+        compress_write_word(decompress + DECOMPRESS_COMPRESSED_COPY_OFFSET, copyoffset);
+
         memcpy(newarr + offset, decompress, decompress_len);
         memcpy(newarr + offset + decompress_len, compressedarr, prgmsize);
 
@@ -287,9 +291,9 @@ move_to_end_of_description:
     }
     else if (ret == 2)
     {
-	free(compressedarr); 
+        free(compressedarr);
         free(newarr);
-	ret = 0;
+        ret = 0;
     }
 
     return ret;

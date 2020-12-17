@@ -67,7 +67,8 @@ compressedendlabel := $% - 3
 	ld	de,0
 uncompressedendlabel := $% - 3
 	call	dzx7_standard_back
-	inc	hl
+	ld	hl,0
+compressedcopylabel := $% - 3
 	ld	de,0 ; compressedstart
 compressedstartlabel := $% - 3
 	push	de
@@ -146,6 +147,7 @@ print "#define DECOMPRESS_ENTRY_OFFSET ", decompressentrylabel
 print "#define DECOMPRESS_DELTA_SIZE_OFFSET ", deltasizelabel
 print "#define DECOMPRESS_DELTA_START_OFFSET ", deltastartlabel
 print "#define DECOMPRESS_PRGM_SIZE_OFFSET ", prgrmsizelabel
+print "#define DECOMPRESS_COMPRESSED_COPY_OFFSET ", compressedcopylabel
 print "#define DECOMPRESS_COMPRESSED_END_OFFSET ", compressedendlabel
 print "#define DECOMPRESS_UNCOMPRESSED_END_OFFSET ", uncompressedendlabel
 print "#define DECOMPRESS_COMPRESSED_START_OFFSET ", compressedstartlabel
