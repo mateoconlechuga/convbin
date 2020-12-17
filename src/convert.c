@@ -42,6 +42,7 @@ static int convert_build_data(input_t *input,
                               unsigned char **oarr,
                               size_t *osize,
                               size_t maxsize,
+                              output_file_t *outfile,
                               compression_t compression)
 {
     unsigned char *arr = malloc(INPUT_MAX_SIZE);
@@ -71,14 +72,20 @@ static int convert_build_data(input_t *input,
 
     if (compression != COMPRESS_NONE)
     {
-	long delta;
-        int ret = compress_array(&arr, &size, &delta, compression);
+        long delta;
+        int ret;
+
+        outfile->uncompressedsize = size;
+
+        ret = compress_array(&arr, &size, &delta, compression);
         if (ret != 0)
         {
             LL_ERROR("could not compress.");
             free(arr);
             return ret;
         }
+
+        outfile->compressedsize = size;
     }
 
     if (size > maxsize)
@@ -158,7 +165,7 @@ static int convert_8x(input_t *input, output_file_t *outfile)
     int ret;
 
     ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile->compression);
+                             INPUT_MAX_SIZE, outfile, outfile->compression);
     if (ret != 0)
     {
         return ret;
@@ -179,8 +186,13 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
     size_t size;
     int ret;
 
+    if (outfile->compression != COMPRESS_NONE)
+    {
+        LL_WARNING("ignoring compression mode");
+    }
+
     ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile->compression);
+                             INPUT_MAX_SIZE, outfile, COMPRESS_NONE);
     if (ret != 0)
     {
         return ret;
@@ -188,12 +200,14 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
 
     if (outfile->format == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
+        outfile->uncompressedsize = size;
         ret = compress_auto_8xp(&arr, &size);
         if (ret != 0)
         {
             LL_ERROR("could not compress.");
             return ret;
         }
+        outfile->compressedsize = size;
     }
 
     if (size > outfile->var.maxsize)
@@ -217,7 +231,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
 
         if (num_appvars == 1)
         {
-            LL_WARNING("input too large; split using 1 appvar...");
+            LL_WARNING("input too large; split across 1 appvar...");
         }
         else if (num_appvars > 10)
         {
@@ -227,7 +241,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         }
         else
         {
-            LL_WARNING("input too large; split using %u appvars...",
+            LL_WARNING("input too large; split across %u appvars...",
                 num_appvars);
         }
 
@@ -260,28 +274,15 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
             if (ret == 0)
             {
                 ret = output_write_file(&appvarfile);
+                if (ret != 0)
+                {
+                    break;
+                }
             }
 
-            if (ret == 0)
-            {
-                if (outfile->compression ||
-                    outfile->format == OFORMAT_8XP_AUTO_DECOMPRESS)
-                {
-                    LL_PRINT("[success] %s, %lu bytes. (compressed)\n",
-                        appvarfile.name,
-                        (unsigned long)appvarfile.size);
-                }
-                else
-                {
-                    LL_PRINT("[success] %s, %lu bytes.\n",
-                        appvarfile.name,
-                        (unsigned long)appvarfile.size);
-                }
-            }
-            else
-            {
-                break;
-            }
+            LL_PRINT("[success] %s, %lu bytes.\n",
+                appvarfile.name,
+                (unsigned long)appvarfile.size);
 
             offset += tmpsize;
 
@@ -323,8 +324,13 @@ int convert_auto_8xg(input_t *input, output_file_t *outfile)
     size_t size;
     int ret;
 
+    if (outfile->compression != COMPRESS_NONE)
+    {
+        LL_WARNING("ignoring compression mode");
+    }
+
     ret = convert_build_data(input, &arr, &size,
-                             outfile->var.maxsize, outfile->compression);
+                             outfile->var.maxsize, outfile, COMPRESS_NONE);
     if (ret != 0)
     {
         return ret;
@@ -362,7 +368,7 @@ int convert_bin(input_t *input, output_file_t *outfile)
     int ret;
 
     ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile->compression);
+                             INPUT_MAX_SIZE, outfile, outfile->compression);
     if (ret != 0)
     {
         return ret;
@@ -432,9 +438,25 @@ int convert_input_to_output(input_t *input, output_t *output)
         if (output->file.compression ||
             output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS)
         {
-            LL_PRINT("[success] %s, %lu bytes. (compressed)\n",
+            float savings = (float)output->file.uncompressedsize -
+                            (float)output->file.compressedsize;
+
+            if (savings < 0.001)
+            {
+                savings = 0;
+            }
+            else
+            {
+                if (output->file.uncompressedsize != 0)
+                {
+                    savings /= (float)output->file.uncompressedsize;
+                }
+            }
+
+            LL_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
                 output->file.name,
-                (unsigned long)output->file.size);
+                (unsigned long)output->file.size,
+                savings * 100.);
         }
         else
         {

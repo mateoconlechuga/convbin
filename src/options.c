@@ -327,6 +327,8 @@ static void options_set_default(options_t *options)
     options->output.file.format = OFORMAT_INVALID;
     options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
     options->output.file.var.archive = false;
+    options->output.file.size = 0;
+    options->output.file.uncompressedsize = 0;
 
     memset(options->output.file.var.name, 0, TI8X_VAR_NAME_LEN + 1);
 }

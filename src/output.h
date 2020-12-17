@@ -61,6 +61,8 @@ typedef struct
     ti8x_var_t var;
     unsigned char arr[MAX_OUTPUT_SIZE];
     size_t size;
+    size_t compressedsize;
+    size_t uncompressedsize;
     compression_t compression;
     bool append;
     bool uppercase;
