@@ -57,6 +57,10 @@ static void options_show(const char *prgm)
     LL_PRINT("                            See 'Input formats' below.\n");
     LL_PRINT("                            This should be placed before the input file.\n");
     LL_PRINT("                            The default input format is 'bin'.\n");
+    LL_PRINT("    -p, --icompress <mode>  Set input file compression to <mode>.\n");
+    LL_PRINT("                            Supported modes: zx7\n");
+    LL_PRINT("                            This should be placed before the input file.\n");
+    LL_PRINT("                            The default input compression is 'none'.\n");
     LL_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LL_PRINT("                            See 'Output formats' below.\n");
     LL_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
@@ -125,6 +129,25 @@ static iformat_t options_parse_input_format(const char *str)
     }
 
     return format;
+}
+
+/*
+ * Get input compression mode from string.
+ */
+static compression_t options_parse_input_compression(const char *str)
+{
+    compression_t compress = COMPRESS_INVALID;
+
+    if (!strcmp(str, "zx7"))
+    {
+        compress = COMPRESS_ZX7;
+    }
+    else if (!strcmp(str, "none"))
+    {
+        compress = COMPRESS_NONE;
+    }
+
+    return compress;
 }
 
 /*
@@ -240,6 +263,12 @@ static int options_verify(options_t *options)
         goto error;
     }
 
+    if (options->input.file[0].compression == COMPRESS_INVALID)
+    {
+        LL_ERROR("Invalid input compression mode.");
+        goto error;
+    }
+
     if (options->output.file.name == NULL)
     {
         LL_ERROR("Unknown output file.");
@@ -320,6 +349,7 @@ static void options_set_default(options_t *options)
     options->prgm = 0;
     options->input.numfiles = 0;
     options->input.default_format = IFORMAT_BIN;
+    options->input.default_compression = COMPRESS_NONE;
     options->output.file.append = false;
     options->output.file.uppercase = false;
     options->output.file.compression = COMPRESS_NONE;
@@ -362,6 +392,7 @@ int options_get(int argc, char *argv[], options_t *options)
             {"output",       required_argument, 0, 'o'},
             {"iformat",      required_argument, 0, 'j'},
             {"oformat",      required_argument, 0, 'k'},
+            {"icompress",    required_argument, 0, 'p'},
             {"compress",     required_argument, 0, 'c'},
             {"maxvarsize",   required_argument, 0, 'm'},
             {"name",         required_argument, 0, 'n'},
@@ -373,7 +404,7 @@ int options_get(int argc, char *argv[], options_t *options)
             {"log-level",    required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
-        int c = getopt_long(argc, argv, "i:o:k:j:c:m:n:l:ruahv", long_options, NULL);
+        int c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
 
         if (c == - 1)
         {
@@ -386,6 +417,8 @@ int options_get(int argc, char *argv[], options_t *options)
                 options->input.file[numifiles].name = optarg;
                 options->input.file[numifiles].format =
                     options->input.default_format;
+                options->input.file[numifiles].compression =
+                    options->input.default_compression;
                 if (numifiles >= INPUT_MAX_NUM)
                 {
                     LL_ERROR("Too many input files.");
@@ -409,6 +442,11 @@ int options_get(int argc, char *argv[], options_t *options)
             case 'j':
                 options->input.default_format =
                     options_parse_input_format(optarg);
+                break;
+
+            case 'p':
+                options->input.default_compression =
+                    options_parse_input_compression(optarg);
                 break;
 
             case 'k':

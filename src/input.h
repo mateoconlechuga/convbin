@@ -37,6 +37,8 @@
 extern "C" {
 #endif
 
+#include "compress.h"
+
 #define INPUT_MAX_NUM 16
 #define INPUT_MAX_SIZE 0x80000
 
@@ -54,6 +56,7 @@ typedef struct
     const char *name;
     unsigned char arr[INPUT_MAX_SIZE];
     iformat_t format;
+    compression_t compression;
     size_t size;
 } input_file_t;
 
@@ -61,6 +64,7 @@ typedef struct
 {
     input_file_t file[INPUT_MAX_NUM];
     iformat_t default_format;
+    compression_t default_compression;
     unsigned int numfiles;
 } input_t;
 
