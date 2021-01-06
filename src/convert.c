@@ -66,7 +66,32 @@ static int convert_build_data(input_t *input,
             return 1;
         }
 
-        memcpy(arr + size, file->arr, file->size);
+        if (file->compression != COMPRESS_NONE)
+        {
+            unsigned char *comp_arr = malloc(file->size);
+            long delta;
+            int ret;
+
+            if (comp_arr == NULL)
+            {
+                LL_DEBUG("memory error in %s.", __func__);
+                return 1;
+            }
+            memcpy(comp_arr, file->arr, file->size);
+
+            ret = compress_array(&comp_arr, &file->size, &delta, file->compression);
+            if (ret != 0)
+            {
+                LL_ERROR("could not compress input.");
+                free(arr);
+                return ret;
+            }
+
+            memcpy(arr + size, comp_arr, file->size);
+            free(comp_arr);
+        } else {
+            memcpy(arr + size, file->arr, file->size);
+        }
         size += file->size;
     }
 
@@ -80,7 +105,7 @@ static int convert_build_data(input_t *input,
         ret = compress_array(&arr, &size, &delta, compression);
         if (ret != 0)
         {
-            LL_ERROR("could not compress.");
+            LL_ERROR("could not compress output.");
             free(arr);
             return ret;
         }
