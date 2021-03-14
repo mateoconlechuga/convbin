@@ -305,7 +305,6 @@ static int options_verify(options_t *options)
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
-        oformat == OFORMAT_8XG_AUTO_EXTRACT ||
         oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
         if (options->output.file.var.name[0] == 0)
@@ -317,7 +316,6 @@ static int options_verify(options_t *options)
         if (oformat == OFORMAT_8XP ||
             oformat == OFORMAT_8XV ||
             oformat == OFORMAT_8XG ||
-            oformat == OFORMAT_8XG_AUTO_EXTRACT ||
             oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
