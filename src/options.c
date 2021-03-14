@@ -411,7 +411,7 @@ int options_get(int argc, char *argv[], options_t *options)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL)
+        c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
         if (c < 0)
             break;
 
