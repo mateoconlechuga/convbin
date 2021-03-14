@@ -32,7 +32,7 @@
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --input inputs/fileioc.8xv --input inputs/libload.8xv --oformat 8xg-auto-extract --output test.8xg.test || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat bin --output test.bin.test || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/fileioc.8xv --oformat bin --output test.bin.test || { exit 1; }
-../bin/convbin --iformat bin --input inputs/large.bin --oformat c --output test.c.test  --name TEST || { exit 1; }
+../bin/convbin --iformat bin --input inputs/large.bin --oformat c --output test.c.test --name TEST || { exit 1; }
 ../bin/convbin --iformat bin --input inputs/large.bin --oformat asm --output test.asm.test --name TEST || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat ice --output test.ice.test --name TEST || { exit 1; }
 ../bin/convbin --iformat 8x --input inputs/demo.8xp --oformat 8xp --output test.8xp.test --name TEST || { exit 1; }
