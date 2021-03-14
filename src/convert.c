@@ -137,6 +137,7 @@ static int convert_build_8x(unsigned char *arr, size_t size, output_file_t *outf
     size_t data_size;
     size_t varb_size;
     size_t var_size;
+    size_t name_size;
 
     if (size > outfile->var.maxsize)
     {
@@ -144,6 +145,7 @@ static int convert_build_8x(unsigned char *arr, size_t size, output_file_t *outf
         return 1;
     }
 
+    name_size = strlen(outfile->var.name);
     file_size = size + TI8X_DATA + TI8X_CHECKSUM_LEN;
     data_size = size + TI8X_VAR_HEADER_LEN + TI8X_VARB_SIZE_LEN;
     var_size = size + TI8X_VARB_SIZE_LEN;
@@ -152,8 +154,11 @@ static int convert_build_8x(unsigned char *arr, size_t size, output_file_t *outf
     ti8x = outfile->arr;
     outfile->size = file_size;
 
+    if (name_size > TI8X_VAR_NAME_LEN)
+        name_size = TI8X_VAR_NAME_LEN;
+
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
-    memcpy(ti8x + TI8X_NAME, outfile->var.name, strlen(outfile->var.name));
+    memcpy(ti8x + TI8X_NAME, outfile->var.name, name_size);
     memcpy(ti8x + TI8X_DATA, arr, size);
 
     ti8x[TI8X_VAR_HEADER] = TI8X_MAGIC;
@@ -275,12 +280,15 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
 
         for (i = 0; i < num_appvars; ++i)
         {
-            size_t slen = strlen(outfile->var.name);
+            size_t name_size = strlen(outfile->var.name);
             static output_file_t appvarfile;
 
+            if (name_size > TI8X_VAR_NAME_LEN)
+                name_size = TI8X_VAR_NAME_LEN;
+
             appvar_names[i][0] = TI8X_TYPE_APPVAR;
-            memcpy(&appvar_names[i][1], outfile->var.name, slen);
-            appvar_names[i][slen] = '0' + i;
+            memcpy(&appvar_names[i][1], outfile->var.name, name_size);
+            appvar_names[i][name_size] = '0' + i;
             outname[pos] = '0' + i;
 
             appvarfile.name = outname;

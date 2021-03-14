@@ -305,19 +305,26 @@ static int options_verify(options_t *options)
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
-        oformat == OFORMAT_8XG ||
+        oformat == OFORMAT_8XG_AUTO_EXTRACT ||
         oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
         if (options->output.file.var.name[0] == 0)
         {
-            LL_ERROR("Name not supplied.");
+            LL_ERROR("Variable name not supplied.");
             goto error;
         }
 
-        if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
+        if (oformat == OFORMAT_8XP ||
+            oformat == OFORMAT_8XV ||
+            oformat == OFORMAT_8XG ||
+            oformat == OFORMAT_8XG_AUTO_EXTRACT ||
+            oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
         {
-            LL_ERROR("Name too long.");
-            goto error;
+            if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
+            {
+                LL_ERROR("Variable name too long.");
+                goto error;
+            }
         }
     }
 
@@ -342,9 +349,7 @@ error:
 static void options_set_default(options_t *options)
 {
     if (options == NULL)
-    {
         return;
-    }
 
     options->prgm = 0;
     options->input.numfiles = 0;
@@ -360,7 +365,7 @@ static void options_set_default(options_t *options)
     options->output.file.size = 0;
     options->output.file.uncompressedsize = 0;
 
-    memset(options->output.file.var.name, 0, TI8X_VAR_NAME_LEN + 1);
+    memset(options->output.file.var.name, 0, TI8X_VAR_MAX_NAME_LEN + 1);
 }
 
 /*
@@ -369,9 +374,9 @@ static void options_set_default(options_t *options)
  */
 int options_get(int argc, char *argv[], options_t *options)
 {
+    const char *varname = NULL;
     unsigned int numifiles = 0;
     unsigned int i;
-    const char *varname = NULL;
 
     log_set_level(LOG_BUILD_LEVEL);
 
@@ -384,8 +389,9 @@ int options_get(int argc, char *argv[], options_t *options)
     options_set_default(options);
     options->prgm = argv[0];
 
-    for( ;; )
+    for (;;)
     {
+        int c;
         static struct option long_options[] =
         {
             {"input",        required_argument, 0, 'i'},
@@ -404,12 +410,10 @@ int options_get(int argc, char *argv[], options_t *options)
             {"log-level",    required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
-        int c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
 
-        if (c == - 1)
-        {
+        c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL)
+        if (c < 0)
             break;
-        }
 
         switch (c)
         {
@@ -492,9 +496,17 @@ int options_get(int argc, char *argv[], options_t *options)
 
     if (varname != NULL)
     {
+        size_t len = strlen(varname);
         size_t i;
 
-        for (i = 0; i < strlen(varname) && i < TI8X_VAR_NAME_LEN; ++i)
+        if (len > TI8X_VAR_MAX_NAME_LEN)
+        {
+            len = TI8X_VAR_MAX_NAME_LEN;
+            LL_WARNING("Variable name truncated to %u characters",
+                (unsigned int)len);
+        }
+
+        for (i = 0; i < len; ++i)
         {
             if (options->output.file.uppercase && isalpha(varname[i]))
             {
@@ -505,6 +517,8 @@ int options_get(int argc, char *argv[], options_t *options)
                 options->output.file.var.name[i] = varname[i];
             }
         }
+
+        options->output.file.var.name[len] = '\0';
     }
 
     if (numifiles == 1)
