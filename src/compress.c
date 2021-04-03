@@ -283,7 +283,7 @@ prepend_marker_only:
         compress_write_word(decompress + DECOMPRESS_RESIZE_SIZE_OFFSET, resizesize);
         compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressedsize);
         compress_write_word(decompress + DECOMPRESS_RESIZE_OFFSET, uncompressedend - resizesize);
-        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize - TI8X_ASMCOMP_LEN);
+        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize);
 
         copyoffset = (deltastart - compressedsize) + resizesize + 1;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_COPY_OFFSET, copyoffset);
