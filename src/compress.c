@@ -116,7 +116,7 @@ static int compress_zx7b(unsigned char **arr, size_t *size, long *delta)
     {
         reverse(inarr, inarr + insize - 1);
         free(compressed);
-	return 2;
+        return 2;
     }
     else
     {
@@ -201,6 +201,11 @@ int compress_auto_8xp(unsigned char **arr, size_t *size)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_1 + 4;
     }
+    else if (inarr[TI8X_MAGIC_C_OFFSET] == TI8X_MAGIC_C ||
+             inarr[TI8X_MAGIC_ICE_OFFSET] == TI8X_MAGIC_ICE)
+    {
+        goto prepend_marker_only;
+    }
 
     if (inarr[offset] == TI8X_ICON_MAGIC)
     {
@@ -223,7 +228,7 @@ move_to_end_of_description:
                 return 1;
             }
         }
-
+prepend_marker_only:
         offset++;
         if (offset >= *size)
         {
