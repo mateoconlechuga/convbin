@@ -49,9 +49,11 @@ extractsizelabel := $% - 3
 .relocate:
 	org	relocaddr
 extractprgm:
-	ld	hl,0
+	ld	de,0
 extracttotalsizelabel := $% - 3
-	call	ti.ErrNotEnoughMem
+	call	ti.MemChk
+	sbc	hl,de
+	jq	c,ti.ErrMemory
 	ld	hl,ti.userMem
 	ld	de,(ti.asm_prgm_size)
 	call	ti.DelMem			; remove ourseleves
