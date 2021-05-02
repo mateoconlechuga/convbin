@@ -50,7 +50,7 @@ void extract_write_word(unsigned char *addr, unsigned int value)
 #define EXTRACTOR_ENTRY_OFFSET 1
 #define EXTRACTOR_PRGM_SIZE_OFFSET 9
 #define EXTRACTOR_EXTRACT_SIZE_OFFSET 19
-#define EXTRACTOR_APPVARS_OFFSET 153
+#define EXTRACTOR_APPVARS_OFFSET 177
 
 /*
  * Create and 8xp that extracts from 8xv.
