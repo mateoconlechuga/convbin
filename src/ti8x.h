@@ -103,7 +103,7 @@ extern const unsigned char ti8x_file_header[11];
 
 unsigned int ti8x_checksum(unsigned char *arr, size_t size);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

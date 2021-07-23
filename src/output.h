@@ -75,7 +75,7 @@ typedef struct
 
 int output_write_file(output_file_t *file);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -380,7 +380,7 @@ int options_get(int argc, char *argv[], options_t *options)
 
     if (argc < 2 || argv == NULL || options == NULL)
     {
-        options_show(argc < 1 ? PRGM_NAME : argv[0]);
+        options_show(argc < 1 || argv == NULL ? PRGM_NAME : argv[0]);
         return OPTIONS_FAILED;
     }
 

@@ -51,7 +51,7 @@ static int convert_build_data(input_t *input,
 
     if (arr == NULL)
     {
-        LL_DEBUG("memory error in %s.", __func__);
+        LL_DEBUG("argument error in %s.", __func__);
         return 1;
     }
 
@@ -62,8 +62,7 @@ static int convert_build_data(input_t *input,
         if (size + file->size > INPUT_MAX_SIZE)
         {
             LL_ERROR("input too large.");
-            free(arr);
-            return 1;
+            goto error;
         }
 
         if (file->compression != COMPRESS_NONE)
@@ -75,7 +74,7 @@ static int convert_build_data(input_t *input,
             if (comp_arr == NULL)
             {
                 LL_DEBUG("memory error in %s.", __func__);
-                return 1;
+                goto error;
             }
             memcpy(comp_arr, file->arr, file->size);
 
@@ -83,8 +82,7 @@ static int convert_build_data(input_t *input,
             if (ret != 0)
             {
                 LL_ERROR("could not compress input.");
-                free(arr);
-                return ret;
+                goto error;
             }
 
             memcpy(arr + size, comp_arr, file->size);
@@ -106,8 +104,7 @@ static int convert_build_data(input_t *input,
         if (ret != 0)
         {
             LL_ERROR("could not compress output.");
-            free(arr);
-            return ret;
+            goto error;
         }
 
         outfile->compressedsize = size;
@@ -116,14 +113,17 @@ static int convert_build_data(input_t *input,
     if (size > maxsize)
     {
         LL_ERROR("input too large.");
-        free(arr);
-        return 1;
+        goto error;
     }
 
     *oarr = arr;
     *osize = size;
 
     return 0;
+
+error:
+    free(arr);
+    return 1;
 }
 
 /*

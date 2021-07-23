@@ -102,16 +102,14 @@ move_to_end_of_description:
             offset++;
             if (offset >= *size)
             {
-                LL_ERROR("oddly formated 8x file.");
-                return 1;
+                goto odd_8x;
             }
         }
 
         offset++;
         if (offset >= *size)
         {
-            LL_ERROR("oddly formated 8x file.");
-            return 1;
+            goto odd_8x;
         }
 
         memcpy(newarr + TI8X_ASMCOMP_LEN, *arr + TI8X_ASMCOMP_LEN, offset);
@@ -144,4 +142,9 @@ move_to_end_of_description:
     *size = offset;
 
     return ret;
+
+odd_8x:
+    free(newarr);
+    LL_ERROR("oddly formated 8x file.");
+    return 1;
 }

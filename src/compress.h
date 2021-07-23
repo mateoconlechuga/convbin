@@ -48,7 +48,7 @@ typedef enum
 int compress_array(unsigned char **arr, size_t *size, long *delta, compression_t mode);
 int compress_auto_8xp(unsigned char **arr, size_t *size);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

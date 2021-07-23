@@ -42,7 +42,7 @@ int extract_8xp_to_8xv(unsigned char **arr,
                        char appvar_names[10][10],
                        unsigned int num_appvars);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

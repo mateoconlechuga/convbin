@@ -60,7 +60,7 @@ typedef struct
 
 int options_get(int argc, char *argv[], options_t *options);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

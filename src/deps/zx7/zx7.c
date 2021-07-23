@@ -139,9 +139,13 @@ int main(int argc, char *argv[]) {
     fclose(ifp);
 
     /* check output file */
-    if (!forced_mode && fopen(output_name, "rb") != NULL) {
-        fprintf(stderr, "Error: Already existing output file %s\n", output_name);
-        exit(1);
+    ofp = fopen(output_name, "rb");
+    if (ofp != NULL) {
+        fclose(ofp);
+        if (!forced_mode) {
+            fprintf(stderr, "Error: Already existing output file %s\n", output_name);
+            exit(1);
+        }
     }
 
     /* create output file */
@@ -174,7 +178,7 @@ int main(int argc, char *argv[]) {
     fclose(ofp);
 
     /* done! */
-    printf("File%s converted%s from %lu to %lu bytes! (delta %ld)\n", (skip ? " partially" : ""), (backwards_mode ? " backwards" : ""), 
+    printf("File%s converted%s from %lu to %lu bytes! (delta %ld)\n", (skip ? " partially" : ""), (backwards_mode ? " backwards" : ""),
         (unsigned long)(input_size-skip), (unsigned long)output_size, delta);
 
     return 0;

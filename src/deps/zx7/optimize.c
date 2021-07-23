@@ -48,7 +48,7 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
     size_t *max;
     size_t *matches;
     size_t *match_slots;
-    Optimal *optimal;
+    Optimal *optimal = NULL;
     size_t *match;
     int match_index;
     int offset;
@@ -57,18 +57,25 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
     size_t bits;
     size_t i;
 
-    /* allocate all data structures at once */
     min = (size_t *)calloc(MAX_OFFSET+1, sizeof(size_t));
-    max = (size_t *)calloc(MAX_OFFSET+1, sizeof(size_t));
-    matches = (size_t *)calloc(256*256, sizeof(size_t));
-    match_slots = (size_t *)calloc(input_size, sizeof(size_t));
-    optimal = (Optimal *)calloc(input_size, sizeof(Optimal));
-
-    if (!min || !max || !matches || !match_slots || !optimal) {
-         /*fprintf(stderr, "Error: Insufficient memory\n");*/
-         /*exit(1);*/
+    if (min == NULL)
          return NULL;
-    }
+
+    max = (size_t *)calloc(MAX_OFFSET+1, sizeof(size_t));
+    if (max == NULL)
+         goto free_min;
+
+    matches = (size_t *)calloc(256*256, sizeof(size_t));
+    if (matches == NULL)
+         goto free_max;
+
+    match_slots = (size_t *)calloc(input_size, sizeof(size_t));
+    if (match_slots == NULL)
+         goto free_matches;
+
+    optimal = (Optimal *)calloc(input_size, sizeof(Optimal));
+    if (optimal == NULL)
+         goto free_match_slots;
 
     /* index skipped bytes */
     for (i = 1; i <= skip; i++) {
@@ -119,10 +126,14 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
         matches[match_index] = i;
     }
 
-    free(min);
-    free(max);
-    free(matches);
+free_match_slots:
     free(match_slots);
+free_matches:
+    free(matches);
+free_max:
+    free(max);
+free_min:
+    free(min);
 
     return optimal;
 }

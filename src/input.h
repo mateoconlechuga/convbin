@@ -70,7 +70,7 @@ typedef struct
 
 int input_read_file(input_file_t *file);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

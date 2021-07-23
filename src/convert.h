@@ -40,7 +40,7 @@ extern "C" {
 
 int convert_input_to_output(input_t *input, output_t *output);
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

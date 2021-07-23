@@ -210,9 +210,13 @@ int main(int argc, char *argv[]) {
     }
 
     /* check output file */
-    if (!forced_mode && fopen(output_name, "rb") != NULL) {
-        fprintf(stderr, "Error: Already existing output file %s\n", output_name);
-        exit(1);
+    ofp = fopen(output_name, "rb");
+    if (ofp != NULL) {
+        fclose(ofp);
+        if (!forced_mode) {
+            fprintf(stderr, "Error: Already existing output file %s\n", output_name);
+            exit(1);
+        }
     }
 
     /* create output file */
