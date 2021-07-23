@@ -1,4 +1,4 @@
-# convbin [![linux status](https://github.com/mateoconlechuga/convbin/workflows/linux/badge.svg)](https://github.com/mateoconlechuga/convbin/actions?query=workflow%3Alinux) [![macOS status](https://github.com/mateoconlechuga/convbin/workflows/macOS/badge.svg)](https://github.com/mateoconlechuga/convbin/actions?query=workflow%3AmacOS) [![windows status](https://github.com/mateoconlechuga/convbin/workflows/windows/badge.svg)](https://github.com/mateoconlechuga/convbin/actions?query=workflow%3Awindows)
+# convbin [![Windows/Linux/MacOS](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml/badge.svg)](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml) [![Coverity Scan](https://scan.coverity.com/projects/23437/badge.svg)](https://scan.coverity.com/projects/mateoconlechuga-convbin)
 
 This program is used to convert files to other formats, specifically for the TI84+CE and related calculators.
 
