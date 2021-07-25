@@ -31,13 +31,10 @@
 #include "options.h"
 #include "convert.h"
 
-/*
- * Main entry function, cli arguments.
- */
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
+    static struct options options;
     int ret;
-    static options_t options;
 
     ret = options_get(argc, argv, &options);
     if (ret == OPTIONS_SUCCESS)

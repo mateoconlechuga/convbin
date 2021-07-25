@@ -39,125 +39,112 @@
 
 #define VALUES_PER_LINE 32
 
-/*
- * Outputs to C format.
- */
-static int output_c(const char *name, unsigned char *arr, size_t size, FILE *fdo)
+static int output_c(const char *name, unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
-    fprintf(fdo, "unsigned char %s[%lu] =\n{", name, (unsigned long)size);
+    fprintf(fd, "unsigned char %s[%lu] =\n{", name, (unsigned long)size);
     for (i = 0; i < size; ++i)
     {
         bool last = i + 1 == size;
 
         if (i % VALUES_PER_LINE == 0)
         {
-            fputs("\n    ", fdo);
+            fputs("\n    ", fd);
         }
 
         if (last)
         {
-            fprintf(fdo, "0x%02x", arr[i]);
+            fprintf(fd, "0x%02x", data[i]);
         }
         else
         {
-            fprintf(fdo, "0x%02x,", arr[i]);
+            fprintf(fd, "0x%02x,", data[i]);
         }
     }
-    fputs("\n};\n", fdo);
+    fputs("\n};\n", fd);
 
     return 0;
 }
 
-/*
- * Outputs to Assembly format.
- */
-static int output_asm(const char *name, unsigned char *arr, size_t size, FILE *fdo)
+static int output_asm(const char *name, unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
-    fprintf(fdo, "%s:\n", name);
-    fprintf(fdo, "; %lu bytes\n\tdb\t", (unsigned long)size);
+    fprintf(fd, "%s:\n", name);
+    fprintf(fd, "; %lu bytes\n\tdb\t", (unsigned long)size);
     for (i = 0; i < size; ++i)
     {
         bool last = i + 1 == size;
 
         if (last || ((i + 1) % VALUES_PER_LINE == 0))
         {
-            fprintf(fdo, "$%02x", arr[i]);
+            fprintf(fd, "$%02x", data[i]);
             if (!last)
             {
-                fputs("\n\tdb\t", fdo);
+                fputs("\n\tdb\t", fd);
             }
         }
         else
         {
-             fprintf(fdo, "$%02x,", arr[i]);
+             fprintf(fd, "$%02x,", data[i]);
         }
     }
-    fputc('\n', fdo);
+    fputc('\n', fd);
 
     return 0;
 }
 
-/*
- * Converts to ICE format.
- */
-static int output_ice(const char *name, unsigned char *arr, size_t size, FILE *fdo)
+static int output_ice(const char *name, unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
-    fprintf(fdo, "%s | %lu bytes\n\"", name, (unsigned long)size);
+    fprintf(fd, "%s | %lu bytes\n\"", name, (unsigned long)size);
 
     for (i = 0; i < size; ++i)
     {
-        fprintf(fdo, "%02X", arr[i]);
+        fprintf(fd, "%02X", data[i]);
     }
 
-    fprintf(fdo, "\"\n");
+    fprintf(fd, "\"\n");
 
     return 0;
 }
 
-/*
- * Outputs to Binary format.
- */
-static int output_bin(const char *name, unsigned char *arr, size_t size, FILE *fdo)
+static int output_bin(const char *name, unsigned char *data, size_t size, FILE *fd)
 {
-    int ret = fwrite(arr, size, 1, fdo);
+    int ret = fwrite(data, size, 1, fd);
     (void)name;
 
-    return ret == 1 ? 0 : 1;
+    return ret == 1 ? 0 : -1;
 }
 
-/*
- * Outputs the converted information to a file.
- */
-int output_write_file(output_file_t *file)
+int output_write_file(struct output_file *file)
 {
-    FILE *fdo;
+    FILE *fd;
     int ret;
 
-    fdo = fopen(file->name, file->append ? "ab" : "wb");
-    if (fdo == NULL)
+    fd = fopen(file->name, file->append ? "ab" : "wb");
+    if (fd == NULL)
     {
-        LL_ERROR("Cannot open output file: %s", strerror(errno));
-        return 1;
+        LOG_ERROR("Cannot open output file \'%s\': %s\n",
+            file->name,
+            strerror(errno));
+        return -1;
     }
 
     switch (file->format)
     {
         case OFORMAT_C:
-            ret = output_c(file->var.name, file->arr, file->size, fdo);
+            ret = output_c(file->var.name, file->data, file->size, fd);
             break;
 
         case OFORMAT_ASM:
-            ret = output_asm(file->var.name, file->arr, file->size, fdo);
+            ret = output_asm(file->var.name, file->data, file->size, fd);
             break;
 
         case OFORMAT_ICE:
-            ret = output_ice(file->var.name, file->arr, file->size, fdo);
+            ret = output_ice(file->var.name, file->data, file->size, fd);
             break;
 
         case OFORMAT_BIN:
@@ -166,15 +153,16 @@ int output_write_file(output_file_t *file)
         case OFORMAT_8XG:
         case OFORMAT_8XG_AUTO_EXTRACT:
         case OFORMAT_8XP_AUTO_DECOMPRESS:
-            ret = output_bin(file->var.name, file->arr, file->size, fdo);
+            ret = output_bin(file->var.name, file->data, file->size, fd);
             break;
 
         default:
-            ret = 1;
+            LOG_ERROR("Unknown output format.\n");
+            ret = -1;
             break;
     }
 
-    fclose(fdo);
+    fclose(fd);
 
     return ret;
 }

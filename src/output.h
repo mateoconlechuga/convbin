@@ -31,6 +31,8 @@
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,26 +56,26 @@ typedef enum
     OFORMAT_INVALID,
 } oformat_t;
 
-typedef struct
+struct output_file
 {
     const char *name;
-    oformat_t format;
-    ti8x_var_t var;
-    unsigned char arr[MAX_OUTPUT_SIZE];
+    struct ti8x_var var;
+    uint8_t data[MAX_OUTPUT_SIZE];
     size_t size;
-    size_t compressedsize;
-    size_t uncompressedsize;
+    size_t compressed_size;
+    size_t uncompressed_size;
     compression_t compression;
+    oformat_t format;
     bool append;
     bool uppercase;
-} output_file_t;
+};
 
-typedef struct
+struct output
 {
-    output_file_t file;
-} output_t;
+    struct output_file file;
+};
 
-int output_write_file(output_file_t *file);
+int output_write_file(struct output_file *file);
 
 #ifdef __cplusplus
 }

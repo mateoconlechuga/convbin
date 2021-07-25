@@ -32,6 +32,7 @@
 #define INPUT_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,24 +52,24 @@ typedef enum
     IFORMAT_INVALID,
 } iformat_t;
 
-typedef struct
+struct input_file
 {
     const char *name;
-    unsigned char arr[INPUT_MAX_SIZE];
+    uint8_t data[INPUT_MAX_SIZE];
     iformat_t format;
     compression_t compression;
     size_t size;
-} input_file_t;
+};
 
-typedef struct
+struct input
 {
-    input_file_t file[INPUT_MAX_NUM];
+    struct input_file files[INPUT_MAX_NUM];
+    unsigned int nr_files;
     iformat_t default_format;
     compression_t default_compression;
-    unsigned int numfiles;
-} input_t;
+};
 
-int input_read_file(input_file_t *file);
+int input_read_file(struct input_file *file);
 
 #ifdef __cplusplus
 }

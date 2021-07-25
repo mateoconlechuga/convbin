@@ -34,63 +34,47 @@
 
 #include <string.h>
 
-/*
- * Builds a huge array from all the input files.
- * Compresses as needed.
- */
-static int convert_build_data(input_t *input,
-                              unsigned char **oarr,
-                              size_t *osize,
-                              size_t maxsize,
-                              output_file_t *outfile,
+static int convert_build_data(struct input *input,
+                              uint8_t *data,
+                              size_t *size,
+                              size_t max_size,
+                              struct output_file *output_file,
                               compression_t compression)
 {
-    unsigned char *arr = malloc(INPUT_MAX_SIZE);
-    size_t size = 0;
+    size_t tmp_size = 0;
     unsigned int i;
 
-    if (arr == NULL)
+    if (data == NULL || size == NULL)
     {
-        LL_DEBUG("argument error in %s.", __func__);
-        return 1;
+        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        return -1;
     }
 
-    for (i = 0; i < input->numfiles; ++i)
+    for (i = 0; i < input->nr_files; ++i)
     {
-        input_file_t *file = &input->file[i];
-
-        if (size + file->size > INPUT_MAX_SIZE)
-        {
-            LL_ERROR("input too large.");
-            goto error;
-        }
+        struct input_file *file = &input->files[i];
 
         if (file->compression != COMPRESS_NONE)
         {
-            unsigned char *comp_arr = malloc(file->size);
             long delta;
             int ret;
 
-            if (comp_arr == NULL)
-            {
-                LL_DEBUG("memory error in %s.", __func__);
-                goto error;
-            }
-            memcpy(comp_arr, file->arr, file->size);
-
-            ret = compress_array(&comp_arr, &file->size, &delta, file->compression);
+            ret = compress_array(file->data,
+                &file->size, &delta, file->compression);
             if (ret != 0)
             {
-                LL_ERROR("could not compress input.");
-                goto error;
+                return ret;
             }
-
-            memcpy(arr + size, comp_arr, file->size);
-            free(comp_arr);
-        } else {
-            memcpy(arr + size, file->arr, file->size);
         }
-        size += file->size;
+
+        if (tmp_size + file->size >= INPUT_MAX_SIZE)
+        {
+            LOG_ERROR("Input too large.\n");
+            return -1;
+        }
+
+        memcpy(data + tmp_size, file->data, file->size);
+        tmp_size += file->size;
     }
 
     if (compression != COMPRESS_NONE)
@@ -98,72 +82,63 @@ static int convert_build_data(input_t *input,
         long delta;
         int ret;
 
-        outfile->uncompressedsize = size;
+        output_file->uncompressed_size = tmp_size;
 
-        ret = compress_array(&arr, &size, &delta, compression);
+        ret = compress_array(data, &tmp_size, &delta, compression);
         if (ret != 0)
         {
-            LL_ERROR("could not compress output.");
-            goto error;
+            return ret;
         }
 
-        outfile->compressedsize = size;
+        output_file->compressed_size = tmp_size;
     }
 
-    if (size > maxsize)
+    if (tmp_size > max_size)
     {
-        LL_ERROR("input too large.");
-        goto error;
+        LOG_ERROR("Input too large.\n");
+        return -1;
     }
 
-    *oarr = arr;
-    *osize = size;
+    *size = tmp_size;
 
     return 0;
-
-error:
-    free(arr);
-    return 1;
 }
 
-/*
- * Builds TI 8x* format from array.
- */
-static int convert_build_8x(unsigned char *arr, size_t size, output_file_t *outfile)
+static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file)
 {
-    unsigned char *ti8x;
     unsigned int checksum;
     size_t file_size;
     size_t data_size;
     size_t varb_size;
     size_t var_size;
     size_t name_size;
+    uint8_t *ti8x;
 
-    if (size > outfile->var.maxsize)
+    if (size > file->var.maxsize)
     {
-        LL_ERROR("input too large.");
-        return 1;
+        LOG_ERROR("Input too large.\n");
+        return -1;
     }
 
-    name_size = strlen(outfile->var.name);
+    name_size = strlen(file->var.name);
     file_size = size + TI8X_DATA + TI8X_CHECKSUM_LEN;
     data_size = size + TI8X_VAR_HEADER_LEN + TI8X_VARB_SIZE_LEN;
     var_size = size + TI8X_VARB_SIZE_LEN;
     varb_size = size;
 
-    ti8x = outfile->arr;
-    outfile->size = file_size;
+    ti8x = file->data;
+    file->size = file_size;
 
     if (name_size > TI8X_VAR_NAME_LEN)
         name_size = TI8X_VAR_NAME_LEN;
 
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
-    memcpy(ti8x + TI8X_NAME, outfile->var.name, name_size);
-    memcpy(ti8x + TI8X_DATA, arr, size);
+    memcpy(ti8x + TI8X_NAME, file->var.name, name_size);
+    memcpy(ti8x + TI8X_DATA, data, size);
 
     ti8x[TI8X_VAR_HEADER] = TI8X_MAGIC;
-    ti8x[TI8X_TYPE] = outfile->var.type;
-    ti8x[TI8X_ARCHIVE] = outfile->var.archive ? 0x80 : 0;
+    ti8x[TI8X_TYPE] = file->var.type;
+    ti8x[TI8X_ARCHIVE] = file->var.archive ? 0x80 : 0;
 
     ti8x[TI8X_DATA_SIZE + 0] = (data_size >> 0) & 0xff;
     ti8x[TI8X_DATA_SIZE + 1] = (data_size >> 8) & 0xff;
@@ -185,64 +160,58 @@ static int convert_build_8x(unsigned char *arr, size_t size, output_file_t *outf
 
 }
 
-/*
- * Converts data to TI 8x* format.
- */
-static int convert_8x(input_t *input, output_file_t *outfile)
+static int convert_8x(struct input *input, struct output_file *file)
 {
-    unsigned char *arr = NULL;
+    uint8_t data[INPUT_MAX_SIZE];
     size_t size;
     int ret;
 
-    ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile, outfile->compression);
+    ret = convert_build_data(input, data, &size,
+                             INPUT_MAX_SIZE, file, file->compression);
     if (ret != 0)
     {
         return ret;
     }
 
-    ret = convert_build_8x(arr, size, outfile);
-    free(arr);
+    ret = convert_build_8x(data, size, file);
 
     return ret;
 }
 
-/*
- * Converts data to TI 8xp (program) format.
- */
-static int convert_8xp(input_t *input, output_file_t *outfile)
+static int convert_8xp(struct input *input, struct output_file *file)
 {
-    unsigned char *arr = NULL;
+    uint8_t data[INPUT_MAX_SIZE];
     size_t size;
     int ret;
 
-    if (outfile->compression != COMPRESS_NONE)
+    if (file->compression != COMPRESS_NONE)
     {
-        LL_WARNING("ignoring compression mode");
+        LOG_WARNING("Ignoring compression mode!\n");
     }
 
-    ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile, COMPRESS_NONE);
+    ret = convert_build_data(input, data, &size,
+                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
     if (ret != 0)
     {
         return ret;
     }
 
-    if (outfile->format == OFORMAT_8XP_AUTO_DECOMPRESS)
+    if (file->format == OFORMAT_8XP_AUTO_DECOMPRESS)
     {
-        outfile->uncompressedsize = size;
-        ret = compress_auto_8xp(&arr, &size);
+        file->uncompressed_size = size;
+
+        ret = compress_auto_8xp(data, &size);
         if (ret != 0)
         {
-            LL_ERROR("could not compress.");
             return ret;
         }
-        outfile->compressedsize = size;
+
+        file->compressed_size = size;
     }
 
-    if (size > outfile->var.maxsize)
+    if (size > file->var.maxsize)
     {
-        unsigned int num_appvars = (size / outfile->var.maxsize) + 1;
+        unsigned int num_appvars = (size / file->var.maxsize) + 1;
         char appvar_names[10][10];
         unsigned int offset = TI8X_ASMCOMP_LEN;
         size_t tmpsize;
@@ -254,56 +223,51 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         memset(appvar_names, 0, sizeof appvar_names);
         memset(outname, 0, sizeof outname);
 
-        strncpy(outname, outfile->name, sizeof outname - 10);
+        strncpy(outname, file->name, sizeof outname - 10);
         strncat(outname, ".0.8xv", 10);
 
         pos = strlen(outname) - 5;
 
         if (num_appvars == 1)
         {
-            LL_WARNING("input too large; split across 1 appvar...");
+            LOG_WARNING("Input too large; split across 1 appvar...\n");
         }
         else if (num_appvars > 10)
         {
-            LL_ERROR("input too large.");
-            free(arr);
-            return 1;
+            LOG_ERROR("Input too large.\n");
+            return -1;
         }
         else
         {
-            LL_WARNING("input too large; split across %u appvars...",
+            LOG_WARNING("Input too large; split across %u appvars...\n",
                 num_appvars);
         }
 
         origsize = size;
-        tmpsize = outfile->var.maxsize;
+        tmpsize = file->var.maxsize;
 
         for (i = 0; i < num_appvars; ++i)
         {
-            size_t name_size = strlen(outfile->var.name);
-            static output_file_t appvarfile;
+            size_t name_size = strlen(file->var.name);
+            struct output_file appvarfile;
 
             if (name_size > TI8X_VAR_NAME_LEN)
                 name_size = TI8X_VAR_NAME_LEN;
 
             appvar_names[i][0] = TI8X_TYPE_APPVAR;
-            memcpy(&appvar_names[i][1], outfile->var.name, name_size);
+            memcpy(&appvar_names[i][1], file->var.name, name_size);
             appvar_names[i][name_size] = '0' + i;
             outname[pos] = '0' + i;
 
             appvarfile.name = outname;
             appvarfile.format = OFORMAT_8XV;
-            appvarfile.var.maxsize = outfile->var.maxsize;
+            appvarfile.var.maxsize = file->var.maxsize;
             memcpy(&appvarfile.var.name, &appvar_names[i][1], 9);
             appvarfile.var.type = TI8X_TYPE_APPVAR;
             appvarfile.var.archive = true;
             appvarfile.append = false;
 
-            if (ret == 0)
-            {
-                ret = convert_build_8x(arr + offset, tmpsize, &appvarfile);
-            }
-
+            ret = convert_build_8x(data + offset, tmpsize, &appvarfile);
             if (ret == 0)
             {
                 ret = output_write_file(&appvarfile);
@@ -313,7 +277,7 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
                 }
             }
 
-            LL_PRINT("[success] %s, %lu bytes.\n",
+            LOG_PRINT("[success] %s, %lu bytes.\n",
                 appvarfile.name,
                 (unsigned long)appvarfile.size);
 
@@ -328,42 +292,37 @@ static int convert_8xp(input_t *input, output_file_t *outfile)
         }
 
         /* write extractor program as final output */
-        ret = extract_8xp_to_8xv(&arr, &size, appvar_names, num_appvars);
+        ret = extract_8xp_to_8xv(data, &size, appvar_names, num_appvars);
         if (ret == 0)
         {
-            ret = convert_build_8x(arr, size, outfile);
+            ret = convert_build_8x(data, size, file);
         }
-        free(arr);
     }
     else
     {
-        ret = convert_build_8x(arr, size, outfile);
-        free(arr);
+        ret = convert_build_8x(data, size, file);
     }
 
     return ret;
 }
 
-/*
- * Converts to an auto-extracting group file.
- */
-int convert_auto_8xg(input_t *input, output_file_t *outfile)
+int convert_auto_8xg(struct input *input, struct output_file *file)
 {
-    unsigned char *arr;
-    unsigned char *ti8x;
+    uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *ti8x;
     unsigned int checksum;
     size_t file_size;
     size_t data_size;
     size_t size;
     int ret;
 
-    if (outfile->compression != COMPRESS_NONE)
+    if (file->compression != COMPRESS_NONE)
     {
-        LL_WARNING("ignoring compression mode");
+        LOG_WARNING("Ignoring compression mode!\n");
     }
 
-    ret = convert_build_data(input, &arr, &size,
-                             outfile->var.maxsize, outfile, COMPRESS_NONE);
+    ret = convert_build_data(input, data, &size,
+                             file->var.maxsize, file, COMPRESS_NONE);
     if (ret != 0)
     {
         return ret;
@@ -372,13 +331,11 @@ int convert_auto_8xg(input_t *input, output_file_t *outfile)
     file_size = size + TI8X_FILE_HEADER_LEN + TI8X_CHECKSUM_LEN;
     data_size = size;
 
-    ti8x = outfile->arr;
-    outfile->size = file_size;
+    ti8x = file->data;
+    file->size = file_size;
 
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
-    memcpy(ti8x + TI8X_VAR_HEADER, arr, size);
-
-    free(arr);
+    memcpy(ti8x + TI8X_VAR_HEADER, data, size);
 
     ti8x[TI8X_DATA_SIZE + 0] = (data_size >> 0) & 0xff;
     ti8x[TI8X_DATA_SIZE + 1] = (data_size >> 8) & 0xff;
@@ -391,42 +348,24 @@ int convert_auto_8xg(input_t *input, output_file_t *outfile)
     return 0;
 }
 
-/*
- * Converts input to raw binary (direct copy)
- */
-int convert_bin(input_t *input, output_file_t *outfile)
+int convert_bin(struct input *input, struct output_file *file)
 {
-    unsigned char *arr;
-    size_t size;
-    int ret;
-
-    ret = convert_build_data(input, &arr, &size,
-                             INPUT_MAX_SIZE, outfile, outfile->compression);
-    if (ret != 0)
-    {
-        return ret;
-    }
-
-    memcpy(outfile->arr, arr, size);
-    outfile->size = size;
-
-    free(arr);
-
-    return ret;
+    return convert_build_data(input,
+        file->data,
+        &file->size,
+        MAX_OUTPUT_SIZE,
+        file,
+        file->compression);
 }
 
-/*
- * Convert file using options supplied via cli.
- * Returns 0 on success, otherwise nonzero.
- */
-int convert_input_to_output(input_t *input, output_t *output)
+int convert_input_to_output(struct input *input, struct output *output)
 {
     unsigned int i;
     int ret = 0;
 
-    for (i = 0; i < input->numfiles; ++i)
+    for (i = 0; i < input->nr_files; ++i)
     {
-        ret = input_read_file(&input->file[i]);
+        ret = input_read_file(&input->files[i]);
         if (ret != 0)
         {
             return ret;
@@ -471,8 +410,8 @@ int convert_input_to_output(input_t *input, output_t *output)
         if (output->file.compression ||
             output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS)
         {
-            float savings = (float)output->file.uncompressedsize -
-                            (float)output->file.compressedsize;
+            float savings = (float)output->file.uncompressed_size -
+                            (float)output->file.compressed_size;
 
             if (savings < 0.001)
             {
@@ -480,20 +419,20 @@ int convert_input_to_output(input_t *input, output_t *output)
             }
             else
             {
-                if (output->file.uncompressedsize != 0)
+                if (output->file.uncompressed_size != 0)
                 {
-                    savings /= (float)output->file.uncompressedsize;
+                    savings /= (float)output->file.uncompressed_size;
                 }
             }
 
-            LL_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
+            LOG_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
                 output->file.name,
                 (unsigned long)output->file.size,
                 savings * 100.);
         }
         else
         {
-            LL_PRINT("[success] %s, %lu bytes.\n",
+            LOG_PRINT("[success] %s, %lu bytes.\n",
                 output->file.name,
                 (unsigned long)output->file.size);
         }

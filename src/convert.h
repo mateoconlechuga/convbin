@@ -31,14 +31,14 @@
 #ifndef CONVERT_H
 #define CONVERT_H
 
+#include "input.h"
+#include "output.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "output.h"
-#include "input.h"
-
-int convert_input_to_output(input_t *input, output_t *output);
+int convert_input_to_output(struct input *input, struct output *output);
 
 #ifdef __cplusplus
 }

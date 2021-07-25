@@ -62,7 +62,7 @@ int read_bit() {
         bit_mask = 128;
         bit_value = read_byte();
     }
-    return bit_value & bit_mask ? 1 : 0;
+    return (bit_value & bit_mask) ? 1 : 0;
 }
 
 int read_elias_gamma() {
@@ -85,13 +85,12 @@ int read_elias_gamma() {
 
 int read_offset() {
     int value;
-    int i;
 
     value = read_byte();
     if (value < 128) {
         return value;
     } else {
-        i = read_bit();
+        int i = read_bit();
         i = i << 1 | read_bit();
         i = i << 1 | read_bit();
         i = i << 1 | read_bit();
@@ -118,13 +117,12 @@ void write_byte(int value) {
 }
 
 void write_bytes(int offset, int length) {
-    int i;
     if (offset > output_size+output_index) {
         fprintf(stderr, "Error: Invalid data in input file %s\n", input_name);
         exit(1);
     }
     while (length-- > 0) {
-        i = output_index-offset;
+        int i = output_index-offset;
         write_byte(output_data[i >= 0 ? i : BUFFER_SIZE+i]);
     }
 }

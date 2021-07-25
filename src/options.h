@@ -31,18 +31,14 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-#include "compress.h"
+#include <stdbool.h>
+
 #include "input.h"
 #include "output.h"
-
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "input.h"
-#include "output.h"
 
 enum
 {
@@ -51,14 +47,14 @@ enum
     OPTIONS_IGNORE
 };
 
-typedef struct
+struct options
 {
     const char *prgm;
-    input_t input;
-    output_t output;
-} options_t;
+    struct input input;
+    struct output output;
+};
 
-int options_get(int argc, char *argv[], options_t *options);
+int options_get(int argc, char *argv[], struct options *options);
 
 #ifdef __cplusplus
 }

@@ -33,6 +33,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,14 +50,14 @@ typedef enum
     TI8X_TYPE_GROUP = 23,
 } ti8x_var_type_t;
 
-typedef struct
+struct ti8x_var
 {
     char name[TI8X_VAR_MAX_NAME_LEN + 1];
     unsigned int namelen;
     bool archive;
     ti8x_var_type_t type;
     size_t maxsize;
-} ti8x_var_t;
+};
 
 #define TI8X_CHECKSUM_LEN 2
 #define TI8X_ASMCOMP_LEN 2
@@ -101,7 +102,7 @@ typedef struct
 
 extern const unsigned char ti8x_file_header[11];
 
-unsigned int ti8x_checksum(unsigned char *arr, size_t size);
+unsigned int ti8x_checksum(uint8_t *data, size_t size);
 
 #ifdef __cplusplus
 }

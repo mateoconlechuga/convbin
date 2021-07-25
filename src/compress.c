@@ -40,118 +40,112 @@
 extern unsigned char decompress[];
 extern unsigned int decompress_len;
 
-static void reverse(unsigned char *first, unsigned char *last)
+static void reverse(uint8_t *first, uint8_t *last)
 {
-    unsigned char c;
-
     while (first < last)
     {
-        c = *first;
+        uint8_t c = *first;
         *first++ = *last;
         *last-- = c;
     }
 }
 
-static int compress_zx7(unsigned char **arr, size_t *size, long *delta)
+static int compress_zx7(uint8_t *data, size_t *size, long *delta)
 {
     Optimal *opt;
-    unsigned char *compressed;
+    uint8_t *compressed_data;
+    size_t new_size;
 
-    if (size == NULL || arr == NULL)
+    if (size == NULL || data == NULL)
     {
-        LL_DEBUG("invalid param in %s.", __func__);
-        return 1;
+        return -1;
     }
 
-    opt = optimize(*arr, *size, 0);
+    opt = optimize(data, *size, 0);
     if (opt == NULL)
     {
-        return 1;
+        LOG_ERROR("Could not optimize zx7.\n");
+        return -1;
     }
 
-    compressed = compress(opt, *arr, *size, 0, size, delta);
-    free(*arr);
+    compressed_data = compress(opt, data, *size, 0, &new_size, delta);
     free(opt);
-
-    *arr = compressed;
-    if (compressed == NULL)
+    if (compressed_data == NULL)
     {
-        return 1;
+        LOG_ERROR("Could not compress zx7.\n");
+        return -1;
     }
+
+    memcpy(data, compressed_data, new_size);
+    *size = new_size;
 
     return 0;
 }
 
-static int compress_zx7b(unsigned char **arr, size_t *size, long *delta)
+static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
 {
     Optimal *opt;
-    unsigned char *compressed;
-    size_t newsize;
-    size_t insize = *size;
-    unsigned char *inarr = *arr;
+    uint8_t *compressed_data;
+    size_t new_size;
 
-    if (size == NULL || arr == NULL)
+    if (size == NULL || data == NULL)
     {
-        LL_DEBUG("invalid param in %s.", __func__);
-        return 1;
+        return -1;
     }
 
-    reverse(inarr, inarr + insize - 1);
+    reverse(data, data + *size - 1);
 
-    opt = optimize(inarr, insize, 0);
+    opt = optimize(data, *size, 0);
     if (opt == NULL)
     {
-        return 1;
+        LOG_ERROR("Could not optimize zx7b.\n");
+        return -1;
     }
 
-    compressed = compress(opt, *arr, insize, 0, &newsize, delta);
+    compressed_data = compress(opt, data, *size, 0, &new_size, delta);
     free(opt);
-
-    if (compressed == NULL)
+    if (compressed_data == NULL)
     {
-        return 1;
+        LOG_ERROR("Could not compress zx7b.\n");
+        return -1;
     }
 
-    if (newsize + decompress_len + 1 >= insize)
+    if (new_size + decompress_len + 1 >= *size)
     {
-        reverse(inarr, inarr + insize - 1);
-        free(compressed);
-        return 2;
+        reverse(data, data + *size - 1);
+        free(compressed_data);
+        return 0;
     }
-    else
-    {
-        reverse(compressed, compressed + newsize - 1);
-        free(*arr);
-        *arr = compressed;
-        *size = newsize;
-    }
+
+    reverse(compressed_data, compressed_data + new_size - 1);
+
+    memcpy(data, compressed_data, new_size);
+    *size = new_size;
+
+    free(compressed_data);
 
     return 0;
 }
 
-/*
- * Compress output array before writing to output.
- * Returns compressed array, or NULL if error.
- */
-int compress_array(unsigned char **arr, size_t *size, long *delta, compression_t mode)
+int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode)
 {
     switch (mode)
     {
         default:
             break;
         case COMPRESS_ZX7:
-            return compress_zx7(arr, size, delta);
+            return compress_zx7(data, size, delta);
         case COMPRESS_ZX7B:
-            return compress_zx7b(arr, size, delta);
+            return compress_zx7b(data, size, delta);
     }
 
-    return 1;
+    return -1;
 }
 
 /*
  * Write 24-bit value into array.
  */
-void compress_write_word(unsigned char *addr, unsigned int value)
+static void compress_write_word(uint8_t *addr, unsigned int value)
 {
     addr[0] = (value >> 0) & 0xff;
     addr[1] = (value >> 8) & 0xff;
@@ -172,54 +166,50 @@ void compress_write_word(unsigned char *addr, unsigned int value)
 #define DECOMPRESS_RESIZE_OFFSET 76
 #define DECOMPRESS_RESIZE_SIZE_OFFSET 72
 
-/*
- * Compress and create an auto-decompressing 8xp.
- */
-int compress_auto_8xp(unsigned char **arr, size_t *size)
+int compress_auto_8xp(uint8_t *data, size_t *size)
 {
-    unsigned char *compressedarr = malloc(INPUT_MAX_SIZE);
-    unsigned char *newarr = malloc(INPUT_MAX_SIZE);
-    unsigned char *inarr = *arr;
+    uint8_t new_data[INPUT_MAX_SIZE];
+    uint8_t compressed_data[INPUT_MAX_SIZE];
     unsigned int offset;
-    size_t prgmsize;
-    size_t uncompressedsize;
-    size_t compressedsize;
-    int ret = 0;
+    size_t prgm_size;
+    size_t uncompressed_size;
+    size_t compressed_size;
     long delta;
+    int ret;
 
-    newarr[0] = TI8X_TOKEN_EXT;
-    newarr[1] = TI8X_TOKEN_ASM84CECMP;
+    new_data[0] = TI8X_TOKEN_EXT;
+    new_data[1] = TI8X_TOKEN_ASM84CECMP;
 
     offset = TI8X_ASMCOMP_LEN;
 
     /* handle icon and/or description by copying it if it exists */
-    if (inarr[TI8X_MAGIC_JUMP_OFFSET_0] == TI8X_MAGIC_JUMP)
+    if (data[TI8X_MAGIC_JUMP_OFFSET_0] == TI8X_MAGIC_JUMP)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_0 + 4;
     }
-    else if (inarr[TI8X_MAGIC_JUMP_OFFSET_1] == TI8X_MAGIC_JUMP)
+    else if (data[TI8X_MAGIC_JUMP_OFFSET_1] == TI8X_MAGIC_JUMP)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_1 + 4;
     }
-    else if (inarr[TI8X_MAGIC_C_OFFSET] == TI8X_MAGIC_C ||
-             inarr[TI8X_MAGIC_ICE_OFFSET] == TI8X_MAGIC_ICE)
+    else if (data[TI8X_MAGIC_C_OFFSET] == TI8X_MAGIC_C ||
+             data[TI8X_MAGIC_ICE_OFFSET] == TI8X_MAGIC_ICE)
     {
         goto prepend_marker_only;
     }
 
-    if (inarr[offset] == TI8X_ICON_MAGIC)
+    if (data[offset] == TI8X_ICON_MAGIC)
     {
-        unsigned char width = (*arr)[offset + 1];
-        unsigned char height = (*arr)[offset + 2];
+        unsigned int width = data[offset + 1];
+        unsigned int height = data[offset + 2];
 
         offset += 2 + width * height;
         goto move_to_end_of_description;
     }
-    else if (inarr[offset] == TI8X_DESCRIPTION_MAGIC)
+    else if (data[offset] == TI8X_DESCRIPTION_MAGIC)
     {
 move_to_end_of_description:
         offset += 1;
-        while (inarr[offset])
+        while (data[offset])
         {
             offset++;
             if (offset >= *size)
@@ -231,19 +221,26 @@ prepend_marker_only:
         offset++;
         if (offset >= *size)
         {
-            goto odd_8x;
+odd_8x:
+            LOG_ERROR("Oddly formated 8x file.\n");
+            return -1;
         }
 
-        memcpy(newarr + TI8X_ASMCOMP_LEN, *arr + TI8X_ASMCOMP_LEN, offset);
+        memcpy(new_data + TI8X_ASMCOMP_LEN, data + TI8X_ASMCOMP_LEN, offset);
     }
 
-    uncompressedsize = *size - offset;
-    prgmsize = uncompressedsize;
+    uncompressed_size = *size - offset;
+    prgm_size = uncompressed_size;
 
-    memcpy(compressedarr, inarr + offset, uncompressedsize);
+    memcpy(compressed_data, data + offset, prgm_size);
 
-    ret = compress_array(&compressedarr, &prgmsize, &delta, COMPRESS_ZX7B);
-    if (ret == 0)
+    ret = compress_array(compressed_data, &prgm_size, &delta, COMPRESS_ZX7B);
+    if (ret != 0)
+    {
+        LOG_ERROR("Could not compress input.\n");
+        return -1;
+    }
+    else
     {
         unsigned int entryaddr;
         unsigned int deltasize;
@@ -253,57 +250,46 @@ prepend_marker_only:
         unsigned int prgmstart;
         unsigned int resizesize;
         unsigned int copyoffset;
-
-        free(inarr);
+        size_t new_size;
 
         /* 512 byte buffer room just for kicks */
         resizesize = decompress_len + delta + 512;
-        compressedsize = prgmsize + decompress_len;
+        compressed_size = prgm_size + decompress_len;
 
-        deltasize = (uncompressedsize - compressedsize) + resizesize;
+        deltasize = (uncompressed_size - compressed_size) + resizesize;
         compress_write_word(decompress + DECOMPRESS_DELTA_SIZE_OFFSET, deltasize);
 
         prgmstart = (TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN) + offset;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_START_OFFSET, prgmstart);
 
-        deltastart = prgmstart + compressedsize;
+        deltastart = prgmstart + compressed_size;
         compress_write_word(decompress + DECOMPRESS_DELTA_START_OFFSET, deltastart);
 
         compressedend = deltastart - 1;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_END_OFFSET, compressedend);
 
-        uncompressedend = prgmstart + uncompressedsize + resizesize;
+        uncompressedend = prgmstart + uncompressed_size + resizesize;
         compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_END_OFFSET, uncompressedend);
 
         entryaddr = TI8X_USERMEM_ADDRESS + offset + 16;
         compress_write_word(decompress + DECOMPRESS_ENTRY_OFFSET, entryaddr);
 
         compress_write_word(decompress + DECOMPRESS_RESIZE_SIZE_OFFSET, resizesize);
-        compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressedsize);
+        compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressed_size);
         compress_write_word(decompress + DECOMPRESS_RESIZE_OFFSET, uncompressedend - resizesize);
-        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressedsize);
+        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressed_size);
 
-        copyoffset = (deltastart - compressedsize) + resizesize + 1;
+        copyoffset = (deltastart - compressed_size) + resizesize + 1;
         compress_write_word(decompress + DECOMPRESS_COMPRESSED_COPY_OFFSET, copyoffset);
 
-        memcpy(newarr + offset, decompress, decompress_len);
-        memcpy(newarr + offset + decompress_len, compressedarr, prgmsize);
+        memcpy(new_data + offset, decompress, decompress_len);
+        memcpy(new_data + offset + decompress_len, compressed_data, prgm_size);
 
-        *arr = newarr;
-        *size = prgmsize + decompress_len + offset;
-    }
-    else
-    {
-        free(compressedarr);
-        free(newarr);
-        ret = ret == 2 ? 0 : 1;
+        new_size = prgm_size + decompress_len + offset;
+
+        memcpy(data, new_data, new_size);
+        *size = new_size;
     }
 
     return ret;
-
-odd_8x:
-    free(compressedarr);
-    free(newarr);
-    LL_ERROR("oddly formated 8x file.");
-    return 1;
 }

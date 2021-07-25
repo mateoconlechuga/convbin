@@ -52,9 +52,9 @@ else
 Q = @
 endif
 
-CC := gcc
-CFLAGS := -Wall -Wextra -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
-LDFLAGS := -flto
+CC = gcc
+CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
+LDFLAGS = -flto
 
 BINDIR := ./bin
 OBJDIR := ./obj

@@ -38,34 +38,29 @@
 #include <string.h>
 #include <ctype.h>
 
-#define REALLOC_BYTES 256
-
-/*
- * Interprets input as raw binary.
- */
-static int input_bin(FILE *fdi, unsigned char *arr, size_t *size)
+static int input_bin(FILE *fd, uint8_t *data, size_t *size)
 {
     int s = 0;
 
-    if (fdi == NULL || arr == NULL || size == NULL)
+    if (fd == NULL || data == NULL || size == NULL)
     {
-        LL_DEBUG("Invalid param in %s.", __func__);
-        return 1;
+        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        return -1;
     }
 
     for (;;)
     {
-        int c = fgetc(fdi);
+        int c = fgetc(fd);
         if (c == EOF)
         {
             break;
         }
 
-        arr[s++] = (unsigned char)c;
+        data[s++] = (uint8_t)c;
         if (s >= INPUT_MAX_SIZE)
         {
-            LL_ERROR("Input file too large.");
-            return 1;
+            LOG_ERROR("Input file too large.\n");
+            return -1;
         }
     }
 
@@ -74,41 +69,37 @@ static int input_bin(FILE *fdi, unsigned char *arr, size_t *size)
     return 0;
 }
 
-/*
- * Interprets input as TI 8x* formatted file.
- */
-static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size,
-                      bool header)
+static int input_ti8x(FILE *fd, uint8_t *data, size_t *size, bool header)
 {
     int s = 0;
     int ret;
 
-    if (fdi == NULL || arr == NULL || size == NULL)
+    if (fd == NULL || data == NULL || size == NULL)
     {
-        LL_DEBUG("Invalid param in %s.", __func__);
-        return 1;
+        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        return -1;
     }
 
-    ret = fseek(fdi, header ? TI8X_VAR_HEADER : TI8X_DATA, SEEK_SET);
+    ret = fseek(fd, header ? TI8X_VAR_HEADER : TI8X_DATA, SEEK_SET);
     if (ret != 0)
     {
-        LL_ERROR("Input seek failed.");
-        return ret;
+        LOG_ERROR("Input seek failed.\n");
+        return -1;
     }
 
     for (;;)
     {
-        int c = fgetc(fdi);
+        int c = fgetc(fd);
         if (c == EOF)
         {
             break;
         }
 
-        arr[s++] = (unsigned char)c;
+        data[s++] = (uint8_t)c;
         if (s >= INPUT_MAX_SIZE)
         {
-            LL_ERROR("Input file too large.");
-            return 1;
+            LOG_ERROR("Input file too large.\n");
+            return -1;
         }
     }
 
@@ -118,8 +109,8 @@ static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size,
     }
     else
     {
-        LL_ERROR("Input file too short.");
-        return 1;
+        LOG_ERROR("Input file too short.\n");
+        return -1;
     }
 
     *size = s;
@@ -127,27 +118,17 @@ static int input_ti8x(FILE *fdi, unsigned char *arr, size_t *size,
     return 0;
 }
 
-/*
- * Interprets input as TI 8x* data section.
- */
-static int input_ti8x_data(FILE *fdi, unsigned char *arr, size_t *size)
+static int input_ti8x_data(FILE *fd, uint8_t *data, size_t *size)
 {
-    return input_ti8x(fdi, arr, size, false);
+    return input_ti8x(fd, data, size, false);
 }
 
-/*
- * Interprets input as TI 8x* data and variable header section.
- */
-static int input_ti8x_data_var(FILE *fdi, unsigned char *arr, size_t *size)
+static int input_ti8x_data_var(FILE *fd, uint8_t *data, size_t *size)
 {
-    return input_ti8x(fdi, arr, size, true);
+    return input_ti8x(fd, data, size, true);
 }
 
-/*
- * Read a line from an input file; strips whitespace.
- * Returns NULL if error.
- */
-static char *input_csv_line(FILE *fdi)
+static char *input_csv_line(FILE *fd)
 {
     char *line = NULL;
     int i = 0;
@@ -155,7 +136,7 @@ static char *input_csv_line(FILE *fdi)
 
     do
     {
-        c = fgetc(fdi);
+        c = fgetc(fd);
 
         if (c < ' ')
         {
@@ -164,16 +145,17 @@ static char *input_csv_line(FILE *fdi)
 
         if (!isspace(c))
         {
+#define REALLOC_BYTES 384
             if (i % REALLOC_BYTES == 0)
             {
                 line = realloc(line, ((i / REALLOC_BYTES) + 1) * REALLOC_BYTES);
                 if (line == NULL)
                 {
-                    LL_ERROR("%s", strerror(errno));
+                    LOG_ERROR("Memory error in \'%s\'.\n", __func__);
                     return NULL;
                 }
             }
-
+#undef REALLOC_BYTES
             line[i] = (char)c;
             i++;
         }
@@ -182,25 +164,22 @@ static char *input_csv_line(FILE *fdi)
     return line;
 }
 
-/*
- * Reads each line of a CSV file and stores into an array.
- */
-static int input_csv(FILE *fdi, unsigned char *arr, size_t *size)
+static int input_csv(FILE *fd, uint8_t *data, size_t *size)
 {
-    char *line;
     size_t s = 0;
 
-    if (arr == NULL || size == NULL)
+    if (data == NULL || size == NULL)
     {
-        LL_DEBUG("Invalid param in %s", __func__);
-        return 1;
+        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        return -1;
     }
 
     do
     {
         char *token;
+        char *line;
 
-        line = input_csv_line(fdi);
+        line = input_csv_line(fd);
         if (line == NULL)
         {
             break;
@@ -211,67 +190,65 @@ static int input_csv(FILE *fdi, unsigned char *arr, size_t *size)
         while (token)
         {
             int value = strtol(token, NULL, 0);
-            arr[s++] = (unsigned char)(value == -1 ? 0 : value);
+            data[s++] = (uint8_t)(value == -1 ? 0 : value);
 
             if (s > INPUT_MAX_SIZE)
             {
-                LL_ERROR("Exceeded maximum csv values.");
+                LOG_ERROR("Exceeded maximum csv values.\n");
                 free(line);
-                return 1;
+                return -1;
             }
 
             token = strtok(NULL, ",");
         }
 
         free(line);
-    } while (!feof(fdi));
+    } while (!feof(fd));
 
     *size = s;
 
     return 0;
 }
 
-/*
- * Reads a file depending on the format.
- */
-int input_read_file(input_file_t *file)
+int input_read_file(struct input_file *file)
 {
-    FILE *fdi;
+    FILE *fd;
     int ret;
 
-    fdi = fopen(file->name, "rb");
-    if (fdi == NULL)
+    fd = fopen(file->name, "rb");
+    if (fd == NULL)
     {
-        LL_ERROR("Cannot open input file \"%s\": %s",
+        LOG_ERROR("Cannot open input file \'%s\': %s\n",
             file->name,
             strerror(errno));
-        return 1;
+        return -1;
     }
 
     switch (file->format)
     {
         case IFORMAT_BIN:
-            ret = input_bin(fdi, file->arr, &file->size);
+            ret = input_bin(fd, file->data, &file->size);
             break;
 
         case IFORMAT_TI8X_DATA:
-            ret = input_ti8x_data(fdi, file->arr, &file->size);
+            ret = input_ti8x_data(fd, file->data, &file->size);
             break;
 
         case IFORMAT_TI8X_DATA_VAR:
-            ret = input_ti8x_data_var(fdi, file->arr, &file->size);
+            ret = input_ti8x_data_var(fd, file->data, &file->size);
             break;
 
         case IFORMAT_CSV:
-            ret = input_csv(fdi, file->arr, &file->size);
+            ret = input_csv(fd, file->data, &file->size);
             break;
 
         default:
-            ret = 1;
+            LOG_ERROR("Unknown input format.\n");
+            ret = -1;
             break;
     }
 
-    fclose(fdi);
+    fclose(fd);
 
     return ret;
 }

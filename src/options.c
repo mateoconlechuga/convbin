@@ -37,80 +37,73 @@
 #include <string.h>
 #include <stdlib.h>
 
-/*
- * Shows the available options and cli arguments.
- * Also displays information on file format input.
- */
 static void options_show(const char *prgm)
 {
-    LL_PRINT("This program is used to convert files to other formats,\n");
-    LL_PRINT("specifically for the TI84+CE and related calculators.\n");
-    LL_PRINT("\n");
-    LL_PRINT("Usage:\n");
-    LL_PRINT("    %s [options] -j <mode> -k <mode> -i <file> -o <file>\n", prgm);
-    LL_PRINT("\n");
-    LL_PRINT("Required options:\n");
-    LL_PRINT("    -i, --input <file>      Input file. Can be specified multiple times,\n");
-    LL_PRINT("                            input files are appended in order.\n");
-    LL_PRINT("    -o, --output <file>     Output file after conversion.\n");
-    LL_PRINT("    -j, --iformat <mode>    Set input file format to <mode>.\n");
-    LL_PRINT("                            See 'Input formats' below.\n");
-    LL_PRINT("                            This should be placed before the input file.\n");
-    LL_PRINT("                            The default input format is 'bin'.\n");
-    LL_PRINT("    -p, --icompress <mode>  Set input file compression to <mode>.\n");
-    LL_PRINT("                            Supported modes: zx7\n");
-    LL_PRINT("                            This should be placed before the input file.\n");
-    LL_PRINT("                            The default input compression is 'none'.\n");
-    LL_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
-    LL_PRINT("                            See 'Output formats' below.\n");
-    LL_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
-    LL_PRINT("                            the on-calc name. For C, Assembly, and ICE\n");
-    LL_PRINT("                            outputs, sets the array or label name.\n");
-    LL_PRINT("\n");
-    LL_PRINT("Optional options:\n");
-    LL_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
-    LL_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
-    LL_PRINT("                            Supported modes: zx7\n");
-    LL_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
-    LL_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
-    LL_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
-    LL_PRINT("    -h, --help              Show this screen.\n");
-    LL_PRINT("    -v, --version           Show program version.\n");
-    LL_PRINT("    -l, --log-level <level> Set program logging level.\n");
-    LL_PRINT("                            0=none, 1=error, 2=warning, 3=normal\n");
-    LL_PRINT("\n");
-    LL_PRINT("Input formats:\n");
-    LL_PRINT("    Below is a list of available input formats, listed as\n");
-    LL_PRINT("    <mode>: Description.\n");
-    LL_PRINT("\n");
-    LL_PRINT("    bin: Interpret as raw binary.\n");
-    LL_PRINT("    csv: Interprets as csv (comma separated values).\n");
-    LL_PRINT("    8x: Interprets the TI 8x* data section.\n");
-    LL_PRINT("\n");
-    LL_PRINT("Output formats:\n");
-    LL_PRINT("    Below is a list of available output formats, listed as\n");
-    LL_PRINT("    <mode>: Description.\n");
-    LL_PRINT("\n");
-    LL_PRINT("    c: C source.\n");
-    LL_PRINT("    asm: Assembly source.\n");
-    LL_PRINT("    ice: ICE source.\n");
-    LL_PRINT("    bin: raw binary.\n");
-    LL_PRINT("    8xp: TI Program.\n");
-    LL_PRINT("    8xv: TI Appvar.\n");
-    LL_PRINT("    8xg: TI Group. Input format must be 8x.\n");
-    LL_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
-    LL_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
-    LL_PRINT("\n");
-    LL_PRINT("Credits:\n");
-    LL_PRINT("    (c) 2017-2021 by Matt \"MateoConLechuga\" Waltz.\n");
-    LL_PRINT("\n");
-    LL_PRINT("    This program utilizes the following neat libraries:\n");
-    LL_PRINT("        zx7: (c) 2012-2013 by Einar Saukas.\n");
+    LOG_PRINT("This program is used to convert files to other formats,\n");
+    LOG_PRINT("specifically for the TI84+CE and related calculators.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Usage:\n");
+    LOG_PRINT("    %s [options] -j <mode> -k <mode> -i <file> -o <file>\n", prgm);
+    LOG_PRINT("\n");
+    LOG_PRINT("Required options:\n");
+    LOG_PRINT("    -i, --input <file>      Input file. Can be specified multiple times,\n");
+    LOG_PRINT("                            input files are appended in order.\n");
+    LOG_PRINT("    -o, --output <file>     Output file after conversion.\n");
+    LOG_PRINT("    -j, --iformat <mode>    Set input file format to <mode>.\n");
+    LOG_PRINT("                            See 'Input formats' below.\n");
+    LOG_PRINT("                            This should be placed before the input file.\n");
+    LOG_PRINT("                            The default input format is 'bin'.\n");
+    LOG_PRINT("    -p, --icompress <mode>  Set input file compression to <mode>.\n");
+    LOG_PRINT("                            Supported modes: zx7\n");
+    LOG_PRINT("                            This should be placed before the input file.\n");
+    LOG_PRINT("                            The default input compression is 'none'.\n");
+    LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
+    LOG_PRINT("                            See 'Output formats' below.\n");
+    LOG_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
+    LOG_PRINT("                            the on-calc name. For C, Assembly, and ICE\n");
+    LOG_PRINT("                            outputs, sets the array or label name.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Optional options:\n");
+    LOG_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
+    LOG_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
+    LOG_PRINT("                            Supported modes: zx7\n");
+    LOG_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
+    LOG_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
+    LOG_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
+    LOG_PRINT("    -h, --help              Show this screen.\n");
+    LOG_PRINT("    -v, --version           Show program version.\n");
+    LOG_PRINT("    -l, --log-level <level> Set program logging level.\n");
+    LOG_PRINT("                            0=none, 1=error, 2=warning, 3=normal\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Input formats:\n");
+    LOG_PRINT("    Below is a list of available input formats, listed as\n");
+    LOG_PRINT("    <mode>: Description.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("    bin: Interpret as raw binary.\n");
+    LOG_PRINT("    csv: Interprets as csv (comma separated values).\n");
+    LOG_PRINT("    8x: Interprets the TI 8x* data section.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Output formats:\n");
+    LOG_PRINT("    Below is a list of available output formats, listed as\n");
+    LOG_PRINT("    <mode>: Description.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("    c: C source.\n");
+    LOG_PRINT("    asm: Assembly source.\n");
+    LOG_PRINT("    ice: ICE source.\n");
+    LOG_PRINT("    bin: raw binary.\n");
+    LOG_PRINT("    8xp: TI Program.\n");
+    LOG_PRINT("    8xv: TI Appvar.\n");
+    LOG_PRINT("    8xg: TI Group. Input format must be 8x.\n");
+    LOG_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
+    LOG_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Credits:\n");
+    LOG_PRINT("    (c) 2017-2021 by Matt \"MateoConLechuga\" Waltz.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("    This program utilizes the following neat libraries:\n");
+    LOG_PRINT("        zx7: (c) 2012-2013 by Einar Saukas.\n");
 }
 
-/*
- * Get input format mode from string.
- */
 static iformat_t options_parse_input_format(const char *str)
 {
     iformat_t format = IFORMAT_INVALID;
@@ -131,9 +124,6 @@ static iformat_t options_parse_input_format(const char *str)
     return format;
 }
 
-/*
- * Get input compression mode from string.
- */
 static compression_t options_parse_input_compression(const char *str)
 {
     compression_t compress = COMPRESS_INVALID;
@@ -150,9 +140,6 @@ static compression_t options_parse_input_compression(const char *str)
     return compress;
 }
 
-/*
- * Get output format mode from string.
- */
 static oformat_t options_parse_output_format(const char *str)
 {
     oformat_t format = OFORMAT_INVALID;
@@ -197,9 +184,6 @@ static oformat_t options_parse_output_format(const char *str)
     return format;
 }
 
-/*
- * Get compression mode from string.
- */
 static compression_t options_parse_compression(const char *str)
 {
     compression_t compress = COMPRESS_INVALID;
@@ -212,9 +196,6 @@ static compression_t options_parse_compression(const char *str)
     return compress;
 }
 
-/*
- * Get compression mode from string.
- */
 static ti8x_var_type_t options_get_var_type(oformat_t format)
 {
     ti8x_var_type_t type = TI8X_TYPE_UNKNOWN;
@@ -243,59 +224,55 @@ static ti8x_var_type_t options_get_var_type(oformat_t format)
     return type;
 }
 
-/*
- * Verify the options supplied are valid.
- * Return 0 if valid, otherwise nonzero.
- */
-static int options_verify(options_t *options)
+static int options_verify(struct options *options)
 {
     oformat_t oformat = options->output.file.format;
 
-    if (options->input.numfiles == 0)
+    if (options->input.nr_files == 0)
     {
-        LL_ERROR("Unknown input file(s).");
+        LOG_ERROR("Unknown input file(s).\n");
         goto error;
     }
 
-    if (options->input.file[0].format == IFORMAT_INVALID)
+    if (options->input.files[0].format == IFORMAT_INVALID)
     {
-        LL_ERROR("Invalid input format mode.");
+        LOG_ERROR("Invalid input format mode.\n");
         goto error;
     }
 
-    if (options->input.file[0].compression == COMPRESS_INVALID)
+    if (options->input.files[0].compression == COMPRESS_INVALID)
     {
-        LL_ERROR("Invalid input compression mode.");
+        LOG_ERROR("Invalid input compression mode.\n");
         goto error;
     }
 
     if (options->output.file.name == NULL)
     {
-        LL_ERROR("Unknown output file.");
+        LOG_ERROR("Unknown output file.\n");
         goto error;
     }
 
     if (options->output.file.format == OFORMAT_INVALID)
     {
-        LL_ERROR("Invalid output format mode.");
+        LOG_ERROR("Invalid output format mode.\n");
         goto error;
     }
 
     if (options->output.file.compression == COMPRESS_INVALID)
     {
-        LL_ERROR("Invalid output compression mode.");
+        LOG_ERROR("Invalid output compression mode.\n");
         goto error;
     }
 
     if (options->output.file.var.maxsize < TI8X_MINIMUM_MAXVAR_SIZE)
     {
-        LL_ERROR("Maximum variable size too small.");
+        LOG_ERROR("Maximum variable size too small.\n");
         goto error;
     }
 
     if (options->output.file.var.maxsize > TI8X_MAXDATA_SIZE)
     {
-        LL_ERROR("Maximum variable size too large.");
+        LOG_ERROR("Maximum variable size too large.\n");
         goto error;
     }
 
@@ -309,7 +286,7 @@ static int options_verify(options_t *options)
     {
         if (options->output.file.var.name[0] == 0)
         {
-            LL_ERROR("Variable name not supplied.");
+            LOG_ERROR("Variable name not supplied.\n");
             goto error;
         }
 
@@ -320,7 +297,7 @@ static int options_verify(options_t *options)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
             {
-                LL_ERROR("Variable name too long.");
+                LOG_ERROR("Variable name too long.\n");
                 goto error;
             }
         }
@@ -331,7 +308,7 @@ static int options_verify(options_t *options)
     {
         if (isdigit(options->output.file.var.name[0]))
         {
-            LL_WARNING("Potentially invalid name (starts with digit)");
+            LOG_WARNING("Potentially invalid name (starts with digit)\n");
         }
     }
 
@@ -341,16 +318,13 @@ error:
     return OPTIONS_FAILED;
 }
 
-/*
- * Set the default option parameters.
- */
-static void options_set_default(options_t *options)
+static void options_set_default(struct options *options)
 {
     if (options == NULL)
         return;
 
     options->prgm = 0;
-    options->input.numfiles = 0;
+    options->input.nr_files = 0;
     options->input.default_format = IFORMAT_BIN;
     options->input.default_compression = COMPRESS_NONE;
     options->output.file.append = false;
@@ -361,20 +335,16 @@ static void options_set_default(options_t *options)
     options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
     options->output.file.var.archive = false;
     options->output.file.size = 0;
-    options->output.file.uncompressedsize = 0;
+    options->output.file.compressed_size = 0;
+    options->output.file.uncompressed_size = 0;
 
     memset(options->output.file.var.name, 0, TI8X_VAR_MAX_NAME_LEN + 1);
 }
 
-/*
- * Parse the cli options supplied, and return option structure.
- * Returns 0 on sucessful parsing, otherwise logs error
- */
-int options_get(int argc, char *argv[], options_t *options)
+int options_get(int argc, char *argv[], struct options *options)
 {
     const char *varname = NULL;
-    unsigned int numifiles = 0;
-    unsigned int i;
+    unsigned int nr_files = 0;
 
     log_set_level(LOG_BUILD_LEVEL);
 
@@ -416,17 +386,17 @@ int options_get(int argc, char *argv[], options_t *options)
         switch (c)
         {
             case 'i':
-                options->input.file[numifiles].name = optarg;
-                options->input.file[numifiles].format =
+                options->input.files[nr_files].name = optarg;
+                options->input.files[nr_files].format =
                     options->input.default_format;
-                options->input.file[numifiles].compression =
+                options->input.files[nr_files].compression =
                     options->input.default_compression;
-                if (numifiles >= INPUT_MAX_NUM)
+                nr_files++;
+                if (nr_files >= INPUT_MAX_NUM)
                 {
-                    LL_ERROR("Too many input files.");
-                    return 1;
+                    LOG_ERROR("Too many input files.\n");
+                    return OPTIONS_FAILED;
                 }
-                numifiles++;
                 break;
 
             case 'o':
@@ -475,7 +445,7 @@ int options_get(int argc, char *argv[], options_t *options)
                 break;
 
             case 'v':
-                LL_PRINT("%s v%s by mateoconlechuga\n", PRGM_NAME, VERSION_STRING);
+                LOG_PRINT("%s v%s by mateoconlechuga\n", PRGM_NAME, VERSION_STRING);
                 return OPTIONS_IGNORE;
 
             case 'l':
@@ -500,7 +470,7 @@ int options_get(int argc, char *argv[], options_t *options)
         if (len > TI8X_VAR_MAX_NAME_LEN)
         {
             len = TI8X_VAR_MAX_NAME_LEN;
-            LL_WARNING("Variable name truncated to %u characters",
+            LOG_WARNING("Variable name truncated to %u characters\n",
                 (unsigned int)len);
         }
 
@@ -519,22 +489,24 @@ int options_get(int argc, char *argv[], options_t *options)
         options->output.file.var.name[len] = '\0';
     }
 
-    if (numifiles == 1)
+    if (nr_files == 1)
     {
-        options->input.file[numifiles - 1].format =
+        options->input.files[nr_files - 1].format =
             options->input.default_format;
     }
 
-    options->input.numfiles = numifiles;
+    options->input.nr_files = nr_files;
     options->output.file.var.type =
         options_get_var_type(options->output.file.format);
 
     if (options->output.file.format == OFORMAT_8XG ||
         options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
     {
-        for (i = 0; i < numifiles; ++i)
+        unsigned int i;
+
+        for (i = 0; i < nr_files; ++i)
         {
-            options->input.file[i].format = IFORMAT_TI8X_DATA_VAR;
+            options->input.files[i].format = IFORMAT_TI8X_DATA_VAR;
         }
     }
 

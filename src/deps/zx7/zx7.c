@@ -40,10 +40,8 @@ long parse_long(char *str) {
 }
 
 void reverse(unsigned char *first, unsigned char *last) {
-    unsigned char c;
-
     while (first < last) {
-        c = *first;
+        unsigned char c = *first;
         *first++ = *last;
         *last-- = c;
     }

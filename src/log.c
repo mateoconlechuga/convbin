@@ -32,7 +32,7 @@
 
 const char *log_strings[] =
 {
-    "",
+    "none",
     "error",
     "warning",
     "info",

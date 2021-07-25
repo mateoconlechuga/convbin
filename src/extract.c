@@ -35,10 +35,10 @@
 
 #include <string.h>
 
-/*
- * Write 24-bit value into array.
- */
-void extract_write_word(unsigned char *addr, unsigned int value)
+extern unsigned char extractor[];
+extern unsigned int extractor_len;
+
+static void extract_write_word(uint8_t *addr, unsigned int value)
 {
     addr[0] = (value >> 0) & 0xff;
     addr[1] = (value >> 8) & 0xff;
@@ -46,58 +46,51 @@ void extract_write_word(unsigned char *addr, unsigned int value)
 }
 
 /* from extractor.asm */
-/* run the asm makefile to print */
 #define EXTRACTOR_ENTRY_OFFSET 1
 #define EXTRACTOR_PRGM_SIZE_OFFSET 9
 #define EXTRACTOR_EXTRACT_SIZE_OFFSET 19
 #define EXTRACTOR_APPVARS_OFFSET 183
 
-/*
- * Create and 8xp that extracts from 8xv.
- */
-int extract_8xp_to_8xv(unsigned char **arr,
+int extract_8xp_to_8xv(uint8_t *data,
                        size_t *size,
                        char appvar_names[10][10],
                        unsigned int num_appvars)
 {
-    extern unsigned char extractor[];
-    extern unsigned int extractor_len;
-    unsigned char *newarr = malloc(TI8X_MAXDATA_SIZE);
-    unsigned char *inarr = *arr;
+    uint8_t new_data[INPUT_MAX_SIZE];
     unsigned int extractorsize;
     unsigned int entryaddr;
     unsigned int offset;
     unsigned int i;
-    int ret = 0;
+    size_t new_size;
 
-    newarr[0] = TI8X_TOKEN_EXT;
-    newarr[1] = TI8X_TOKEN_ASM84CECMP;
+    new_data[0] = TI8X_TOKEN_EXT;
+    new_data[1] = TI8X_TOKEN_ASM84CECMP;
 
     offset = TI8X_ASMCOMP_LEN;
 
     /* handle icon and/or description by copying it if it exists */
-    if (inarr[TI8X_MAGIC_JUMP_OFFSET_0] == TI8X_MAGIC_JUMP)
+    if (data[TI8X_MAGIC_JUMP_OFFSET_0] == TI8X_MAGIC_JUMP)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_0 + 4;
     }
-    else if (inarr[TI8X_MAGIC_JUMP_OFFSET_1] == TI8X_MAGIC_JUMP)
+    else if (data[TI8X_MAGIC_JUMP_OFFSET_1] == TI8X_MAGIC_JUMP)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_1 + 4;
     }
 
-    if (inarr[offset] == TI8X_ICON_MAGIC)
+    if (data[offset] == TI8X_ICON_MAGIC)
     {
-        unsigned char width = (*arr)[offset + 1];
-        unsigned char height = (*arr)[offset + 2];
+        unsigned int width = data[offset + 1];
+        unsigned int height = data[offset + 2];
 
         offset += 2 + width * height;
         goto move_to_end_of_description;
     }
-    else if (inarr[offset] == TI8X_DESCRIPTION_MAGIC)
+    else if (data[offset] == TI8X_DESCRIPTION_MAGIC)
     {
 move_to_end_of_description:
         offset += 1;
-        while (inarr[offset])
+        while (data[offset])
         {
             offset++;
             if (offset >= *size)
@@ -109,10 +102,12 @@ move_to_end_of_description:
         offset++;
         if (offset >= *size)
         {
-            goto odd_8x;
+odd_8x:
+            LOG_ERROR("Oddly formated 8x file.\n");
+            return -1;
         }
 
-        memcpy(newarr + TI8X_ASMCOMP_LEN, *arr + TI8X_ASMCOMP_LEN, offset);
+        memcpy(new_data + TI8X_ASMCOMP_LEN, data + TI8X_ASMCOMP_LEN, offset);
     }
 
     extract_write_word(extractor + EXTRACTOR_EXTRACT_SIZE_OFFSET, *size + 0x10);
@@ -123,28 +118,21 @@ move_to_end_of_description:
     extractorsize = EXTRACTOR_APPVARS_OFFSET - 15 + num_appvars * TI8X_VARLOOKUP_LEN;
     extract_write_word(extractor + EXTRACTOR_PRGM_SIZE_OFFSET, extractorsize);
 
-    memcpy(newarr + offset, extractor, extractor_len);
+    memcpy(new_data + offset, extractor, extractor_len);
     offset += extractor_len;
 
     for (i = 0; i < num_appvars; ++i)
     {
-        memcpy(newarr + offset, appvar_names[i], TI8X_VARLOOKUP_LEN);
+        memcpy(new_data + offset, appvar_names[i], TI8X_VARLOOKUP_LEN);
         offset += TI8X_VARLOOKUP_LEN;
     }
 
-    newarr[offset] = 0;
+    new_data[offset] = 0;
     offset++;
 
-    free(*arr);
-    *arr = NULL;
+    new_size = offset;
+    memcpy(data, new_data, new_size);
+    *size = new_size;
 
-    *arr = newarr;
-    *size = offset;
-
-    return ret;
-
-odd_8x:
-    free(newarr);
-    LL_ERROR("oddly formated 8x file.");
-    return 1;
+    return 0;
 }

@@ -32,6 +32,7 @@
 #define COMPRESS_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,8 +46,9 @@ typedef enum
     COMPRESS_INVALID,
 } compression_t;
 
-int compress_array(unsigned char **arr, size_t *size, long *delta, compression_t mode);
-int compress_auto_8xp(unsigned char **arr, size_t *size);
+int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode);
+
+int compress_auto_8xp(uint8_t *data, size_t *size);
 
 #ifdef __cplusplus
 }

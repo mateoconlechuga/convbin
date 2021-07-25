@@ -32,12 +32,13 @@
 #define EXTRACT_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int extract_8xp_to_8xv(unsigned char **arr,
+int extract_8xp_to_8xv(uint8_t *data,
                        size_t *size,
                        char appvar_names[10][10],
                        unsigned int num_appvars);
