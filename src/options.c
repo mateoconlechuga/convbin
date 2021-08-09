@@ -54,7 +54,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("                            The default input format is 'bin'.\n");
     LOG_PRINT("    -p, --icompress <mode>  Set input file compression to <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7\n");
+    LOG_PRINT("                            Supported modes: zx7, zx7b\n");
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("                            The default input compression is 'none'.\n");
     LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
@@ -66,7 +66,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("Optional options:\n");
     LOG_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
     LOG_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7\n");
+    LOG_PRINT("                            Supported modes: zx7, zx7b\n");
     LOG_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
     LOG_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
     LOG_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
@@ -106,7 +106,7 @@ static void options_show(const char *prgm)
 
 static iformat_t options_parse_input_format(const char *str)
 {
-    iformat_t format = IFORMAT_INVALID;
+    iformat_t format;
 
     if (!strcmp(str, "bin"))
     {
@@ -120,21 +120,33 @@ static iformat_t options_parse_input_format(const char *str)
     {
         format = IFORMAT_CSV;
     }
+    else
+    {
+        format = IFORMAT_INVALID;
+    }
 
     return format;
 }
 
 static compression_t options_parse_input_compression(const char *str)
 {
-    compression_t compress = COMPRESS_INVALID;
+    compression_t compress;
 
     if (!strcmp(str, "zx7"))
     {
         compress = COMPRESS_ZX7;
     }
+    else if (!strcmp(str, "zx7b"))
+    {
+        compress = COMPRESS_ZX7B;
+    }
     else if (!strcmp(str, "none"))
     {
         compress = COMPRESS_NONE;
+    }
+    else
+    {
+        compress = COMPRESS_INVALID;
     }
 
     return compress;
@@ -142,7 +154,7 @@ static compression_t options_parse_input_compression(const char *str)
 
 static oformat_t options_parse_output_format(const char *str)
 {
-    oformat_t format = OFORMAT_INVALID;
+    oformat_t format;
 
     if (!strcmp(str, "c"))
     {
@@ -180,17 +192,33 @@ static oformat_t options_parse_output_format(const char *str)
     {
         format = OFORMAT_8XP_AUTO_DECOMPRESS;
     }
+    else
+    {
+        format = OFORMAT_INVALID;
+    }
 
     return format;
 }
 
-static compression_t options_parse_compression(const char *str)
+static compression_t options_parse_output_compression(const char *str)
 {
-    compression_t compress = COMPRESS_INVALID;
+    compression_t compress;
 
     if (!strcmp(str, "zx7"))
     {
         compress = COMPRESS_ZX7;
+    }
+    else if (!strcmp(str, "zx7b"))
+    {
+        compress = COMPRESS_ZX7B;
+    }
+    else if (!strcmp(str, "none"))
+    {
+        compress = COMPRESS_NONE;
+    }
+    else
+    {
+        compress = COMPRESS_INVALID;
     }
 
     return compress;
@@ -198,7 +226,7 @@ static compression_t options_parse_compression(const char *str)
 
 static ti8x_var_type_t options_get_var_type(oformat_t format)
 {
-    ti8x_var_type_t type = TI8X_TYPE_UNKNOWN;
+    ti8x_var_type_t type;
 
     switch (format)
     {
@@ -428,7 +456,7 @@ int options_get(int argc, char *argv[], struct options *options)
 
             case 'c':
                 options->output.file.compression =
-                    options_parse_compression(optarg);
+                    options_parse_output_compression(optarg);
                 break;
 
             case 'u':
