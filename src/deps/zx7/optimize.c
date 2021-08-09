@@ -28,7 +28,7 @@
 
 #include "zx7.h"
 
-int elias_gamma_bits(int value) {
+static inline int elias_gamma_bits(int value) {
     int bits;
 
     bits = 1;
@@ -39,15 +39,15 @@ int elias_gamma_bits(int value) {
     return bits;
 }
 
-int count_bits(int offset, int len) {
+static inline int count_bits(int offset, int len) {
     return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
 }
 
 Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long skip) {
-    size_t *min;
-    size_t *max;
-    size_t *matches;
-    size_t *match_slots;
+    static size_t min[MAX_OFFSET+1];
+    static size_t max[MAX_OFFSET+1];
+    static size_t matches[256*256];
+    size_t *match_slots = NULL;
     Optimal *optimal = NULL;
     size_t *match;
     int match_index;
@@ -57,25 +57,15 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
     size_t bits;
     size_t i;
 
-    min = (size_t *)calloc(MAX_OFFSET+1, sizeof(size_t));
-    if (min == NULL)
-         return NULL;
+    match_slots = malloc(input_size * sizeof(size_t));
+    if (match_slots == NULL) {
+        return NULL;
+    }
 
-    max = (size_t *)calloc(MAX_OFFSET+1, sizeof(size_t));
-    if (max == NULL)
-         goto free_min;
-
-    matches = (size_t *)calloc(256*256, sizeof(size_t));
-    if (matches == NULL)
-         goto free_max;
-
-    match_slots = (size_t *)calloc(input_size, sizeof(size_t));
-    if (match_slots == NULL)
-         goto free_matches;
-
-    optimal = (Optimal *)calloc(input_size, sizeof(Optimal));
-    if (optimal == NULL)
-         goto free_match_slots;
+    optimal = malloc(input_size * sizeof(Optimal);
+    if (optimal == NULL) {
+        goto free_match_slots;
+    }
 
     /* index skipped bytes */
     for (i = 1; i <= skip; i++) {
@@ -128,12 +118,6 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
 
 free_match_slots:
     free(match_slots);
-free_matches:
-    free(matches);
-free_max:
-    free(max);
-free_min:
-    free(min);
 
     return optimal;
 }
