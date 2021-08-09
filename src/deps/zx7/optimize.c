@@ -25,22 +25,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "zx7.h"
 
-static inline int elias_gamma_bits(int value) {
-    int bits;
-
-    bits = 1;
-    while (value > 1) {
-        bits += 2;
-        value >>= 1;
-    }
-    return bits;
-}
-
-static inline int count_bits(int offset, int len) {
-    return 1 + (offset > 128 ? 12 : 8) + elias_gamma_bits(len-1);
+static int count_bits(int offset, int len) {
+    return (((sizeof(int)*CHAR_BIT+4) - __builtin_clz(len-1)) << 1) + ((128 - offset) >> (sizeof(int)*CHAR_BIT-1) & 4);
 }
 
 Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long skip) {
@@ -62,7 +52,7 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
         return NULL;
     }
 
-    optimal = malloc(input_size * sizeof(Optimal);
+    optimal = malloc(input_size * sizeof(Optimal));
     if (optimal == NULL) {
         goto free_match_slots;
     }
