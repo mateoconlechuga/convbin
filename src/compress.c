@@ -79,6 +79,8 @@ static int compress_zx7(uint8_t *data, size_t *size, long *delta)
     memcpy(data, compressed_data, new_size);
     *size = new_size;
 
+    free(compressed_data);
+
     return 0;
 }
 
