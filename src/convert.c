@@ -400,43 +400,46 @@ int convert_input_to_output(struct input *input, struct output *output)
             break;
     }
 
-    if (ret == 0)
+    if (ret != 0)
     {
-        ret = output_write_file(&output->file);
+        return ret;
     }
 
-    if (ret == 0)
+    ret = output_write_file(&output->file);
+    if (ret != 0)
     {
-        if (output->file.compression ||
-            output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS)
+        return ret;
+    }
+
+    if (output->file.compression ||
+        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS)
+    {
+        float savings = (float)output->file.uncompressed_size -
+                        (float)output->file.compressed_size;
+
+        if (savings < 0.001)
         {
-            float savings = (float)output->file.uncompressed_size -
-                            (float)output->file.compressed_size;
-
-            if (savings < 0.001)
-            {
-                savings = 0;
-            }
-            else
-            {
-                if (output->file.uncompressed_size != 0)
-                {
-                    savings /= (float)output->file.uncompressed_size;
-                }
-            }
-
-            LOG_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
-                output->file.name,
-                (unsigned long)output->file.size,
-                savings * 100.);
+            savings = 0;
         }
         else
         {
-            LOG_PRINT("[success] %s, %lu bytes.\n",
-                output->file.name,
-                (unsigned long)output->file.size);
+            if (output->file.uncompressed_size != 0)
+            {
+                savings /= (float)output->file.uncompressed_size;
+            }
         }
+
+        LOG_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
+            output->file.name,
+            (unsigned long)output->file.size,
+            savings * 100.);
+    }
+    else
+    {
+        LOG_PRINT("[success] %s, %lu bytes.\n",
+            output->file.name,
+            (unsigned long)output->file.size);
     }
 
-    return ret;
+    return 0;
 }
