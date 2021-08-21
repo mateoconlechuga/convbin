@@ -112,9 +112,10 @@ static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
 
     if (new_size + decompressor_len + 1 >= *size)
     {
+        LOG_WARNING("Ignoring compression as it results in larger output.\n");
         reverse(data, data + *size - 1);
         free(compressed_data);
-        return 0;
+        return 1;
     }
 
     reverse(compressed_data, compressed_data + new_size - 1);
@@ -218,10 +219,16 @@ odd_8x:
     memcpy(compressed_data, data + offset, prgm_size);
 
     ret = compress_array(compressed_data, &prgm_size, &delta, COMPRESS_ZX7B);
-    if (ret != 0)
+    if (ret < 0)
     {
         LOG_ERROR("Could not compress input.\n");
         return -1;
+    }
+
+    /* handle case where compressed > uncompressed */
+    if (ret != 0)
+    {
+        return 1;
     }
     else
     {

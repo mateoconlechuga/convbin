@@ -68,6 +68,7 @@ struct output_file
     oformat_t format;
     bool append;
     bool uppercase;
+    bool compressed;
 };
 
 struct output

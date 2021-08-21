@@ -85,11 +85,12 @@ static int convert_build_data(struct input *input,
         output_file->uncompressed_size = tmp_size;
 
         ret = compress_array(data, &tmp_size, &delta, compression);
-        if (ret != 0)
+        if (ret < 0)
         {
             return ret;
         }
 
+        output_file->compressed = ret == 0;
         output_file->compressed_size = tmp_size;
     }
 
@@ -190,7 +191,7 @@ static int convert_8xp(struct input *input, struct output_file *file)
     }
 
     ret = convert_build_data(input, data, &size,
-                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
+        INPUT_MAX_SIZE, file, COMPRESS_NONE);
     if (ret != 0)
     {
         return ret;
@@ -201,11 +202,12 @@ static int convert_8xp(struct input *input, struct output_file *file)
         file->uncompressed_size = size;
 
         ret = compress_auto_8xp(data, &size);
-        if (ret != 0)
+        if (ret < 0)
         {
             return ret;
         }
 
+        file->compressed = ret == 0;
         file->compressed_size = size;
     }
 
@@ -411,8 +413,9 @@ int convert_input_to_output(struct input *input, struct output *output)
         return ret;
     }
 
-    if (output->file.compression ||
-        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS)
+    if ((output->file.compression ||
+        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS) &&
+        output->file.compressed)
     {
         float savings = (float)output->file.uncompressed_size -
                         (float)output->file.compressed_size;
