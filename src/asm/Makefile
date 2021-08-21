@@ -29,12 +29,12 @@
 all: decompress.c extractor.c
 
 decompress.c: decompress.asm
-	fasmg $< decompress
+	fasmg -n $< decompress > decompress.h
 	xxd -i decompress > $@
 	rm -f decompress
 
 extractor.c: extractor.asm
-	fasmg $< extractor
+	fasmg -n $< extractor > extractor.h
 	xxd -i extractor > $@
 	rm -f extractor
 

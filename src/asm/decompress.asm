@@ -56,6 +56,7 @@ deltasizelabel := $% - 3
 	push	hl
 	call	ti.ErrNotEnoughMem
 	pop	hl
+	call	ti.PushRealO1
 	ld	de,0
 deltastartlabel := $% - 3
 	call	ti.InsertMem
@@ -79,7 +80,8 @@ uncompressedsizelabel := $% - 3
 realsizesizelabel := $% - 3
 	ld	hl,0 ;compressedendlabel - 2176
 resizelabel := $% - 3
-	jp	ti.DelMem
+	call	ti.DelMem
+	jp	ti.PopRealO1
 
 ; -----------------------------------------------------------------------------
 ; ZX7 decoder by Einar Saukas, Antonio Villena & Metalbrain
@@ -139,10 +141,10 @@ dzx7s_next_bit_b:
 	dec	hl
 	rla
 	ret
-
 compresseddata:
 
-display 10
+display "#ifndef DECOMPRESS_H", 10
+display "#define DECOMPRESS_H", 10, 10
 print "#define DECOMPRESS_ENTRY_OFFSET ", decompressentrylabel
 print "#define DECOMPRESS_DELTA_SIZE_OFFSET ", deltasizelabel
 print "#define DECOMPRESS_DELTA_START_OFFSET ", deltastartlabel
@@ -155,4 +157,7 @@ print "#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET ", uncompressedsizelabel
 print "#define DECOMPRESS_RESIZE_OFFSET ", resizelabel
 print "#define DECOMPRESS_RESIZE_SIZE_OFFSET ", realsizesizelabel
 display 10
-print "size: ", $%
+display "extern unsigned char decompress[];", 10
+display "extern unsigned int decompress_len;", 10
+display 10
+display "#endif"

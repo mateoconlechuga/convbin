@@ -106,7 +106,7 @@ static int convert_build_data(struct input *input,
 
 static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file)
 {
-    unsigned int checksum;
+    uint16_t checksum;
     size_t file_size;
     size_t data_size;
     size_t varb_size;
@@ -310,7 +310,7 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
 {
     uint8_t data[INPUT_MAX_SIZE];
     uint8_t *ti8x;
-    unsigned int checksum;
+    uint16_t checksum;
     size_t file_size;
     size_t data_size;
     size_t size;

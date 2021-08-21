@@ -33,10 +33,9 @@
 #include "ti8x.h"
 #include "log.h"
 
-#include <string.h>
+#include "asm/extractor.h"
 
-extern unsigned char extractor[];
-extern unsigned int extractor_len;
+#include <string.h>
 
 static void extract_write_word(uint8_t *addr, unsigned int value)
 {
@@ -44,12 +43,6 @@ static void extract_write_word(uint8_t *addr, unsigned int value)
     addr[1] = (value >> 8) & 0xff;
     addr[2] = (value >> 16) & 0xff;
 }
-
-/* from extractor.asm */
-#define EXTRACTOR_ENTRY_OFFSET 1
-#define EXTRACTOR_PRGM_SIZE_OFFSET 9
-#define EXTRACTOR_EXTRACT_SIZE_OFFSET 19
-#define EXTRACTOR_APPVARS_OFFSET 183
 
 int extract_8xp_to_8xv(uint8_t *data,
                        size_t *size,

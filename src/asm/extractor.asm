@@ -51,6 +51,8 @@ extractsizelabel := $% - 3
 extractprgm:
 	ld	de,0
 extracttotalsizelabel := $% - 3
+	ld	de,.prgm_name
+	call	ti.MovFROP1
 	call	ti.MemChk
 	sbc	hl,de
 	jq	c,ti.ErrMemory
@@ -64,7 +66,7 @@ extracttotalsizelabel := $% - 3
 .loop:
 	ld	a,(hl)
 	or	a,a
-	jp	z,ti.userMem
+	jr	z,.done
 	push	hl
 	call	ti.Mov9ToOP1
 .find:
@@ -72,10 +74,14 @@ extracttotalsizelabel := $% - 3
 	jp	c,.notfound
 	call 	ti.ChkInRam
 	jr	nz,.inarc
-	call	ti.PushOP1
+	call	ti.PushRealO1
 	call	ti.Arc_Unarc
-	call	ti.PopOP1
+	call	ti.PopRealO1
 	jr	.find
+.done:
+	ld	hl,.prgm_name
+	call	ti.Mov9ToOP1
+	jp	ti.userMem
 .inarc:
 	ex	de,hl
 	ld	de,9
@@ -114,14 +120,20 @@ extracttotalsizelabel := $% - 3
 	ld	bc,12
 	ldir
 	jp	ti.ErrCustom1
+.prgm_name:
+	rb	9
 .missing_str:
 	db	"Need AppVar",0
 extractdata:
 
-display 10
+display "#ifndef EXTRACTOR_H", 10
+display "#define EXTRACTOR_H", 10, 10
 print "#define EXTRACTOR_ENTRY_OFFSET ", extractentrylabel
 print "#define EXTRACTOR_PRGM_SIZE_OFFSET ", extractsizelabel
 print "#define EXTRACTOR_EXTRACT_SIZE_OFFSET ", extracttotalsizelabel
 print "#define EXTRACTOR_APPVARS_OFFSET ", $%
 display 10
-print "size: ", $%
+display "extern unsigned char extractor[];", 10
+display "extern unsigned int extractor_len;", 10
+display 10
+display "#endif"

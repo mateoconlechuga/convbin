@@ -348,9 +348,6 @@ error:
 
 static void options_set_default(struct options *options)
 {
-    if (options == NULL)
-        return;
-
     options->prgm = 0;
     options->input.nr_files = 0;
     options->input.default_format = IFORMAT_BIN;

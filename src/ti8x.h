@@ -102,7 +102,7 @@ struct ti8x_var
 
 extern const unsigned char ti8x_file_header[11];
 
-unsigned int ti8x_checksum(uint8_t *data, size_t size);
+uint16_t ti8x_checksum(uint8_t *data, size_t size);
 
 #ifdef __cplusplus
 }

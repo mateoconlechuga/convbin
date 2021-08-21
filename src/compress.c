@@ -34,11 +34,9 @@
 #include "log.h"
 
 #include "deps/zx7/zx7.h"
+#include "asm/decompress.h"
 
 #include <string.h>
-
-extern unsigned char decompress[];
-extern unsigned int decompress_len;
 
 static void reverse(uint8_t *first, uint8_t *last)
 {
@@ -144,29 +142,12 @@ int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode)
     return -1;
 }
 
-/*
- * Write 24-bit value into array.
- */
 static void compress_write_word(uint8_t *addr, unsigned int value)
 {
     addr[0] = (value >> 0) & 0xff;
     addr[1] = (value >> 8) & 0xff;
     addr[2] = (value >> 16) & 0xff;
 }
-
-/* from decompress.asm */
-/* run the asm makefile to print */
-#define DECOMPRESS_ENTRY_OFFSET 1
-#define DECOMPRESS_DELTA_SIZE_OFFSET 19
-#define DECOMPRESS_DELTA_START_OFFSET 29
-#define DECOMPRESS_PRGM_SIZE_OFFSET 37
-#define DECOMPRESS_COMPRESSED_COPY_OFFSET 57
-#define DECOMPRESS_COMPRESSED_END_OFFSET 45
-#define DECOMPRESS_UNCOMPRESSED_END_OFFSET 49
-#define DECOMPRESS_COMPRESSED_START_OFFSET 61
-#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET 66
-#define DECOMPRESS_RESIZE_OFFSET 76
-#define DECOMPRESS_RESIZE_SIZE_OFFSET 72
 
 int compress_auto_8xp(uint8_t *data, size_t *size)
 {
