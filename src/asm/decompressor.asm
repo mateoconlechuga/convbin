@@ -143,21 +143,21 @@ dzx7s_next_bit_b:
 	ret
 compresseddata:
 
-display "#ifndef DECOMPRESS_H", 10
-display "#define DECOMPRESS_H", 10, 10
-print "#define DECOMPRESS_ENTRY_OFFSET ", decompressentrylabel
-print "#define DECOMPRESS_DELTA_SIZE_OFFSET ", deltasizelabel
-print "#define DECOMPRESS_DELTA_START_OFFSET ", deltastartlabel
-print "#define DECOMPRESS_PRGM_SIZE_OFFSET ", prgrmsizelabel
-print "#define DECOMPRESS_COMPRESSED_COPY_OFFSET ", compressedcopylabel
-print "#define DECOMPRESS_COMPRESSED_END_OFFSET ", compressedendlabel
-print "#define DECOMPRESS_UNCOMPRESSED_END_OFFSET ", uncompressedendlabel
-print "#define DECOMPRESS_COMPRESSED_START_OFFSET ", compressedstartlabel
-print "#define DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET ", uncompressedsizelabel
-print "#define DECOMPRESS_RESIZE_OFFSET ", resizelabel
-print "#define DECOMPRESS_RESIZE_SIZE_OFFSET ", realsizesizelabel
+display "#ifndef DECOMPRESSOR_H", 10
+display "#define DECOMPRESSOR_H", 10, 10
+print "#define DECOMPRESSOR_ENTRY_OFFSET ", decompressentrylabel
+print "#define DECOMPRESSOR_DELTA_SIZE_OFFSET ", deltasizelabel
+print "#define DECOMPRESSOR_DELTA_START_OFFSET ", deltastartlabel
+print "#define DECOMPRESSOR_PRGM_SIZE_OFFSET ", prgrmsizelabel
+print "#define DECOMPRESSOR_COMPRESSED_COPY_OFFSET ", compressedcopylabel
+print "#define DECOMPRESSOR_COMPRESSED_END_OFFSET ", compressedendlabel
+print "#define DECOMPRESSOR_UNCOMPRESSED_END_OFFSET ", uncompressedendlabel
+print "#define DECOMPRESSOR_COMPRESSED_START_OFFSET ", compressedstartlabel
+print "#define DECOMPRESSOR_UNCOMPRESSED_SIZE_OFFSET ", uncompressedsizelabel
+print "#define DECOMPRESSOR_RESIZE_OFFSET ", resizelabel
+print "#define DECOMPRESSOR_RESIZE_SIZE_OFFSET ", realsizesizelabel
 display 10
-display "extern unsigned char decompress[];", 10
-display "extern unsigned int decompress_len;", 10
+display "extern unsigned char decompressor[];", 10
+display "extern unsigned int decompressor_len;", 10
 display 10
 display "#endif"

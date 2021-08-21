@@ -34,7 +34,7 @@
 #include "log.h"
 
 #include "deps/zx7/zx7.h"
-#include "asm/decompress.h"
+#include "asm/decompressor.h"
 
 #include <string.h>
 
@@ -110,7 +110,7 @@ static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
         return -1;
     }
 
-    if (new_size + decompress_len + 1 >= *size)
+    if (new_size + decompressor_len + 1 >= *size)
     {
         reverse(data, data + *size - 1);
         free(compressed_data);
@@ -236,39 +236,39 @@ odd_8x:
         size_t new_size;
 
         /* 512 byte buffer room just for kicks */
-        resizesize = decompress_len + delta + 512;
-        compressed_size = prgm_size + decompress_len;
+        resizesize = decompressor_len + delta + 512;
+        compressed_size = prgm_size + decompressor_len;
 
         deltasize = (uncompressed_size - compressed_size) + resizesize;
-        compress_write_word(decompress + DECOMPRESS_DELTA_SIZE_OFFSET, deltasize);
+        compress_write_word(decompressor + DECOMPRESSOR_DELTA_SIZE_OFFSET, deltasize);
 
         prgmstart = (TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN) + offset;
-        compress_write_word(decompress + DECOMPRESS_COMPRESSED_START_OFFSET, prgmstart);
+        compress_write_word(decompressor + DECOMPRESSOR_COMPRESSED_START_OFFSET, prgmstart);
 
         deltastart = prgmstart + compressed_size;
-        compress_write_word(decompress + DECOMPRESS_DELTA_START_OFFSET, deltastart);
+        compress_write_word(decompressor + DECOMPRESSOR_DELTA_START_OFFSET, deltastart);
 
         compressedend = deltastart - 1;
-        compress_write_word(decompress + DECOMPRESS_COMPRESSED_END_OFFSET, compressedend);
+        compress_write_word(decompressor + DECOMPRESSOR_COMPRESSED_END_OFFSET, compressedend);
 
         uncompressedend = prgmstart + uncompressed_size + resizesize;
-        compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_END_OFFSET, uncompressedend);
+        compress_write_word(decompressor + DECOMPRESSOR_UNCOMPRESSED_END_OFFSET, uncompressedend);
 
         entryaddr = TI8X_USERMEM_ADDRESS + offset + 16;
-        compress_write_word(decompress + DECOMPRESS_ENTRY_OFFSET, entryaddr);
+        compress_write_word(decompressor + DECOMPRESSOR_ENTRY_OFFSET, entryaddr);
 
-        compress_write_word(decompress + DECOMPRESS_RESIZE_SIZE_OFFSET, resizesize);
-        compress_write_word(decompress + DECOMPRESS_UNCOMPRESSED_SIZE_OFFSET, uncompressed_size);
-        compress_write_word(decompress + DECOMPRESS_RESIZE_OFFSET, uncompressedend - resizesize);
-        compress_write_word(decompress + DECOMPRESS_PRGM_SIZE_OFFSET, offset + uncompressed_size);
+        compress_write_word(decompressor + DECOMPRESSOR_RESIZE_SIZE_OFFSET, resizesize);
+        compress_write_word(decompressor + DECOMPRESSOR_UNCOMPRESSED_SIZE_OFFSET, uncompressed_size);
+        compress_write_word(decompressor + DECOMPRESSOR_RESIZE_OFFSET, uncompressedend - resizesize);
+        compress_write_word(decompressor + DECOMPRESSOR_PRGM_SIZE_OFFSET, offset + uncompressed_size);
 
         copyoffset = (deltastart - compressed_size) + resizesize + 1;
-        compress_write_word(decompress + DECOMPRESS_COMPRESSED_COPY_OFFSET, copyoffset);
+        compress_write_word(decompressor + DECOMPRESSOR_COMPRESSED_COPY_OFFSET, copyoffset);
 
-        memcpy(new_data + offset, decompress, decompress_len);
-        memcpy(new_data + offset + decompress_len, compressed_data, prgm_size);
+        memcpy(new_data + offset, decompressor, decompressor_len);
+        memcpy(new_data + offset + decompressor_len, compressed_data, prgm_size);
 
-        new_size = prgm_size + decompress_len + offset;
+        new_size = prgm_size + decompressor_len + offset;
 
         memcpy(data, new_data, new_size);
         *size = new_size;
