@@ -55,8 +55,8 @@ decompressprgm:
 deltasizelabel := $% - 3
 	push	hl
 	call	ti.ErrNotEnoughMem
-	pop	hl
 	call	ti.PushRealO1
+	pop	hl
 	ld	de,0
 deltastartlabel := $% - 3
 	call	ti.InsertMem
