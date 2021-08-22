@@ -52,12 +52,12 @@ Optimal* optimize(unsigned char *input_data, size_t input_size, unsigned long sk
     memset(min, 0, sizeof min);
     memset(max, 0, sizeof max);
 
-    match_slots = malloc(input_size * sizeof(size_t));
+    match_slots = calloc(input_size, sizeof(size_t));
     if (match_slots == NULL) {
         return NULL;
     }
 
-    optimal = malloc(input_size * sizeof(Optimal));
+    optimal = calloc(input_size, sizeof(Optimal));
     if (optimal == NULL) {
         goto free_match_slots;
     }
