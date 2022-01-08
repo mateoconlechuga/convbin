@@ -60,7 +60,7 @@ This program is used to convert files to other formats, specifically for the TI8
         8xp-auto-decompress: TI Auto-Decompressing Compressed Program.
 
     Credits:
-        (c) 2017-2021 by Matt "MateoConLechuga" Waltz.
+        (c) 2017-2022 by Matt "MateoConLechuga" Waltz.
 
         This program utilizes the following neat libraries:
             zx7: (c) 2012-2013 by Einar Saukas.
