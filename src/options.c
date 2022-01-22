@@ -49,14 +49,13 @@ static void options_show(const char *prgm)
     LOG_PRINT("    -i, --input <file>      Input file. Can be specified multiple times,\n");
     LOG_PRINT("                            input files are appended in order.\n");
     LOG_PRINT("    -o, --output <file>     Output file after conversion.\n");
-    LOG_PRINT("    -j, --iformat <mode>    Set input file format to <mode>.\n");
+    LOG_PRINT("    -j, --iformat <mode>    Set per-input file format to <mode>.\n");
     LOG_PRINT("                            See 'Input formats' below.\n");
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("                            The default input format is 'bin'.\n");
-    LOG_PRINT("    -p, --icompress <mode>  Set input file compression to <mode>.\n");
+    LOG_PRINT("    -p, --icompress <mode>  Set per-input file compression to <mode>.\n");
     LOG_PRINT("                            Supported modes: zx7, zx7b\n");
     LOG_PRINT("                            This should be placed before the input file.\n");
-    LOG_PRINT("                            The default input compression is 'none'.\n");
     LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LOG_PRINT("                            See 'Output formats' below.\n");
     LOG_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
