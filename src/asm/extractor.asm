@@ -51,11 +51,11 @@ extractsizelabel := $% - 3
 extractprgm:
 	ld	de,0
 extracttotalsizelabel := $% - 3
-	ld	de,.prgm_name
-	call	ti.MovFROP1
 	call	ti.MemChk
 	sbc	hl,de
 	jq	c,ti.ErrMemory
+	ld	de,.prgm_name
+	call	ti.MovFROP1
 	ld	hl,ti.userMem
 	ld	de,(ti.asm_prgm_size)
 	call	ti.DelMem			; remove ourseleves
