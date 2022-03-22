@@ -189,8 +189,8 @@ static int input_csv(FILE *fd, uint8_t *data, size_t *size)
 
         while (token)
         {
-            int value = strtol(token, NULL, 0);
-            data[s++] = (uint8_t)(value == -1 ? 0 : value);
+            long int value = strtol(token, NULL, 0);
+            data[s++] = (uint8_t)(value < 0 || value > 255 ? 255 : value);
 
             if (s > INPUT_MAX_SIZE)
             {
