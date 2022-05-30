@@ -1,3 +1,6 @@
 [submodule "src/deps/fasmg-ez80"]
 	path = src/deps/fasmg-ez80
 	url = https://github.com/jacobly0/fasmg-ez80.git
+[submodule "src/deps/zx"]
+	path = src/deps/zx
+	url = https://github.com/mateoconlechuga/zx.git

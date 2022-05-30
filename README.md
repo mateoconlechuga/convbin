@@ -16,7 +16,7 @@ This program is used to convert files to other formats, specifically for the TI8
                                 This should be placed before the input file.
                                 The default input format is 'bin'.
         -p, --icompress <mode>  Set per-input file compression to <mode>.
-                                Supported modes: zx7, zx7b
+                                Supported modes: zx7, zx7b, zx0, zx0b.
                                 This should be placed before the input file.
         -k, --oformat <mode>    Set output file format to <mode>.
                                 See 'Output formats' below.
@@ -27,7 +27,7 @@ This program is used to convert files to other formats, specifically for the TI8
     Optional options:
         -r, --archive           If TI 8x* format, mark as archived.
         -c, --compress <mode>   Compress output using <mode>.
-                                Supported modes: zx7, zx7b
+                                Supported modes: zx7, zx7b, zx0, zx0b.
         -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.
         -u, --uppercase         If a program, makes on-calc name uppercase.
         -a, --append            Append to output file rather than overwrite.
@@ -62,5 +62,4 @@ This program is used to convert files to other formats, specifically for the TI8
         (c) 2017-2022 by Matt "MateoConLechuga" Waltz.
 
         This program utilizes the following neat libraries:
-            zx7: (c) 2012-2013 by Einar Saukas.
-
+            zx0,zx7: (c) 2012-2021 by Einar Saukas.

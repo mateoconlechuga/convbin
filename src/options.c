@@ -54,7 +54,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("                            The default input format is 'bin'.\n");
     LOG_PRINT("    -p, --icompress <mode>  Set per-input file compression to <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7, zx7b\n");
+    LOG_PRINT("                            Supported modes: zx7, zx7b, zx0, zx0b.\n");
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LOG_PRINT("                            See 'Output formats' below.\n");
@@ -65,7 +65,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("Optional options:\n");
     LOG_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
     LOG_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7, zx7b\n");
+    LOG_PRINT("                            Supported modes: zx7, zx7b, zx0, zx0b.\n");
     LOG_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
     LOG_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
     LOG_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
@@ -100,7 +100,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("    (c) 2017-2022 by Matt \"MateoConLechuga\" Waltz.\n");
     LOG_PRINT("\n");
     LOG_PRINT("    This program utilizes the following neat libraries:\n");
-    LOG_PRINT("        zx7: (c) 2012-2013 by Einar Saukas.\n");
+    LOG_PRINT("        zx0,zx7: (c) 2012-2021 by Einar Saukas.\n");
 }
 
 static iformat_t options_parse_input_format(const char *str)
@@ -139,9 +139,13 @@ static compression_t options_parse_input_compression(const char *str)
     {
         compress = COMPRESS_ZX7B;
     }
-    else if (!strcmp(str, "none"))
+    else if (!strcmp(str, "zx0"))
     {
-        compress = COMPRESS_NONE;
+        compress = COMPRESS_ZX0;
+    }
+    else if (!strcmp(str, "zx0b"))
+    {
+        compress = COMPRESS_ZX0B;
     }
     else
     {
@@ -211,9 +215,13 @@ static compression_t options_parse_output_compression(const char *str)
     {
         compress = COMPRESS_ZX7B;
     }
-    else if (!strcmp(str, "none"))
+    else if (!strcmp(str, "zx0"))
     {
-        compress = COMPRESS_NONE;
+        compress = COMPRESS_ZX0;
+    }
+    else if (!strcmp(str, "zx0b"))
+    {
+        compress = COMPRESS_ZX0B;
     }
     else
     {

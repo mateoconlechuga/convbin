@@ -32,8 +32,6 @@
 #include "ti8x.h"
 #include "log.h"
 
-#include "deps/zx7/zx7.h"
-
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>

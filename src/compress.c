@@ -33,7 +33,8 @@
 #include "ti8x.h"
 #include "log.h"
 
-#include "deps/zx7/zx7.h"
+#include "deps/zx/zx7/zx7.h"
+#include "deps/zx/zx0/zx0.h"
 #include "asm/decompressor.h"
 
 #include <string.h>
@@ -50,7 +51,7 @@ static void reverse(uint8_t *first, uint8_t *last)
 
 static int compress_zx7(uint8_t *data, size_t *size, long *delta)
 {
-    Optimal *opt;
+    zx7_Optimal *opt;
     uint8_t *compressed_data;
     size_t new_size;
 
@@ -59,14 +60,14 @@ static int compress_zx7(uint8_t *data, size_t *size, long *delta)
         return -1;
     }
 
-    opt = optimize(data, *size, 0);
+    opt = zx7_optimize(data, *size, 0);
     if (opt == NULL)
     {
         LOG_ERROR("Could not optimize zx7.\n");
         return -1;
     }
 
-    compressed_data = compress(opt, data, *size, 0, &new_size, delta);
+    compressed_data = zx7_compress(opt, data, *size, 0, &new_size, delta);
     free(opt);
     if (compressed_data == NULL)
     {
@@ -84,7 +85,7 @@ static int compress_zx7(uint8_t *data, size_t *size, long *delta)
 
 static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
 {
-    Optimal *opt;
+    zx7_Optimal *opt;
     uint8_t *compressed_data;
     size_t new_size;
 
@@ -95,14 +96,14 @@ static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
 
     reverse(data, data + *size - 1);
 
-    opt = optimize(data, *size, 0);
+    opt = zx7_optimize(data, *size, 0);
     if (opt == NULL)
     {
         LOG_ERROR("Could not optimize zx7b.\n");
         return -1;
     }
 
-    compressed_data = compress(opt, data, *size, 0, &new_size, delta);
+    compressed_data = zx7_compress(opt, data, *size, 0, &new_size, delta);
     free(opt);
     if (compressed_data == NULL)
     {
@@ -128,19 +129,108 @@ static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
     return 0;
 }
 
+
+static int compress_zx0(uint8_t *data, size_t *size, long *delta)
+{
+    int deltai;
+    zx0_BLOCK *opt;
+    uint8_t *compressed_data;
+    int new_size;
+
+    if (size == NULL || data == NULL)
+    {
+        return -1;
+    }
+
+    opt = zx0_optimize(data, *size, 0, MAX_OFFSET);
+    if (opt == NULL)
+    {
+        LOG_ERROR("Could not optimize zx0.\n");
+        return -1;
+    }
+
+    compressed_data = zx0_compress(opt, data, *size, 0, 1, 0, &new_size, &deltai);
+    free(opt);
+    if (compressed_data == NULL)
+    {
+        LOG_ERROR("Could not compress zx0.\n");
+        return -1;
+    }
+
+    *delta = deltai;
+
+    memcpy(data, compressed_data, new_size);
+    *size = new_size;
+
+    free(compressed_data);
+
+    return 0;
+}
+
+static int compress_zx0b(uint8_t *data, size_t *size, long *delta)
+{
+    int deltai;
+    zx0_BLOCK *opt;
+    uint8_t *compressed_data;
+    int new_size;
+
+    if (size == NULL || data == NULL)
+    {
+        return -1;
+    }
+
+    reverse(data, data + *size - 1);
+
+    opt = zx0_optimize(data, *size, 0, MAX_OFFSET);
+    if (opt == NULL)
+    {
+        LOG_ERROR("Could not optimize zx0b.\n");
+        return -1;
+    }
+
+    compressed_data = zx0_compress(opt, data, *size, 0, 1, 0, &new_size, &deltai);
+    free(opt);
+    if (compressed_data == NULL)
+    {
+        LOG_ERROR("Could not compress zx0b.\n");
+        return -1;
+    }
+
+    *delta = deltai;
+
+    if (new_size + decompressor_len + 1 >= *size)
+    {
+        LOG_WARNING("Ignoring compression as it results in larger output.\n");
+        reverse(data, data + *size - 1);
+        free(compressed_data);
+        return 1;
+    }
+
+    reverse(compressed_data, compressed_data + new_size - 1);
+
+    memcpy(data, compressed_data, new_size);
+    *size = new_size;
+
+    free(compressed_data);
+
+    return 0;
+}
+
 int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode)
 {
     switch (mode)
     {
         default:
-            break;
+            return -1;
         case COMPRESS_ZX7:
             return compress_zx7(data, size, delta);
         case COMPRESS_ZX7B:
             return compress_zx7b(data, size, delta);
+        case COMPRESS_ZX0:
+            return compress_zx0(data, size, delta);
+        case COMPRESS_ZX0B:
+            return compress_zx0b(data, size, delta);
     }
-
-    return -1;
 }
 
 static void compress_write_word(uint8_t *addr, unsigned int value)
