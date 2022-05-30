@@ -133,7 +133,6 @@ static int compress_zx7b(uint8_t *data, size_t *size, long *delta)
 static int compress_zx0(uint8_t *data, size_t *size, long *delta)
 {
     int deltai;
-    zx0_BLOCK *opt;
     uint8_t *compressed_data;
     int new_size;
 
@@ -142,15 +141,7 @@ static int compress_zx0(uint8_t *data, size_t *size, long *delta)
         return -1;
     }
 
-    opt = zx0_optimize(data, *size, 0, MAX_OFFSET);
-    if (opt == NULL)
-    {
-        LOG_ERROR("Could not optimize zx0.\n");
-        return -1;
-    }
-
-    compressed_data = zx0_compress(opt, data, *size, 0, 1, 0, &new_size, &deltai);
-    free(opt);
+    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET), data, *size, 0, 1, 0, &new_size, &deltai);
     if (compressed_data == NULL)
     {
         LOG_ERROR("Could not compress zx0.\n");
@@ -170,7 +161,6 @@ static int compress_zx0(uint8_t *data, size_t *size, long *delta)
 static int compress_zx0b(uint8_t *data, size_t *size, long *delta)
 {
     int deltai;
-    zx0_BLOCK *opt;
     uint8_t *compressed_data;
     int new_size;
 
@@ -181,15 +171,7 @@ static int compress_zx0b(uint8_t *data, size_t *size, long *delta)
 
     reverse(data, data + *size - 1);
 
-    opt = zx0_optimize(data, *size, 0, MAX_OFFSET);
-    if (opt == NULL)
-    {
-        LOG_ERROR("Could not optimize zx0b.\n");
-        return -1;
-    }
-
-    compressed_data = zx0_compress(opt, data, *size, 0, 1, 0, &new_size, &deltai);
-    free(opt);
+    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET), data, *size, 0, 1, 0, &new_size, &deltai);
     if (compressed_data == NULL)
     {
         LOG_ERROR("Could not compress zx0b.\n");
@@ -240,7 +222,7 @@ static void compress_write_word(uint8_t *addr, unsigned int value)
     addr[2] = (value >> 16) & 0xff;
 }
 
-int compress_auto_8xp(uint8_t *data, size_t *size)
+int compress_auto_8xp(uint8_t *data, size_t *size, compression_t mode)
 {
     uint8_t new_data[INPUT_MAX_SIZE];
     uint8_t compressed_data[INPUT_MAX_SIZE];
@@ -308,7 +290,7 @@ odd_8x:
 
     memcpy(compressed_data, data + offset, prgm_size);
 
-    ret = compress_array(compressed_data, &prgm_size, &delta, COMPRESS_ZX7B);
+    ret = compress_array(compressed_data, &prgm_size, &delta, mode);
     if (ret < 0)
     {
         LOG_ERROR("Could not compress input.\n");

@@ -195,6 +195,10 @@ static oformat_t options_parse_output_format(const char *str)
     {
         format = OFORMAT_8XP_AUTO_DECOMPRESS;
     }
+    else if (!strcmp(str, "8xp-auto-decompress-zx0"))
+    {
+        format = OFORMAT_8XP_AUTO_DECOMPRESS_ZX0;
+    }
     else
     {
         format = OFORMAT_INVALID;
@@ -239,6 +243,7 @@ static ti8x_var_type_t options_get_var_type(oformat_t format)
     {
         case OFORMAT_8XP:
         case OFORMAT_8XP_AUTO_DECOMPRESS:
+        case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
             type = TI8X_TYPE_PRGM;
             break;
 
@@ -317,7 +322,8 @@ static int options_verify(struct options *options)
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
     {
         if (options->output.file.var.name[0] == 0)
         {
@@ -328,7 +334,8 @@ static int options_verify(struct options *options)
         if (oformat == OFORMAT_8XP ||
             oformat == OFORMAT_8XV ||
             oformat == OFORMAT_8XG ||
-            oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
+            oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
+            oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
             {
@@ -339,7 +346,8 @@ static int options_verify(struct options *options)
     }
 
     if (oformat == OFORMAT_8XP ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS)
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
+        oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
     {
         if (isdigit(options->output.file.var.name[0]))
         {

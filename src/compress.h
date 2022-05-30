@@ -50,7 +50,7 @@ typedef enum
 
 int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode);
 
-int compress_auto_8xp(uint8_t *data, size_t *size);
+int compress_auto_8xp(uint8_t *data, size_t *size, compression_t mode);
 
 #ifdef __cplusplus
 }

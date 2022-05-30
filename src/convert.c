@@ -197,11 +197,23 @@ static int convert_8xp(struct input *input, struct output_file *file)
         return ret;
     }
 
-    if (file->format == OFORMAT_8XP_AUTO_DECOMPRESS)
+    if (file->format == OFORMAT_8XP_AUTO_DECOMPRESS ||
+        file->format == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
     {
         file->uncompressed_size = size;
 
-        ret = compress_auto_8xp(data, &size);
+        switch (file->format)
+        {
+            case OFORMAT_8XP_AUTO_DECOMPRESS:
+                ret = compress_auto_8xp(data, &size, COMPRESS_ZX7B);
+                break;
+            case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
+                ret = compress_auto_8xp(data, &size, COMPRESS_ZX0B);
+                break;
+            default:
+                ret = -1;
+                break;
+        }
         if (ret < 0)
         {
             return ret;
@@ -390,6 +402,7 @@ int convert_input_to_output(struct input *input, struct output *output)
 
         case OFORMAT_8XP:
         case OFORMAT_8XP_AUTO_DECOMPRESS:
+        case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
             ret = convert_8xp(input, &output->file);
             break;
 
@@ -414,7 +427,8 @@ int convert_input_to_output(struct input *input, struct output *output)
     }
 
     if ((output->file.compression ||
-        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS) &&
+        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS ||
+        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0) &&
         output->file.compressed)
     {
         float savings = (float)output->file.uncompressed_size -

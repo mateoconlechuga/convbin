@@ -74,7 +74,6 @@ SOURCES := $(SRCDIR)/main.c \
            $(DEPDIR)/zx/zx7/compress.c \
            $(DEPDIR)/zx/zx7/optimize.c \
            $(DEPDIR)/zx/zx0/compress.c \
-           $(DEPDIR)/zx/zx0/memory.c \
            $(DEPDIR)/zx/zx0/optimize.c
 
 OBJECTS := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
