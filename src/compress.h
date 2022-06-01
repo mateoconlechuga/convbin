@@ -42,15 +42,13 @@ typedef enum
 {
     COMPRESS_NONE,
     COMPRESS_ZX7,
-    COMPRESS_ZX7B,
     COMPRESS_ZX0,
-    COMPRESS_ZX0B,
     COMPRESS_INVALID,
 } compression_t;
 
 int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode);
 
-int compress_auto_8xp(uint8_t *data, size_t *size, compression_t mode);
+int compress_8xp(uint8_t *data, size_t *size, compression_t mode);
 
 #ifdef __cplusplus
 }

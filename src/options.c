@@ -54,7 +54,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("                            The default input format is 'bin'.\n");
     LOG_PRINT("    -p, --icompress <mode>  Set per-input file compression to <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7, zx7b, zx0, zx0b.\n");
+    LOG_PRINT("                            See 'Compression formats' below.\n");
     LOG_PRINT("                            This should be placed before the input file.\n");
     LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
     LOG_PRINT("                            See 'Output formats' below.\n");
@@ -65,7 +65,9 @@ static void options_show(const char *prgm)
     LOG_PRINT("Optional options:\n");
     LOG_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
     LOG_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
-    LOG_PRINT("                            Supported modes: zx7, zx7b, zx0, zx0b.\n");
+    LOG_PRINT("                            See 'Compression formats' below.\n");
+    LOG_PRINT("    -e, --8xp-compress <m>  Sets the compression mode for compressed 8xp.\n");
+    LOG_PRINT("                            Default is 'zx7'.\n");
     LOG_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
     LOG_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
     LOG_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
@@ -94,7 +96,14 @@ static void options_show(const char *prgm)
     LOG_PRINT("    8xv: TI Appvar.\n");
     LOG_PRINT("    8xg: TI Group. Input format must be 8x.\n");
     LOG_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
-    LOG_PRINT("    8xp-auto-decompress: TI Auto-Decompressing Compressed Program.\n");
+    LOG_PRINT("    8xp-compressed: Compressed TI Program.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("Compression Formats:\n");
+    LOG_PRINT("    Below is a list of available compression formats, listed as\n");
+    LOG_PRINT("    <mode>: Description.\n");
+    LOG_PRINT("\n");
+    LOG_PRINT("    zx0: ZX0 Compression.\n");
+    LOG_PRINT("    zx7: ZX7 Compression.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Credits:\n");
     LOG_PRINT("    (c) 2017-2022 by Matt \"MateoConLechuga\" Waltz.\n");
@@ -127,7 +136,7 @@ static iformat_t options_parse_input_format(const char *str)
     return format;
 }
 
-static compression_t options_parse_input_compression(const char *str)
+static compression_t options_parse_compression(const char *str)
 {
     compression_t compress;
 
@@ -135,17 +144,9 @@ static compression_t options_parse_input_compression(const char *str)
     {
         compress = COMPRESS_ZX7;
     }
-    else if (!strcmp(str, "zx7b"))
-    {
-        compress = COMPRESS_ZX7B;
-    }
     else if (!strcmp(str, "zx0"))
     {
         compress = COMPRESS_ZX0;
-    }
-    else if (!strcmp(str, "zx0b"))
-    {
-        compress = COMPRESS_ZX0B;
     }
     else
     {
@@ -193,11 +194,11 @@ static oformat_t options_parse_output_format(const char *str)
     }
     else if (!strcmp(str, "8xp-auto-decompress"))
     {
-        format = OFORMAT_8XP_AUTO_DECOMPRESS;
+        format = OFORMAT_8XP_COMPRESSED;
     }
-    else if (!strcmp(str, "8xp-auto-decompress-zx0"))
+    else if (!strcmp(str, "8xp-compressed"))
     {
-        format = OFORMAT_8XP_AUTO_DECOMPRESS_ZX0;
+        format = OFORMAT_8XP_COMPRESSED;
     }
     else
     {
@@ -207,34 +208,6 @@ static oformat_t options_parse_output_format(const char *str)
     return format;
 }
 
-static compression_t options_parse_output_compression(const char *str)
-{
-    compression_t compress;
-
-    if (!strcmp(str, "zx7"))
-    {
-        compress = COMPRESS_ZX7;
-    }
-    else if (!strcmp(str, "zx7b"))
-    {
-        compress = COMPRESS_ZX7B;
-    }
-    else if (!strcmp(str, "zx0"))
-    {
-        compress = COMPRESS_ZX0;
-    }
-    else if (!strcmp(str, "zx0b"))
-    {
-        compress = COMPRESS_ZX0B;
-    }
-    else
-    {
-        compress = COMPRESS_INVALID;
-    }
-
-    return compress;
-}
-
 static ti8x_var_type_t options_get_var_type(oformat_t format)
 {
     ti8x_var_type_t type;
@@ -242,8 +215,7 @@ static ti8x_var_type_t options_get_var_type(oformat_t format)
     switch (format)
     {
         case OFORMAT_8XP:
-        case OFORMAT_8XP_AUTO_DECOMPRESS:
-        case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
+        case OFORMAT_8XP_COMPRESSED:
             type = TI8X_TYPE_PRGM;
             break;
 
@@ -322,8 +294,7 @@ static int options_verify(struct options *options)
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
+        oformat == OFORMAT_8XP_COMPRESSED)
     {
         if (options->output.file.var.name[0] == 0)
         {
@@ -334,8 +305,7 @@ static int options_verify(struct options *options)
         if (oformat == OFORMAT_8XP ||
             oformat == OFORMAT_8XV ||
             oformat == OFORMAT_8XG ||
-            oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
-            oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
+            oformat == OFORMAT_8XP_COMPRESSED)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
             {
@@ -346,8 +316,7 @@ static int options_verify(struct options *options)
     }
 
     if (oformat == OFORMAT_8XP ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS ||
-        oformat == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
+        oformat == OFORMAT_8XP_COMPRESSED)
     {
         if (isdigit(options->output.file.var.name[0]))
         {
@@ -377,6 +346,7 @@ static void options_set_default(struct options *options)
     options->output.file.size = 0;
     options->output.file.compressed_size = 0;
     options->output.file.uncompressed_size = 0;
+    options->output.file.ti8xp_compression = COMPRESS_ZX7;
 
     memset(options->output.file.var.name, 0, TI8X_VAR_MAX_NAME_LEN + 1);
 }
@@ -408,6 +378,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {"oformat",      required_argument, 0, 'k'},
             {"icompress",    required_argument, 0, 'p'},
             {"compress",     required_argument, 0, 'c'},
+            {"8xp-compress", required_argument, 0, 'e'},
             {"maxvarsize",   required_argument, 0, 'm'},
             {"name",         required_argument, 0, 'n'},
             {"archive",      no_argument,       0, 'r'},
@@ -419,7 +390,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
+        c = getopt_long(argc, argv, "e:i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
         if (c < 0)
             break;
 
@@ -458,7 +429,7 @@ int options_get(int argc, char *argv[], struct options *options)
 
             case 'p':
                 options->input.default_compression =
-                    options_parse_input_compression(optarg);
+                    options_parse_compression(optarg);
                 break;
 
             case 'k':
@@ -468,7 +439,12 @@ int options_get(int argc, char *argv[], struct options *options)
 
             case 'c':
                 options->output.file.compression =
-                    options_parse_output_compression(optarg);
+                    options_parse_compression(optarg);
+                break;
+
+            case 'e':
+                options->output.file.ti8xp_compression =
+                    options_parse_compression(optarg);
                 break;
 
             case 'u':

@@ -52,8 +52,7 @@ typedef enum
     OFORMAT_8XV,
     OFORMAT_8XG,
     OFORMAT_8XG_AUTO_EXTRACT,
-    OFORMAT_8XP_AUTO_DECOMPRESS,
-    OFORMAT_8XP_AUTO_DECOMPRESS_ZX0,
+    OFORMAT_8XP_COMPRESSED,
     OFORMAT_INVALID,
 } oformat_t;
 
@@ -66,6 +65,7 @@ struct output_file
     size_t compressed_size;
     size_t uncompressed_size;
     compression_t compression;
+    compression_t ti8xp_compression;
     oformat_t format;
     bool append;
     bool uppercase;

@@ -61,7 +61,7 @@ static int convert_build_data(struct input *input,
 
             ret = compress_array(file->data,
                 &file->size, &delta, file->compression);
-            if (ret != 0)
+            if (ret < 0)
             {
                 return ret;
             }
@@ -163,13 +163,13 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
 
 static int convert_8x(struct input *input, struct output_file *file)
 {
-    uint8_t data[INPUT_MAX_SIZE];
+    static uint8_t data[INPUT_MAX_SIZE];
     size_t size;
     int ret;
 
     ret = convert_build_data(input, data, &size,
                              INPUT_MAX_SIZE, file, file->compression);
-    if (ret != 0)
+    if (ret < 0)
     {
         return ret;
     }
@@ -181,7 +181,7 @@ static int convert_8x(struct input *input, struct output_file *file)
 
 static int convert_8xp(struct input *input, struct output_file *file)
 {
-    uint8_t data[INPUT_MAX_SIZE];
+    static uint8_t data[INPUT_MAX_SIZE];
     size_t size;
     int ret;
 
@@ -192,28 +192,15 @@ static int convert_8xp(struct input *input, struct output_file *file)
 
     ret = convert_build_data(input, data, &size,
         INPUT_MAX_SIZE, file, COMPRESS_NONE);
-    if (ret != 0)
+    if (ret < 0)
     {
         return ret;
     }
 
-    if (file->format == OFORMAT_8XP_AUTO_DECOMPRESS ||
-        file->format == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0)
+    if (file->format == OFORMAT_8XP_COMPRESSED)
     {
         file->uncompressed_size = size;
-
-        switch (file->format)
-        {
-            case OFORMAT_8XP_AUTO_DECOMPRESS:
-                ret = compress_auto_8xp(data, &size, COMPRESS_ZX7B);
-                break;
-            case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
-                ret = compress_auto_8xp(data, &size, COMPRESS_ZX0B);
-                break;
-            default:
-                ret = -1;
-                break;
-        }
+        ret = compress_8xp(data, &size, file->ti8xp_compression);
         if (ret < 0)
         {
             return ret;
@@ -322,7 +309,7 @@ static int convert_8xp(struct input *input, struct output_file *file)
 
 int convert_auto_8xg(struct input *input, struct output_file *file)
 {
-    uint8_t data[INPUT_MAX_SIZE];
+    static uint8_t data[INPUT_MAX_SIZE];
     uint8_t *ti8x;
     uint16_t checksum;
     size_t file_size;
@@ -337,7 +324,7 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
 
     ret = convert_build_data(input, data, &size,
                              file->var.maxsize, file, COMPRESS_NONE);
-    if (ret != 0)
+    if (ret < 0)
     {
         return ret;
     }
@@ -401,8 +388,7 @@ int convert_input_to_output(struct input *input, struct output *output)
             break;
 
         case OFORMAT_8XP:
-        case OFORMAT_8XP_AUTO_DECOMPRESS:
-        case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
+        case OFORMAT_8XP_COMPRESSED:
             ret = convert_8xp(input, &output->file);
             break;
 
@@ -427,8 +413,7 @@ int convert_input_to_output(struct input *input, struct output *output)
     }
 
     if ((output->file.compression ||
-        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS ||
-        output->file.format == OFORMAT_8XP_AUTO_DECOMPRESS_ZX0) &&
+        output->file.format == OFORMAT_8XP_COMPRESSED) &&
         output->file.compressed)
     {
         float savings = (float)output->file.uncompressed_size -

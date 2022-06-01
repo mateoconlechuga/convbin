@@ -152,8 +152,7 @@ int output_write_file(struct output_file *file)
         case OFORMAT_8XP:
         case OFORMAT_8XG:
         case OFORMAT_8XG_AUTO_EXTRACT:
-        case OFORMAT_8XP_AUTO_DECOMPRESS:
-        case OFORMAT_8XP_AUTO_DECOMPRESS_ZX0:
+        case OFORMAT_8XP_COMPRESSED:
             ret = output_bin(file->var.name, file->data, file->size, fd);
             break;
 

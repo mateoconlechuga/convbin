@@ -26,12 +26,17 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-all: decompressor.c extractor.c
+all: zx7_decompressor.c zx0_decompressor.c extractor.c
 
-decompressor.c: decompressor.asm
-	fasmg -n $< decompressor > decompressor.h
-	xxd -i decompressor > $@
-	rm -f decompressor
+zx7_decompressor.c: zx7_decompressor.asm
+	fasmg -n $< zx7_decompressor > zx7_decompressor.h
+	xxd -i zx7_decompressor > $@
+	rm -f zx7_decompressor
+
+zx0_decompressor.c: zx0_decompressor.asm
+	fasmg -n $< zx0_decompressor > zx0_decompressor.h
+	xxd -i zx0_decompressor > $@
+	rm -f zx0_decompressor
 
 extractor.c: extractor.asm
 	fasmg -n $< extractor > extractor.h
@@ -39,6 +44,6 @@ extractor.c: extractor.asm
 	rm -f extractor
 
 clean:
-	rm -f extractor extractor.h decompressor decompressor.h
+	rm -f extractor.c extractor.h zx7_decompressor.c zx7_decompressor.h
 
 .PHONY: all clean
