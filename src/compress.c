@@ -87,6 +87,11 @@ static int compress_zx7(uint8_t *data, size_t *size, long *delta)
     return 0;
 }
 
+static void compress_zx0_progress(void)
+{
+    LOG_PRINT(".");
+}
+
 static int compress_zx0(uint8_t *data, size_t *size, long *delta)
 {
     int deltai;
@@ -98,7 +103,11 @@ static int compress_zx0(uint8_t *data, size_t *size, long *delta)
         return -1;
     }
 
-    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, 2048), data, *size, 0, 0, 1, &new_size, &deltai);
+    LOG_PRINT("[compressing] [");
+
+    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET, compress_zx0_progress),
+                                   data, *size, 0, 0, 1, &new_size, &deltai);
+    LOG_PRINT("]\n");
     if (compressed_data == NULL)
     {
         LOG_ERROR("Could not compress zx0.\n");
@@ -370,7 +379,7 @@ odd_8x:
         /* how many bytes to add to the resulting program size */
         asm_prgm_size_delta = (uncompressed_size - compressed_size);
         compress_wr24(&dzx[DZX0_ASM_PRGM_SIZE_DELTA_OFFSET], asm_prgm_size_delta);
-        LOG_INFO("asm_prgm_size_delta: %u\n", asm_prgm_size_delta);
+        LOG_DEBUG("asm_prgm_size_delta: %u\n", asm_prgm_size_delta);
 
         /* write the decompressor + compressed data */
         memcpy(new_data + offset, dzx, dzx_len);
