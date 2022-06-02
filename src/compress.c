@@ -98,7 +98,7 @@ static int compress_zx0(uint8_t *data, size_t *size, long *delta)
         return -1;
     }
 
-    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, 2048), data, *size, 0, 1, 0, &new_size, &deltai);
+    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, 2048), data, *size, 0, 0, 1, &new_size, &deltai);
     if (compressed_data == NULL)
     {
         LOG_ERROR("Could not compress zx0.\n");
@@ -141,17 +141,6 @@ static void compress_wr32(uint8_t *addr, uint32_t value)
     addr[1] = (value >> 8) & 0xff;
     addr[2] = (value >> 16) & 0xff;
     addr[3] = (value >> 24) & 0xff;
-}
-
-void print_hex_memory(void *mem, unsigned int len) {
-  int i;
-  unsigned char *p = (unsigned char *)mem;
-  for (i=0;i<len;i++) {
-    printf("0x%02x ", p[i]);
-    if ((i%16==0) && i)
-      printf("\n");
-  }
-  printf("\n");
 }
 
 int compress_8xp(uint8_t *data, size_t *size, compression_t mode)
@@ -252,57 +241,57 @@ odd_8x:
         /* add some extra space to just put my mind at ease */
         delta += 16;
 
-        LOG_INFO("delta: %lu\n", delta);
-        LOG_INFO("compressed_size: %zu\n", compressed_size);
-        LOG_INFO("uncompressed_size: %zu\n", uncompressed_size);
+        LOG_DEBUG("delta: %lu\n", delta);
+        LOG_DEBUG("compressed_size: %zu\n", compressed_size);
+        LOG_DEBUG("uncompressed_size: %zu\n", uncompressed_size);
 
         /* remve extra delta bytes from allocated decompressor */
         delta_size = dzx_len >= delta ? 0 : delta - dzx_len;
-        LOG_INFO("delta_size: %u\n", delta_size);
+        LOG_DEBUG("delta_size: %u\n", delta_size);
 
         /* set the reloc address for the decompressor */
         decompressor_addr = TI8X_USERMEM_ADDRESS + offset + 16;
         compress_wr24(&dzx[DZX7_DECOMPRESSOR_OFFSET], decompressor_addr);
-        LOG_INFO("decompressor_addr: $%06X\n", decompressor_addr);
+        LOG_DEBUG("decompressor_addr: $%06X\n", decompressor_addr);
 
         /* how many bytes needed for decompression */
         insertmem_size = (uncompressed_size - compressed_size) + delta_size;
         compress_wr24(&dzx[DZX7_INSERTMEM_SIZE_OFFSET], insertmem_size);
-        LOG_INFO("insertmem_size: %u\n", insertmem_size);
+        LOG_DEBUG("insertmem_size: %u\n", insertmem_size);
 
         /* location to insert memory to */
         insertmem_addr = (TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN) + offset;
         compress_wr24(&dzx[DZX7_INSERTMEM_ADDR_OFFSET], insertmem_addr);
-        LOG_INFO("insertmem_addr: $%06X\n", insertmem_addr);
+        LOG_DEBUG("insertmem_addr: $%06X\n", insertmem_addr);
 
         /* location of compressed data due to shift by memory insertion */
         compressed_data_addr = insertmem_addr + insertmem_size + dzx_len;
         compress_wr24(&dzx[DZX7_COMPRESSED_DATA_ADDR_OFFSET], compressed_data_addr);
-        LOG_INFO("compressed_data_addr: $%06X\n", compressed_data_addr);
+        LOG_DEBUG("compressed_data_addr: $%06X\n", compressed_data_addr);
 
         /* location to delmem memory from */
         delmem_addr = insertmem_addr + uncompressed_size;
         compress_wr24(&dzx[DZX7_DELMEM_ADDR_OFFSET], delmem_addr);
-        LOG_INFO("delmem_addr: $%06X\n", delmem_addr);
+        LOG_DEBUG("delmem_addr: $%06X\n", delmem_addr);
 
         /* remove space for decompressor and delta at end */
         if (dzx_len >= delta)
         {
             delmem_size = 0;
             compress_wr32(&dzx[DZX7_DELMEM_CALL_OFFSET], 0);
-            LOG_INFO("removed delmem\n");
+            LOG_DEBUG("removed delmem\n");
         }
         else
         {
             delmem_size = delta - dzx_len;
             compress_wr24(&dzx[DZX7_DELMEM_SIZE_OFFSET], delmem_size);
-            LOG_INFO("delmem_size: %u\n", delmem_size);
+            LOG_DEBUG("delmem_size: %u\n", delmem_size);
         }
 
         /* how many bytes to add to the resulting program size */
         asm_prgm_size_delta = (uncompressed_size - compressed_size);
         compress_wr24(&dzx[DZX7_ASM_PRGM_SIZE_DELTA_OFFSET], asm_prgm_size_delta);
-        LOG_INFO("asm_prgm_size_delta: %u\n", asm_prgm_size_delta);
+        LOG_DEBUG("asm_prgm_size_delta: %u\n", asm_prgm_size_delta);
 
         /* write the decompressor + compressed data */
         memcpy(new_data + offset, dzx, dzx_len);
@@ -328,56 +317,54 @@ odd_8x:
         uint8_t *dzx = zx0_decompressor;
         size_t new_size;
 
-        print_hex_memory(compressed_data, compressed_size);
-
         /* add some extra space to just put my mind at ease */
         delta += 16;
 
-        LOG_INFO("delta: %lu\n", delta);
-        LOG_INFO("compressed_size: %zu\n", compressed_size);
-        LOG_INFO("uncompressed_size: %zu\n", uncompressed_size);
+        LOG_DEBUG("delta: %lu\n", delta);
+        LOG_DEBUG("compressed_size: %zu\n", compressed_size);
+        LOG_DEBUG("uncompressed_size: %zu\n", uncompressed_size);
 
         /* remve extra delta bytes from allocated decompressor */
         delta_size = dzx_len >= delta ? 0 : delta - dzx_len;
-        LOG_INFO("delta_size: %u\n", delta_size);
+        LOG_DEBUG("delta_size: %u\n", delta_size);
 
         /* set the reloc address for the decompressor */
         decompressor_addr = TI8X_USERMEM_ADDRESS + offset + 16;
         compress_wr24(&dzx[DZX0_DECOMPRESSOR_OFFSET], decompressor_addr);
-        LOG_INFO("decompressor_addr: $%06X\n", decompressor_addr);
+        LOG_DEBUG("decompressor_addr: $%06X\n", decompressor_addr);
 
         /* how many bytes needed for decompression */
         insertmem_size = (uncompressed_size - compressed_size) + delta_size;
         compress_wr24(&dzx[DZX0_INSERTMEM_SIZE_OFFSET], insertmem_size);
-        LOG_INFO("insertmem_size: %u\n", insertmem_size);
+        LOG_DEBUG("insertmem_size: %u\n", insertmem_size);
 
         /* location to insert memory to */
         insertmem_addr = (TI8X_USERMEM_ADDRESS - TI8X_ASMCOMP_LEN) + offset;
         compress_wr24(&dzx[DZX0_INSERTMEM_ADDR_OFFSET], insertmem_addr);
-        LOG_INFO("insertmem_addr: $%06X\n", insertmem_addr);
+        LOG_DEBUG("insertmem_addr: $%06X\n", insertmem_addr);
 
         /* location of compressed data due to shift by memory insertion */
         compressed_data_addr = insertmem_addr + insertmem_size + dzx_len;
         compress_wr24(&dzx[DZX0_COMPRESSED_DATA_ADDR_OFFSET], compressed_data_addr);
-        LOG_INFO("compressed_data_addr: $%06X\n", compressed_data_addr);
+        LOG_DEBUG("compressed_data_addr: $%06X\n", compressed_data_addr);
 
         /* location to delmem memory from */
         delmem_addr = insertmem_addr + uncompressed_size;
         compress_wr24(&dzx[DZX0_DELMEM_ADDR_OFFSET], delmem_addr);
-        LOG_INFO("delmem_addr: $%06X\n", delmem_addr);
+        LOG_DEBUG("delmem_addr: $%06X\n", delmem_addr);
 
         /* remove space for decompressor and delta at end */
         if (dzx_len >= delta)
         {
             delmem_size = 0;
             compress_wr32(&dzx[DZX0_DELMEM_CALL_OFFSET], 0);
-            LOG_INFO("removed delmem\n");
+            LOG_DEBUG("removed delmem\n");
         }
         else
         {
             delmem_size = delta - dzx_len;
             compress_wr24(&dzx[DZX0_DELMEM_SIZE_OFFSET], delmem_size);
-            LOG_INFO("delmem_size: %u\n", delmem_size);
+            LOG_DEBUG("delmem_size: %u\n", delmem_size);
         }
 
         /* how many bytes to add to the resulting program size */

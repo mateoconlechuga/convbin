@@ -46,8 +46,10 @@ endif
 
 SOURCES = src/*.c \
           src/asm/*.c \
-          src/deps/zx7/compress.c \
-          src/deps/zx7/optimize.c
+          src/deps/zx/zx7/compress.c \
+          src/deps/zx/zx7/optimize.c \
+          src/deps/zx/zx0/compress.c \
+          src/deps/zx/zx0/optimize.c
 
 : foreach $(SOURCES) |> ^ CC %o^ $(CC) -c $(CFLAGS) %f -o %o |> %f.o {obj}
 : {obj} |> ^ LD %o^ $(LD) %f -o %o |> convbin$(UNSTRIPPED)$(EXE)
