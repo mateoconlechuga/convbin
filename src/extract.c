@@ -49,7 +49,7 @@ int extract_8xp_to_8xv(uint8_t *data,
                        char appvar_names[10][10],
                        unsigned int num_appvars)
 {
-    uint8_t new_data[INPUT_MAX_SIZE];
+    static uint8_t new_data[INPUT_MAX_SIZE];
     unsigned int extractorsize;
     unsigned int entryaddr;
     unsigned int offset;

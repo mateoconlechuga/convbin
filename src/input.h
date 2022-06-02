@@ -55,18 +55,18 @@ typedef enum
 struct input_file
 {
     const char *name;
-    uint8_t data[INPUT_MAX_SIZE];
     iformat_t format;
     compression_t compression;
     size_t size;
+    uint8_t data[INPUT_MAX_SIZE];
 };
 
 struct input
 {
-    struct input_file files[INPUT_MAX_NUM];
     unsigned int nr_files;
     iformat_t default_format;
     compression_t default_compression;
+    struct input_file files[INPUT_MAX_NUM];
 };
 
 int input_read_file(struct input_file *file);
