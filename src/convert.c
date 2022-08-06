@@ -133,6 +133,7 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
     if (name_size > TI8X_VAR_NAME_LEN)
         name_size = TI8X_VAR_NAME_LEN;
 
+    memcpy(ti8x + TI8X_COMMENT, file->comment, MAX_COMMENT_SIZE);
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
     memcpy(ti8x + TI8X_NAME, file->var.name, name_size);
     memcpy(ti8x + TI8X_DATA, data, size);

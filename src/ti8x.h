@@ -66,6 +66,7 @@ struct ti8x_var
 #define TI8X_FILE_HEADER_LEN 55
 
 #define TI8X_FILE_HEADER 0x00
+#define TI8X_COMMENT 0x0B
 #define TI8X_DATA_SIZE 0x35
 #define TI8X_VAR_HEADER 0x37
 #define TI8X_VAR_SIZE0 0x39

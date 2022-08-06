@@ -46,35 +46,36 @@ static void options_show(const char *prgm)
     LOG_PRINT("    %s [options] -j <mode> -k <mode> -i <file> -o <file>\n", prgm);
     LOG_PRINT("\n");
     LOG_PRINT("Required options:\n");
-    LOG_PRINT("    -i, --input <file>      Input file. Can be specified multiple times,\n");
-    LOG_PRINT("                            input files are appended in order.\n");
-    LOG_PRINT("    -o, --output <file>     Output file after conversion.\n");
-    LOG_PRINT("    -j, --iformat <mode>    Set per-input file format to <mode>.\n");
-    LOG_PRINT("                            See 'Input formats' below.\n");
-    LOG_PRINT("                            This should be placed before the input file.\n");
-    LOG_PRINT("                            The default input format is 'bin'.\n");
-    LOG_PRINT("    -p, --icompress <mode>  Set per-input file compression to <mode>.\n");
-    LOG_PRINT("                            See 'Compression formats' below.\n");
-    LOG_PRINT("                            This should be placed before the input file.\n");
-    LOG_PRINT("    -k, --oformat <mode>    Set output file format to <mode>.\n");
-    LOG_PRINT("                            See 'Output formats' below.\n");
-    LOG_PRINT("    -n, --name <name>       If converting to a TI file type, sets\n");
-    LOG_PRINT("                            the on-calc name. For C, Assembly, and ICE\n");
-    LOG_PRINT("                            outputs, sets the array or label name.\n");
+    LOG_PRINT("    -i, --input <file>         Input file. Can be specified multiple times,\n");
+    LOG_PRINT("                               input files are appended in order.\n");
+    LOG_PRINT("    -o, --output <file>        Output file after conversion.\n");
+    LOG_PRINT("    -j, --iformat <mode>       Set per-input file format to <mode>.\n");
+    LOG_PRINT("                               See 'Input formats' below.\n");
+    LOG_PRINT("                               This should be placed before the input file.\n");
+    LOG_PRINT("                               The default input format is 'bin'.\n");
+    LOG_PRINT("    -p, --icompress <mode>     Set per-input file compression to <mode>.\n");
+    LOG_PRINT("                               See 'Compression formats' below.\n");
+    LOG_PRINT("                               This should be placed before the input file.\n");
+    LOG_PRINT("    -k, --oformat <mode>       Set output file format to <mode>.\n");
+    LOG_PRINT("                               See 'Output formats' below.\n");
+    LOG_PRINT("    -n, --name <name>          If converting to a TI file type, sets\n");
+    LOG_PRINT("                               the on-calc name. For C, Assembly, and ICE\n");
+    LOG_PRINT("                               outputs, sets the array or label name.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Optional options:\n");
-    LOG_PRINT("    -r, --archive           If TI 8x* format, mark as archived.\n");
-    LOG_PRINT("    -c, --compress <mode>   Compress output using <mode>.\n");
-    LOG_PRINT("                            See 'Compression formats' below.\n");
-    LOG_PRINT("    -e, --8xp-compress <m>  Sets the compression mode for compressed 8xp.\n");
-    LOG_PRINT("                            Default is 'zx7'.\n");
-    LOG_PRINT("    -m, --maxvarsize <size> Sets maximum size of TI 8x* variables.\n");
-    LOG_PRINT("    -u, --uppercase         If a program, makes on-calc name uppercase.\n");
-    LOG_PRINT("    -a, --append            Append to output file rather than overwrite.\n");
-    LOG_PRINT("    -h, --help              Show this screen.\n");
-    LOG_PRINT("    -v, --version           Show program version.\n");
-    LOG_PRINT("    -l, --log-level <level> Set program logging level.\n");
-    LOG_PRINT("                            0=none, 1=error, 2=warning, 3=normal\n");
+    LOG_PRINT("    -r, --archive              If TI 8x* format, mark as archived.\n");
+    LOG_PRINT("    -c, --compress <mode>      Compress output using <mode>.\n");
+    LOG_PRINT("                               See 'Compression formats' below.\n");
+    LOG_PRINT("    -e, --8xp-compress <mode>  Sets the compression mode for compressed 8xp.\n");
+    LOG_PRINT("                               Default is 'zx7'.\n");
+    LOG_PRINT("    -m, --maxvarsize <size>    Sets maximum size of TI 8x* variables.\n");
+    LOG_PRINT("    -u, --uppercase            If a program, makes on-calc name uppercase.\n");
+    LOG_PRINT("    -a, --append               Append to output file rather than overwrite.\n");
+    LOG_PRINT("    -h, --help                 Show this screen.\n");
+    LOG_PRINT("    -v, --version              Show program version.\n");
+    LOG_PRINT("    -b, --comment              Custom comment for TI 8x* outputs.\n");
+    LOG_PRINT("    -l, --log-level <level>    Set program logging level.\n");
+    LOG_PRINT("                               0=none, 1=error, 2=warning, 3=normal\n");
     LOG_PRINT("\n");
     LOG_PRINT("Input formats:\n");
     LOG_PRINT("    Below is a list of available input formats, listed as\n");
@@ -349,6 +350,7 @@ static void options_set_default(struct options *options)
     options->output.file.ti8xp_compression = COMPRESS_ZX7;
 
     memset(options->output.file.var.name, 0, TI8X_VAR_MAX_NAME_LEN + 1);
+    memset(options->output.file.comment, 0, MAX_COMMENT_SIZE);
 }
 
 int options_get(int argc, char *argv[], struct options *options)
@@ -381,6 +383,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {"8xp-compress", required_argument, 0, 'e'},
             {"maxvarsize",   required_argument, 0, 'm'},
             {"name",         required_argument, 0, 'n'},
+            {"comment",      required_argument, 0, 'b'},
             {"archive",      no_argument,       0, 'r'},
             {"uppercase",    no_argument,       0, 'u'},
             {"append",       no_argument,       0, 'a'},
@@ -390,7 +393,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "e:i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
+        c = getopt_long(argc, argv, "b:e:i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
         if (c < 0)
             break;
 
@@ -427,11 +430,6 @@ int options_get(int argc, char *argv[], struct options *options)
                     options_parse_input_format(optarg);
                 break;
 
-            case 'p':
-                options->input.default_compression =
-                    options_parse_compression(optarg);
-                break;
-
             case 'k':
                 options->output.file.format =
                     options_parse_output_format(optarg);
@@ -455,6 +453,10 @@ int options_get(int argc, char *argv[], struct options *options)
                 options->output.file.append = true;
                 break;
 
+            case 'b':
+                strncpy(options->output.file.comment, optarg, MAX_COMMENT_SIZE);
+                break;
+
             case 'm':
                 options->output.file.var.maxsize =
                     (size_t)strtol(optarg, NULL, 0);
@@ -466,6 +468,11 @@ int options_get(int argc, char *argv[], struct options *options)
 
             case 'l':
                 log_set_level((log_level_t)strtol(optarg, NULL, 0));
+                break;
+
+            case 'p':
+                options->input.default_compression =
+                    options_parse_compression(optarg);
                 break;
 
             case 'h':

@@ -41,6 +41,7 @@ extern "C" {
 #include "ti8x.h"
 
 #define MAX_OUTPUT_SIZE 0x40000
+#define MAX_COMMENT_SIZE 42
 
 typedef enum
 {
@@ -61,6 +62,7 @@ struct output_file
     const char *name;
     struct ti8x_var var;
     uint8_t data[MAX_OUTPUT_SIZE];
+    char comment[MAX_COMMENT_SIZE];
     size_t size;
     size_t compressed_size;
     size_t uncompressed_size;
