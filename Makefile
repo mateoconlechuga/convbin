@@ -26,6 +26,10 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+CC = gcc
+CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
+LDFLAGS = -flto
+
 ifeq ($(OS),Windows_NT)
   TARGET ?= convbin.exe
   SHELL = cmd.exe
@@ -39,7 +43,9 @@ else
   MKDIR = mkdir -p $1
   RMDIR = rm -rf $1
   ifeq ($(shell uname -s),Darwin)
-    STRIP = echo "no strip available"
+    STRIP = strip "$1"
+    CFLAGS += -mmacosx-version-min=10.13
+    LDFLAGS += -mmacosx-version-min=10.13
   else
     STRIP = strip --strip-all "$1"
   endif
@@ -51,10 +57,6 @@ Q =
 else
 Q = @
 endif
-
-CC = gcc
-CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
-LDFLAGS = -flto
 
 BINDIR := ./bin
 OBJDIR := ./obj
