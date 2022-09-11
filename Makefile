@@ -45,7 +45,7 @@ else
   ifeq ($(shell uname -s),Darwin)
     STRIP = strip "$1"
     CFLAGS += -mmacosx-version-min=10.13
-    LDLAGS += -mmacosx-version-min=10.13
+    LDFLAGS += -mmacosx-version-min=10.13
   else
     STRIP = strip --strip-all "$1"
   endif
