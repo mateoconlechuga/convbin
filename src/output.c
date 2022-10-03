@@ -39,7 +39,7 @@
 
 #define VALUES_PER_LINE 32
 
-static int output_c(const char *name, unsigned char *data, size_t size, FILE *fd)
+static int output_c(const char *name, const unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
@@ -67,7 +67,7 @@ static int output_c(const char *name, unsigned char *data, size_t size, FILE *fd
     return 0;
 }
 
-static int output_asm(const char *name, unsigned char *data, size_t size, FILE *fd)
+static int output_asm(const char *name, const unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
@@ -95,7 +95,7 @@ static int output_asm(const char *name, unsigned char *data, size_t size, FILE *
     return 0;
 }
 
-static int output_ice(const char *name, unsigned char *data, size_t size, FILE *fd)
+static int output_ice(const char *name, const unsigned char *data, size_t size, FILE *fd)
 {
     size_t i;
 
@@ -111,7 +111,7 @@ static int output_ice(const char *name, unsigned char *data, size_t size, FILE *
     return 0;
 }
 
-static int output_bin(const char *name, unsigned char *data, size_t size, FILE *fd)
+static int output_bin(const char *name, const unsigned char *data, size_t size, FILE *fd)
 {
     int ret = fwrite(data, size, 1, fd);
     (void)name;
@@ -119,7 +119,7 @@ static int output_bin(const char *name, unsigned char *data, size_t size, FILE *
     return ret == 1 ? 0 : -1;
 }
 
-int output_write_file(struct output_file *file)
+int output_write_file(const struct output_file *file)
 {
     FILE *fd;
     int ret;

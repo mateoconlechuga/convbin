@@ -79,7 +79,7 @@ struct output
     struct output_file file;
 };
 
-int output_write_file(struct output_file *file);
+int output_write_file(const struct output_file *file);
 
 #ifdef __cplusplus
 }
