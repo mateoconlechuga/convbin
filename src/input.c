@@ -38,7 +38,7 @@
 
 static int input_bin(FILE *fd, uint8_t *data, size_t *size)
 {
-    int s = 0;
+    size_t s = 0;
 
     if (fd == NULL || data == NULL || size == NULL)
     {
@@ -69,7 +69,7 @@ static int input_bin(FILE *fd, uint8_t *data, size_t *size)
 
 static int input_ti8x(FILE *fd, uint8_t *data, size_t *size, bool header)
 {
-    int s = 0;
+    size_t s = 0;
     int ret;
 
     if (fd == NULL || data == NULL || size == NULL)

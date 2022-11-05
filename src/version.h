@@ -32,6 +32,6 @@
 #define VERSION_H
 
 #define PRGM_NAME "convbin"
-#define VERSION_STRING "4.0.1"
+#define VERSION_STRING "4.0.2"
 
 #endif
