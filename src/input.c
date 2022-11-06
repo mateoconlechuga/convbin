@@ -143,7 +143,7 @@ static char *input_csv_line(FILE *fd)
 
         if (!isspace(c))
         {
-#define REALLOC_BYTES 384
+#define REALLOC_BYTES 512
             if (i % REALLOC_BYTES == 0)
             {
                 line = realloc(line, ((i / REALLOC_BYTES) + 1) * REALLOC_BYTES);
