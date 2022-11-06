@@ -46,7 +46,7 @@ typedef enum
     COMPRESS_INVALID,
 } compress_mode_t;
 
-int compress_array(uint8_t *data, size_t *size, long *delta, compress_mode_t mode);
+int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t mode);
 
 int compress_8xp(uint8_t *data, size_t *size, compress_mode_t mode);
 

@@ -146,10 +146,12 @@ static char *input_csv_line(FILE *fd)
 #define REALLOC_BYTES 512
             if (i % REALLOC_BYTES == 0)
             {
-                line = realloc(line, ((i / REALLOC_BYTES) + 1) * REALLOC_BYTES);
+                void *tmp = line;
+                line = realloc(tmp, ((i / REALLOC_BYTES) + 1) * REALLOC_BYTES);
                 if (line == NULL)
                 {
                     LOG_ERROR("Memory error in \'%s\'.\n", __func__);
+                    free(tmp);
                     return NULL;
                 }
             }

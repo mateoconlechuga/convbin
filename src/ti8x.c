@@ -35,7 +35,7 @@
 const unsigned char ti8x_file_header[11] =
     { 0x2A,0x2A,0x54,0x49,0x38,0x33,0x46,0x2A,0x1A,0x0A,0x00 };
 
-uint16_t ti8x_checksum(uint8_t *data, size_t size)
+uint16_t ti8x_checksum(const uint8_t *data, size_t size)
 {
     uint16_t checksum = 0;
     size_t i;

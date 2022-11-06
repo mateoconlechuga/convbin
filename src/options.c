@@ -237,57 +237,9 @@ static ti8x_var_type_t options_get_var_type(oformat_t format)
     return type;
 }
 
-static int options_verify(struct options *options)
+static int options_validate_format(const struct options *options)
 {
     oformat_t oformat = options->output.file.format;
-
-    if (options->input.nr_files == 0)
-    {
-        LOG_ERROR("Unknown input file(s).\n");
-        goto error;
-    }
-
-    if (options->input.files[0].format == IFORMAT_INVALID)
-    {
-        LOG_ERROR("Invalid input format mode.\n");
-        goto error;
-    }
-
-    if (options->input.files[0].compression == COMPRESS_INVALID)
-    {
-        LOG_ERROR("Invalid input compression mode.\n");
-        goto error;
-    }
-
-    if (options->output.file.name == NULL)
-    {
-        LOG_ERROR("Unknown output file.\n");
-        goto error;
-    }
-
-    if (options->output.file.format == OFORMAT_INVALID)
-    {
-        LOG_ERROR("Invalid output format mode.\n");
-        goto error;
-    }
-
-    if (options->output.file.compression == COMPRESS_INVALID)
-    {
-        LOG_ERROR("Invalid output compression mode.\n");
-        goto error;
-    }
-
-    if (options->output.file.var.maxsize < TI8X_MINIMUM_MAXVAR_SIZE)
-    {
-        LOG_ERROR("Maximum variable size too small.\n");
-        goto error;
-    }
-
-    if (options->output.file.var.maxsize > TI8X_MAXDATA_SIZE)
-    {
-        LOG_ERROR("Maximum variable size too large.\n");
-        goto error;
-    }
 
     if (oformat == OFORMAT_C ||
         oformat == OFORMAT_ASM ||
@@ -300,7 +252,7 @@ static int options_verify(struct options *options)
         if (options->output.file.var.name[0] == 0)
         {
             LOG_ERROR("Variable name not supplied.\n");
-            goto error;
+            return OPTIONS_FAILED;
         }
 
         if (oformat == OFORMAT_8XP ||
@@ -311,7 +263,7 @@ static int options_verify(struct options *options)
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
             {
                 LOG_ERROR("Variable name too long.\n");
-                goto error;
+                return OPTIONS_FAILED;
             }
         }
     }
@@ -326,10 +278,61 @@ static int options_verify(struct options *options)
     }
 
     return OPTIONS_SUCCESS;
-
-error:
-    return OPTIONS_FAILED;
 }
+
+static int options_validate(const struct options *options)
+{
+    if (options->input.nr_files == 0)
+    {
+        LOG_ERROR("Unknown input file(s).\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->input.files[0].format == IFORMAT_INVALID)
+    {
+        LOG_ERROR("Invalid input format mode.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->input.files[0].compression == COMPRESS_INVALID)
+    {
+        LOG_ERROR("Invalid input compression mode.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->output.file.name == NULL)
+    {
+        LOG_ERROR("Unknown output file.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->output.file.format == OFORMAT_INVALID)
+    {
+        LOG_ERROR("Invalid output format mode.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->output.file.compression == COMPRESS_INVALID)
+    {
+        LOG_ERROR("Invalid output compression mode.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->output.file.var.maxsize < TI8X_MINIMUM_MAXVAR_SIZE)
+    {
+        LOG_ERROR("Maximum variable size too small.\n");
+        return OPTIONS_FAILED;
+    }
+
+    if (options->output.file.var.maxsize > TI8X_MAXDATA_SIZE)
+    {
+        LOG_ERROR("Maximum variable size too large.\n");
+        return OPTIONS_FAILED;
+    }
+
+    return options_validate_format(options);
+}
+
 
 static void options_set_default(struct options *options)
 {
@@ -353,10 +356,79 @@ static void options_set_default(struct options *options)
     memset(options->output.file.comment, 0, MAX_COMMENT_SIZE);
 }
 
+static void options_set_varname(struct options *options, const char *varname)
+{
+    if (varname != NULL)
+    {
+        size_t len = strlen(varname);
+        size_t i;
+
+        if (len > TI8X_VAR_MAX_NAME_LEN)
+        {
+            len = TI8X_VAR_MAX_NAME_LEN;
+            LOG_WARNING("Variable name truncated to %u characters\n",
+                (unsigned int)len);
+        }
+
+        for (i = 0; i < len; ++i)
+        {
+            if (options->output.file.uppercase && isalpha(varname[i]))
+            {
+                options->output.file.var.name[i] = toupper(varname[i]);
+            }
+            else
+            {
+                options->output.file.var.name[i] = varname[i];
+            }
+        }
+
+        options->output.file.var.name[len] = '\0';
+    }
+}
+
+static void options_set_comment(struct options *options, const char *comment)
+{
+    if (comment != NULL)
+    {
+        size_t size = strlen(comment);
+
+        if (size > MAX_COMMENT_SIZE)
+        {
+            size = MAX_COMMENT_SIZE;
+        }
+
+        memcpy(options->output.file.comment, optarg, size);
+    }
+}
+
+static void options_set_nr_files(struct options *options, size_t nr_files)
+{
+    if (nr_files == 1)
+    {
+        options->input.files[nr_files - 1].format =
+            options->input.default_format;
+    }
+
+    options->input.nr_files = nr_files;
+    options->output.file.var.type =
+        options_get_var_type(options->output.file.format);
+
+    if (options->output.file.format == OFORMAT_8XG ||
+        options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
+    {
+        unsigned int i;
+
+        for (i = 0; i < options->input.nr_files; ++i)
+        {
+            options->input.files[i].format = IFORMAT_TI8X_DATA_VAR;
+        }
+    }
+}
+
 int options_get(int argc, char *argv[], struct options *options)
 {
     const char *varname = NULL;
-    unsigned int nr_files = 0;
+    size_t nr_files = 0;
 
     log_set_level(LOG_BUILD_LEVEL);
 
@@ -418,7 +490,7 @@ int options_get(int argc, char *argv[], struct options *options)
                 break;
 
             case 'n':
-                varname = optarg;
+                options_set_varname(options, varname);
                 break;
 
             case 'r':
@@ -454,19 +526,11 @@ int options_get(int argc, char *argv[], struct options *options)
                 break;
 
             case 'b':
-            {
-                size_t size = strlen(optarg);
-                if (size > MAX_COMMENT_SIZE)
-                {
-                    size = MAX_COMMENT_SIZE;
-                }
-                memcpy(options->output.file.comment, optarg, size);
+                options_set_comment(options, optarg);
                 break;
-            }
 
             case 'm':
-                options->output.file.var.maxsize =
-                    (size_t)strtol(optarg, NULL, 0);
+                options->output.file.var.maxsize = strtol(optarg, NULL, 0);
                 break;
 
             case 'v':
@@ -474,7 +538,7 @@ int options_get(int argc, char *argv[], struct options *options)
                 return OPTIONS_IGNORE;
 
             case 'l':
-                log_set_level((log_level_t)strtol(optarg, NULL, 0));
+                log_set_level(strtol(optarg, NULL, 0));
                 break;
 
             case 'p':
@@ -492,53 +556,7 @@ int options_get(int argc, char *argv[], struct options *options)
         }
     }
 
-    if (varname != NULL)
-    {
-        size_t len = strlen(varname);
-        size_t i;
+    options_set_nr_files(options, nr_files == 1);
 
-        if (len > TI8X_VAR_MAX_NAME_LEN)
-        {
-            len = TI8X_VAR_MAX_NAME_LEN;
-            LOG_WARNING("Variable name truncated to %u characters\n",
-                (unsigned int)len);
-        }
-
-        for (i = 0; i < len; ++i)
-        {
-            if (options->output.file.uppercase && isalpha(varname[i]))
-            {
-                options->output.file.var.name[i] = toupper(varname[i]);
-            }
-            else
-            {
-                options->output.file.var.name[i] = varname[i];
-            }
-        }
-
-        options->output.file.var.name[len] = '\0';
-    }
-
-    if (nr_files == 1)
-    {
-        options->input.files[nr_files - 1].format =
-            options->input.default_format;
-    }
-
-    options->input.nr_files = nr_files;
-    options->output.file.var.type =
-        options_get_var_type(options->output.file.format);
-
-    if (options->output.file.format == OFORMAT_8XG ||
-        options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
-    {
-        unsigned int i;
-
-        for (i = 0; i < nr_files; ++i)
-        {
-            options->input.files[i].format = IFORMAT_TI8X_DATA_VAR;
-        }
-    }
-
-    return options_verify(options);
+    return options_validate(options);
 }

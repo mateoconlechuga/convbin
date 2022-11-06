@@ -42,7 +42,7 @@ static int convert_build_data(struct input *input,
                               compress_mode_t compression)
 {
     size_t tmp_size = 0;
-    unsigned int i;
+    uint32_t i;
 
     if (data == NULL || size == NULL)
     {
@@ -56,7 +56,7 @@ static int convert_build_data(struct input *input,
 
         if (file->compression != COMPRESS_NONE)
         {
-            long delta;
+            int32_t delta;
             int ret;
 
             ret = compress_array(file->data,
@@ -79,7 +79,7 @@ static int convert_build_data(struct input *input,
 
     if (compression != COMPRESS_NONE)
     {
-        long delta;
+        int32_t delta;
         int ret;
 
         output_file->uncompressed_size = tmp_size;
@@ -165,7 +165,7 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
 static int convert_8x(struct input *input, struct output_file *file)
 {
     static uint8_t data[INPUT_MAX_SIZE];
-    size_t size;
+    size_t size = 0;
     int ret;
 
     ret = convert_build_data(input, data, &size,
@@ -183,7 +183,7 @@ static int convert_8x(struct input *input, struct output_file *file)
 static int convert_8xp(struct input *input, struct output_file *file)
 {
     static uint8_t data[INPUT_MAX_SIZE];
-    size_t size;
+    size_t size = 0;
     int ret;
 
     if (file->compression != COMPRESS_NONE)
@@ -398,7 +398,7 @@ int convert_input_to_output(struct input *input, struct output *output)
             break;
 
         default:
-            ret = 1;
+            ret = -1;
             break;
     }
 

@@ -63,7 +63,7 @@ struct input_file
 
 struct input
 {
-    unsigned int nr_files;
+    uint32_t nr_files;
     iformat_t default_format;
     compress_mode_t default_compression;
     struct input_file files[INPUT_MAX_NUM];
