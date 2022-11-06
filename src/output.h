@@ -66,8 +66,8 @@ struct output_file
     size_t size;
     size_t compressed_size;
     size_t uncompressed_size;
-    compression_t compression;
-    compression_t ti8xp_compression;
+    compress_mode_t compression;
+    compress_mode_t ti8xp_compression;
     oformat_t format;
     bool append;
     bool uppercase;

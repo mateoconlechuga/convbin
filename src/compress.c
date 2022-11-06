@@ -41,19 +41,7 @@
 
 #include <string.h>
 
-#if 0
-static void reverse(uint8_t *first, uint8_t *last)
-{
-    while (first < last)
-    {
-        uint8_t c = *first;
-        *first++ = *last;
-        *last-- = c;
-    }
-}
-#endif
-
-static int compress_zx7(uint8_t *data, size_t *size, long *delta)
+static int compress_zx7(uint8_t *data, long *delta, size_t *size)
 {
     zx7_Optimal *opt;
     uint8_t *compressed_data;
@@ -75,7 +63,7 @@ static int compress_zx7(uint8_t *data, size_t *size, long *delta)
     free(opt);
     if (compressed_data == NULL)
     {
-        LOG_ERROR("Could not compress zx7.\n");
+        LOG_ERROR("Out of memory.\n");
         return -1;
     }
 
@@ -92,51 +80,68 @@ static void compress_zx0_progress(void)
     LOG_PRINT(".");
 }
 
-static int compress_zx0(uint8_t *data, size_t *size, long *delta)
+static int compress_zx0(uint8_t *data, long *delta, size_t *size)
 {
-    int deltai;
+    zx0_BLOCK *optimal;
     uint8_t *compressed_data;
     int new_size;
+    int idelta;
 
     if (size == NULL || data == NULL)
     {
         return -1;
     }
 
-    LOG_PRINT("[compressing] [");
+    LOG_PRINT("[info] Compressing [");
 
-    compressed_data = zx0_compress(zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET, compress_zx0_progress),
-                                   data, *size, 0, 0, 1, &new_size, &deltai);
-    LOG_PRINT("]\n");
-    if (compressed_data == NULL)
+    optimal = zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET, compress_zx0_progress);
+    if (optimal == NULL)
     {
-        LOG_ERROR("Could not compress zx0.\n");
+        LOG_ERROR("Out of memory]\n");
+        zx0_free();
         return -1;
     }
 
-    *delta = deltai;
+    compressed_data = zx0_compress(optimal, data, *size, 0, 0, 1, &new_size, &idelta);
+
+    LOG_PRINT("]\n");
+
+    if (compressed_data == NULL)
+    {
+        LOG_ERROR("Out of memory.\n");
+        zx0_free();
+        return -1;
+    }
 
     memcpy(data, compressed_data, new_size);
     *size = new_size;
+    *delta = idelta;
 
     free(compressed_data);
+    zx0_free();
 
     return 0;
 }
 
-int compress_array(uint8_t *data, size_t *size, long *delta, compression_t mode)
+int compress_array(uint8_t *data, size_t *size, long *delta, compress_mode_t mode)
 {
     switch (mode)
     {
-        default:
-            return -1;
-        case COMPRESS_ZX7:
-            return compress_zx7(data, size, delta);
-        case COMPRESS_ZX0:
-            return compress_zx0(data, size, delta);
-    }
-}
+        case COMPRESS_NONE:
+            return 0;
 
+        case COMPRESS_ZX7:
+            return compress_zx7(data, delta, size);
+
+        case COMPRESS_ZX0:
+            return compress_zx0(data, delta, size);
+
+        default:
+            break;
+    }
+
+    return -1;
+}
 static void compress_wr24(uint8_t *addr, uint32_t value)
 {
     addr[0] = (value >> 0) & 0xff;
@@ -152,7 +157,7 @@ static void compress_wr32(uint8_t *addr, uint32_t value)
     addr[3] = (value >> 24) & 0xff;
 }
 
-int compress_8xp(uint8_t *data, size_t *size, compression_t mode)
+int compress_8xp(uint8_t *data, size_t *size, compress_mode_t mode)
 {
     static uint8_t new_data[INPUT_MAX_SIZE];
     static uint8_t compressed_data[INPUT_MAX_SIZE];

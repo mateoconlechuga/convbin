@@ -1,11 +1,12 @@
-# convbin [![Windows/Linux/MacOS](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml/badge.svg)](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml) [![Coverity Scan](https://scan.coverity.com/projects/23437/badge.svg)](https://scan.coverity.com/projects/mateoconlechuga-convbin) [![Language Grade](https://img.shields.io/lgtm/grade/cpp/g/mateoconlechuga/convbin.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/mateoconlechuga/convbin/context:cpp)
+# convbin [![Windows/Linux/MacOS](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml/badge.svg)](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml) [![Coverity Scan](https://scan.coverity.com/projects/23437/badge.svg)](https://scan.coverity.com/projects/mateoconlechuga-convbin)
 
-This program is used to convert files to other formats, specifically for the TI-84+CE and related calculators.
+This program is used to convert files to other formats.
+It primarily is used for the TI-84+CE and related calculator series, however can be used as a standalone program.
 
 ## Command Line Help
 
     Usage:
-        ./bin/convbin [options] -j <mode> -k <mode> -i <file> -o <file>
+        convbin [options] -j <mode> -k <mode> -i <file> -o <file>
 
     Required parameters:
         -i, --input <file>         Input file. Can be specified multiple times,
@@ -41,7 +42,7 @@ This program is used to convert files to other formats, specifically for the TI-
 
     Input formats:
         Below is a list of available input formats, listed as
-        <mode>: <description>.
+        <mode>: <description>
 
         bin: Interprets as raw binary.
         csv: Interprets as csv (comma separated values).
@@ -49,7 +50,7 @@ This program is used to convert files to other formats, specifically for the TI-
 
     Output formats:
         Below is a list of available output formats, listed as
-        <mode>: <description>.
+        <mode>: <description>
 
         c: C source.
         asm: Assembly source.
@@ -63,14 +64,14 @@ This program is used to convert files to other formats, specifically for the TI-
 
     Compression formats:
         Below is a list of available compression formats, listed as
-        <mode>: <description>.
+        <mode>: <description>
 
         zx0: ZX0 Compression.
         zx7: ZX7 Compression.
 
-## Credits
-(c) 2017-2022 by Matt "MateoConLechuga" Waltz.
+    Credits:
+        (c) 2017-2022 by Matt "MateoConLechuga" Waltz.
 
-This program utilizes the following neat libraries:
+        This program utilizes the following neat libraries:
+            zx0,zx7: (c) 2012-2021 by Einar Saukas.
 
-* zx0, zx7: (c) 2012-2021 by Einar Saukas.

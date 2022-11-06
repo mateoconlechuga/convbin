@@ -39,7 +39,7 @@ static int convert_build_data(struct input *input,
                               size_t *size,
                               size_t max_size,
                               struct output_file *output_file,
-                              compression_t compression)
+                              compress_mode_t compression)
 {
     size_t tmp_size = 0;
     unsigned int i;

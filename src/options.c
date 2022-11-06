@@ -81,7 +81,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("    Below is a list of available input formats, listed as\n");
     LOG_PRINT("    <mode>: <description>\n");
     LOG_PRINT("\n");
-    LOG_PRINT("    bin: Interpret as raw binary.\n");
+    LOG_PRINT("    bin: Interprets as raw binary.\n");
     LOG_PRINT("    csv: Interprets as csv (comma separated values).\n");
     LOG_PRINT("    8x: Interprets the TI 8x* data section.\n");
     LOG_PRINT("\n");
@@ -137,9 +137,9 @@ static iformat_t options_parse_input_format(const char *str)
     return format;
 }
 
-static compression_t options_parse_compression(const char *str)
+static compress_mode_t options_parse_compression(const char *str)
 {
-    compression_t compress;
+    compress_mode_t compress;
 
     if (!strcmp(str, "zx7"))
     {

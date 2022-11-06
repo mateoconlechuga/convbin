@@ -56,7 +56,7 @@ struct input_file
 {
     const char *name;
     iformat_t format;
-    compression_t compression;
+    compress_mode_t compression;
     size_t size;
     uint8_t data[INPUT_MAX_SIZE];
 };
@@ -65,7 +65,7 @@ struct input
 {
     unsigned int nr_files;
     iformat_t default_format;
-    compression_t default_compression;
+    compress_mode_t default_compression;
     struct input_file files[INPUT_MAX_NUM];
 };
 
