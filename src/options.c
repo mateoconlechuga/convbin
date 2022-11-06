@@ -454,8 +454,15 @@ int options_get(int argc, char *argv[], struct options *options)
                 break;
 
             case 'b':
-                strncpy(options->output.file.comment, optarg, MAX_COMMENT_SIZE);
+            {
+                size_t size = strlen(optarg);
+                if (size > MAX_COMMENT_SIZE)
+                {
+                    size = MAX_COMMENT_SIZE;
+                }
+                memcpy(options->output.file.comment, optarg, size);
                 break;
+            }
 
             case 'm':
                 options->output.file.var.maxsize =
