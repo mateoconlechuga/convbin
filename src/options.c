@@ -29,6 +29,8 @@
  */
 
 #include "options.h"
+#include "output.h"
+#include "input.h"
 #include "version.h"
 #include "log.h"
 
@@ -356,36 +358,6 @@ static void options_set_default(struct options *options)
     memset(options->output.file.comment, 0, MAX_COMMENT_SIZE);
 }
 
-static void options_set_varname(struct options *options, const char *varname)
-{
-    if (varname != NULL)
-    {
-        size_t len = strlen(varname);
-        size_t i;
-
-        if (len > TI8X_VAR_MAX_NAME_LEN)
-        {
-            len = TI8X_VAR_MAX_NAME_LEN;
-            LOG_WARNING("Variable name truncated to %u characters\n",
-                (unsigned int)len);
-        }
-
-        for (i = 0; i < len; ++i)
-        {
-            if (options->output.file.uppercase && isalpha(varname[i]))
-            {
-                options->output.file.var.name[i] = toupper(varname[i]);
-            }
-            else
-            {
-                options->output.file.var.name[i] = varname[i];
-            }
-        }
-
-        options->output.file.var.name[len] = '\0';
-    }
-}
-
 static void options_set_comment(struct options *options, const char *comment)
 {
     if (comment != NULL)
@@ -401,22 +373,20 @@ static void options_set_comment(struct options *options, const char *comment)
     }
 }
 
-static void options_set_nr_files(struct options *options, size_t nr_files)
+static void options_configure(struct options *options)
 {
-    if (nr_files == 1)
+    if (options->input.nr_files == 1)
     {
-        options->input.files[nr_files - 1].format =
-            options->input.default_format;
+        options->input.files[0].format = options->input.default_format;
     }
 
-    options->input.nr_files = nr_files;
     options->output.file.var.type =
         options_get_var_type(options->output.file.format);
 
     if (options->output.file.format == OFORMAT_8XG ||
         options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
     {
-        unsigned int i;
+        uint32_t i;
 
         for (i = 0; i < options->input.nr_files; ++i)
         {
@@ -427,9 +397,6 @@ static void options_set_nr_files(struct options *options, size_t nr_files)
 
 int options_get(int argc, char *argv[], struct options *options)
 {
-    const char *varname = NULL;
-    size_t nr_files = 0;
-
     log_set_level(LOG_BUILD_LEVEL);
 
     if (argc < 2 || argv == NULL || options == NULL)
@@ -472,15 +439,8 @@ int options_get(int argc, char *argv[], struct options *options)
         switch (c)
         {
             case 'i':
-                options->input.files[nr_files].name = optarg;
-                options->input.files[nr_files].format =
-                    options->input.default_format;
-                options->input.files[nr_files].compression =
-                    options->input.default_compression;
-                nr_files++;
-                if (nr_files >= INPUT_MAX_NUM)
+                if (input_add_file_path(&options->input, optarg))
                 {
-                    LOG_ERROR("Too many input files.\n");
                     return OPTIONS_FAILED;
                 }
                 break;
@@ -490,7 +450,7 @@ int options_get(int argc, char *argv[], struct options *options)
                 break;
 
             case 'n':
-                options_set_varname(options, varname);
+                output_set_varname(&options->output, optarg);
                 break;
 
             case 'r':
@@ -556,7 +516,7 @@ int options_get(int argc, char *argv[], struct options *options)
         }
     }
 
-    options_set_nr_files(options, nr_files == 1);
+    options_configure(options);
 
     return options_validate(options);
 }

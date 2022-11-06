@@ -1,4 +1,4 @@
-# convbin [![Windows/Linux/MacOS](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml/badge.svg)](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml) [![Coverity Scan](https://scan.coverity.com/projects/23437/badge.svg)](https://scan.coverity.com/projects/mateoconlechuga-convbin)
+# convbin [![Build Status](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml/badge.svg)](https://github.com/mateoconlechuga/convbin/actions/workflows/make.yml) [![Coverity Scan](https://scan.coverity.com/projects/23437/badge.svg)](https://scan.coverity.com/projects/mateoconlechuga-convbin) [![Codiga Analysis](https://api.codiga.io/project/34939/status/svg)](https://app.codiga.io/hub/project/34939/convbin)
 
 This program is used to convert files to other formats.
 It primarily is used for the TI-84+CE and related calculator series, however can be used as a standalone program.

@@ -71,6 +71,8 @@ struct input
 
 int input_read_file(struct input_file *file);
 
+int input_add_file_path(struct input *input, const char *path);
+
 #ifdef __cplusplus
 }
 #endif

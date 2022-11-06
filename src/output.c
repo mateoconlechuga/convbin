@@ -166,3 +166,36 @@ int output_write_file(const struct output_file *file)
 
     return ret;
 }
+
+void output_set_varname(struct output *output, const char *varname)
+{
+    if (varname == NULL)
+    {
+        return;
+    }
+
+    size_t len = strlen(varname);
+    size_t i;
+
+    if (len > TI8X_VAR_MAX_NAME_LEN)
+    {
+        len = TI8X_VAR_MAX_NAME_LEN;
+        LOG_WARNING("Variable name truncated to %u characters\n",
+            (unsigned int)len);
+    }
+
+    for (i = 0; i < len; ++i)
+    {
+        if (output->file.uppercase && isalpha(varname[i]))
+        {
+            output->file.var.name[i] = toupper(varname[i]);
+        }
+        else
+        {
+            output->file.var.name[i] = varname[i];
+        }
+    }
+
+    output->file.var.name[len] = '\0';
+}
+

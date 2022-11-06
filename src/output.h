@@ -79,6 +79,8 @@ struct output
     struct output_file file;
 };
 
+void output_set_varname(struct output *output, const char *varname);
+
 int output_write_file(const struct output_file *file);
 
 #ifdef __cplusplus

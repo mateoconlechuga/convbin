@@ -252,3 +252,22 @@ int input_read_file(struct input_file *file)
 
     return ret;
 }
+
+
+int input_add_file_path(struct input *input, const char *path)
+{
+    if (input->nr_files >= INPUT_MAX_NUM)
+    {
+        LOG_ERROR("Too many input files.\n");
+        return -1;
+    }
+
+    input->files[input->nr_files].name = path;
+    input->files[input->nr_files].format = input->default_format;
+    input->files[input->nr_files].compression = input->default_compression;
+
+    input->nr_files++;
+
+    return 0;
+}
+
