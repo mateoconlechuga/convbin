@@ -68,6 +68,7 @@ It primarily is used for the TI-84+CE and related calculator series, however can
 
         zx0: ZX0 Compression.
         zx7: ZX7 Compression.
+        auto: Tries all compression modes to find the best one.
 
     Credits:
         (c) 2017-2023 by Matt "MateoConLechuga" Waltz.

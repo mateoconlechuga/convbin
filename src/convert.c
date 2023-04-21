@@ -60,7 +60,7 @@ static int convert_build_data(struct input *input,
             int ret;
 
             ret = compress_array(file->data,
-                &file->size, &delta, file->compression);
+                &file->size, &delta, &file->compression);
             if (ret < 0)
             {
                 return ret;
@@ -84,7 +84,7 @@ static int convert_build_data(struct input *input,
 
         output_file->uncompressed_size = tmp_size;
 
-        ret = compress_array(data, &tmp_size, &delta, compression);
+        ret = compress_array(data, &tmp_size, &delta, &compression);
         if (ret < 0)
         {
             return ret;
@@ -432,9 +432,10 @@ int convert_input_to_output(struct input *input, struct output *output)
             }
         }
 
-        LOG_PRINT("[success] %s, %lu bytes. (compressed %.2f%%)\n",
+        LOG_PRINT("[success] %s, %lu bytes. (%s compressed %.2f%%)\n",
             output->file.name,
             (unsigned long)output->file.size,
+            output->file.compression == COMPRESS_ZX7 ? "zx7" : "zx0",
             savings * 100.);
     }
     else

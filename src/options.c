@@ -107,6 +107,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("\n");
     LOG_PRINT("    zx0: ZX0 Compression.\n");
     LOG_PRINT("    zx7: ZX7 Compression.\n");
+    LOG_PRINT("    auto: Tries all compression modes to find the best one.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Credits:\n");
     LOG_PRINT("    (c) 2017-2023 by Matt \"MateoConLechuga\" Waltz.\n");
@@ -150,6 +151,10 @@ static compress_mode_t options_parse_compression(const char *str)
     else if (!strcmp(str, "zx0"))
     {
         compress = COMPRESS_ZX0;
+    }
+    else if (!strcmp(str, "auto"))
+    {
+        compress = COMPRESS_AUTO;
     }
     else
     {

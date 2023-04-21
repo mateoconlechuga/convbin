@@ -41,12 +41,13 @@ extern "C" {
 typedef enum
 {
     COMPRESS_NONE,
+    COMPRESS_AUTO,
     COMPRESS_ZX7,
     COMPRESS_ZX0,
     COMPRESS_INVALID,
 } compress_mode_t;
 
-int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t mode);
+int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t *mode);
 
 int compress_8xp(uint8_t *data, size_t *size, compress_mode_t mode);
 

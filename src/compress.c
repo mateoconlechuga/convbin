@@ -41,26 +41,26 @@
 
 #include <string.h>
 
-static int compress_zx7(uint8_t *data, int32_t *delta, size_t *size)
+static int compress_zx7(uint8_t *data, size_t size, uint8_t **zx7_data, size_t *zx7_size, int32_t *delta)
 {
     zx7_Optimal *opt;
     uint8_t *compressed_data;
     size_t new_size;
     long new_delta;
 
-    if (size == NULL || data == NULL)
+    if (data == NULL || zx7_data == NULL)
     {
         return -1;
     }
 
-    opt = zx7_optimize(data, *size, 0);
+    opt = zx7_optimize(data, size, 0);
     if (opt == NULL)
     {
         LOG_ERROR("Could not optimize zx7.\n");
         return -1;
     }
 
-    compressed_data = zx7_compress(opt, data, *size, 0, &new_size, &new_delta);
+    compressed_data = zx7_compress(opt, data, size, 0, &new_size, &new_delta);
     free(opt);
     if (compressed_data == NULL)
     {
@@ -68,11 +68,9 @@ static int compress_zx7(uint8_t *data, int32_t *delta, size_t *size)
         return -1;
     }
 
-    memcpy(data, compressed_data, new_size);
-    *size = new_size;
+    *zx7_data = compressed_data;
+    *zx7_size = new_size;
     *delta = new_delta;
-
-    free(compressed_data);
 
     return 0;
 }
@@ -82,21 +80,21 @@ static void compress_zx0_progress(void)
     LOG_PRINT(".");
 }
 
-static int compress_zx0(uint8_t *data, int32_t *delta, size_t *size)
+static int compress_zx0(uint8_t *data, size_t size, uint8_t **zx0_data, size_t *zx0_size, int32_t *delta)
 {
     zx0_BLOCK *optimal;
     uint8_t *compressed_data;
     int new_size;
     int new_delta;
 
-    if (size == NULL || data == NULL)
+    if (data == NULL || zx0_data == NULL || delta == NULL)
     {
         return -1;
     }
 
     LOG_PRINT("[info] Compressing [");
 
-    optimal = zx0_optimize(data, *size, 0, ZX0_MAX_OFFSET, compress_zx0_progress);
+    optimal = zx0_optimize(data, size, 0, ZX0_MAX_OFFSET, compress_zx0_progress);
     if (optimal == NULL)
     {
         LOG_ERROR("Out of memory]\n");
@@ -104,7 +102,7 @@ static int compress_zx0(uint8_t *data, int32_t *delta, size_t *size)
         return -1;
     }
 
-    compressed_data = zx0_compress(optimal, data, *size, 0, 0, 1, &new_size, &new_delta);
+    compressed_data = zx0_compress(optimal, data, size, 0, 0, 1, &new_size, &new_delta);
 
     LOG_PRINT("]\n");
 
@@ -115,34 +113,110 @@ static int compress_zx0(uint8_t *data, int32_t *delta, size_t *size)
         return -1;
     }
 
-    memcpy(data, compressed_data, new_size);
-    *size = new_size;
+    *zx0_data = compressed_data;
+    *zx0_size = new_size;
     *delta = new_delta;
 
-    free(compressed_data);
     zx0_free();
 
     return 0;
 }
 
-int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t mode)
+int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t *mode)
 {
-    switch (mode)
+    int ret = 0;
+
+    switch (*mode)
     {
         case COMPRESS_NONE:
             return 0;
 
         case COMPRESS_ZX7:
-            return compress_zx7(data, delta, size);
+        {
+            uint8_t *zx7_data;
+            size_t zx7_size;
+
+            ret = compress_zx7(data, *size, &zx7_data, &zx7_size, delta);
+            if (ret)
+            {
+                return -1;
+            }
+
+            memcpy(data, zx7_data, zx7_size);
+            *size = zx7_size;
+
+            free(zx7_data);
+
+            break;
+        }
 
         case COMPRESS_ZX0:
-            return compress_zx0(data, delta, size);
+        {
+            uint8_t *zx0_data;
+            size_t zx0_size;
+
+            ret = compress_zx0(data, *size, &zx0_data, &zx0_size, delta);
+            if (ret)
+            {
+                return -1;
+            }
+
+            memcpy(data, zx0_data, zx0_size);
+            *size = zx0_size;
+
+            free(zx0_data);
+
+            break;
+        }
+
+        case COMPRESS_AUTO:
+        {
+            uint8_t *zx7_data;
+            size_t zx7_size;
+            int32_t zx7_delta;
+            uint8_t *zx0_data;
+            size_t zx0_size;
+            int32_t zx0_delta;
+
+            ret = compress_zx7(data, *size, &zx7_data, &zx7_size, &zx7_delta);
+            if (ret)
+            {
+                return -1;
+            }
+
+            ret = compress_zx0(data, *size, &zx0_data, &zx0_size, &zx0_delta);
+            if (ret)
+            {
+                return -1;
+            }
+
+            if (zx7_size <= zx0_size)
+            {
+                memcpy(data, zx7_data, zx7_size);
+                *size = zx7_size;
+                *delta = zx7_delta;
+                *mode = COMPRESS_ZX7;
+            }
+            else
+            {
+                memcpy(data, zx0_data, zx0_size);
+                *size = zx0_size;
+                *delta = zx0_delta;
+                *mode = COMPRESS_ZX0;
+            }
+
+            free(zx7_data);
+            free(zx0_data);
+
+            break;
+        }
 
         default:
+            ret = -1;
             break;
     }
 
-    return -1;
+    return ret;
 }
 static void compress_wr24(uint8_t *addr, uint32_t value)
 {
@@ -225,7 +299,7 @@ odd_8x:
     memcpy(compressed_data, data + offset, uncompressed_size);
 
     compressed_size = uncompressed_size;
-    ret = compress_array(compressed_data, &compressed_size, &delta, mode);
+    ret = compress_array(compressed_data, &compressed_size, &delta, &mode);
     if (ret < 0)
     {
         LOG_ERROR("Could not compress data.\n");
