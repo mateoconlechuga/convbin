@@ -258,7 +258,7 @@ static int options_validate_format(const struct options *options)
     {
         if (options->output.file.var.name[0] == 0)
         {
-            LOG_ERROR("Variable name not supplied.\n");
+            LOG_ERROR("Output variable name not supplied.\n");
             return OPTIONS_FAILED;
         }
 
@@ -269,7 +269,7 @@ static int options_validate_format(const struct options *options)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
             {
-                LOG_ERROR("Variable name too long.\n");
+                LOG_ERROR("Output variable name too long (limited to %u characters).\n", TI8X_VAR_NAME_LEN);
                 return OPTIONS_FAILED;
             }
         }
@@ -280,7 +280,7 @@ static int options_validate_format(const struct options *options)
     {
         if (isdigit(options->output.file.var.name[0]))
         {
-            LOG_WARNING("Potentially invalid name (starts with digit)\n");
+            LOG_WARNING("Potentially invalid output variable name (starts with digit).\n");
         }
     }
 
