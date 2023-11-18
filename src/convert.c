@@ -362,6 +362,7 @@ int convert_bin(struct input *input, struct output_file *file)
 
 int convert_input_to_output(struct input *input, struct output *output)
 {
+    struct output_file *file = &output->file;
     unsigned int i;
     int ret = 0;
 
@@ -374,27 +375,27 @@ int convert_input_to_output(struct input *input, struct output *output)
         }
     }
 
-    switch (output->file.format)
+    switch (file->format)
     {
         case OFORMAT_C:
         case OFORMAT_ASM:
         case OFORMAT_ICE:
         case OFORMAT_BIN:
-            ret = convert_bin(input, &output->file);
+            ret = convert_bin(input, file);
             break;
 
         case OFORMAT_8XV:
         case OFORMAT_8XG:
-            ret = convert_8x(input, &output->file);
+            ret = convert_8x(input, file);
             break;
 
         case OFORMAT_8XP:
         case OFORMAT_8XP_COMPRESSED:
-            ret = convert_8xp(input, &output->file);
+            ret = convert_8xp(input, file);
             break;
 
         case OFORMAT_8XG_AUTO_EXTRACT:
-            ret = convert_auto_8xg(input, &output->file);
+            ret = convert_auto_8xg(input, file);
             break;
 
         default:
@@ -407,18 +408,17 @@ int convert_input_to_output(struct input *input, struct output *output)
         return ret;
     }
 
-    ret = output_write_file(&output->file);
+    ret = output_write_file(file);
     if (ret != 0)
     {
         return ret;
     }
 
-    if ((output->file.compression ||
-        output->file.format == OFORMAT_8XP_COMPRESSED) &&
-        output->file.compressed)
+    if ((file->compression || file->format == OFORMAT_8XP_COMPRESSED) &&
+        file->compressed)
     {
-        float savings = (float)output->file.uncompressed_size -
-                        (float)output->file.compressed_size;
+        float savings = (float)file->uncompressed_size -
+                        (float)file->compressed_size;
 
         if (savings < 0.001)
         {
@@ -426,23 +426,27 @@ int convert_input_to_output(struct input *input, struct output *output)
         }
         else
         {
-            if (output->file.uncompressed_size != 0)
+            if (file->uncompressed_size != 0)
             {
-                savings /= (float)output->file.uncompressed_size;
+                savings /= (float)file->uncompressed_size;
             }
         }
 
+        const char *compress_str =
+            (file->format == OFORMAT_8XP_COMPRESSED && file->ti8xp_compression == COMPRESS_ZX7) ||
+            (file->compression == COMPRESS_ZX7) ? "zx7" : "zx0";
+
         LOG_PRINT("[success] %s, %lu bytes. (%s compressed %.2f%%)\n",
-            output->file.name,
-            (unsigned long)output->file.size,
-            output->file.compression == COMPRESS_ZX7 ? "zx7" : "zx0",
-            savings * 100.);
+            file->name,
+            (unsigned long)file->size,
+            compress_str,
+            savings * 100.0);
     }
     else
     {
         LOG_PRINT("[success] %s, %lu bytes.\n",
-            output->file.name,
-            (unsigned long)output->file.size);
+            file->name,
+            (unsigned long)file->size);
     }
 
     return 0;
