@@ -26,19 +26,23 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+
+PRGM_NAME = convbin
+VERSION_STRING = $(shell git describe --abbrev=8 --dirty --always --tags)
+
 CC = gcc
-CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -flto
+CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -DPRGM_NAME="\"$(PRGM_NAME)\"" -DVERSION_STRING="\"$(VERSION_STRING)\"" -flto
 LDFLAGS = -flto
 
 ifeq ($(OS),Windows_NT)
-  TARGET ?= convbin.exe
+  TARGET ?= $(PRGM_NAME).exe
   SHELL = cmd.exe
   NATIVEPATH = $(subst /,\,$1)
   RMDIR = ( rmdir /s /q $1 2>nul || call )
   MKDIR = ( mkdir $1 2>nul || call )
   STRIP = strip --strip-all "$1"
 else
-  TARGET ?= convbin
+  TARGET ?= $(PRGM_NAME)
   NATIVEPATH = $(subst \,/,$1)
   MKDIR = mkdir -p $1
   RMDIR = rm -rf $1
