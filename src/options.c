@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2024 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -110,7 +110,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("    auto: Tries all compression modes to find the best one.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Credits:\n");
-    LOG_PRINT("    (c) 2017-2023 by Matt \"MateoConLechuga\" Waltz.\n");
+    LOG_PRINT("    (c) 2017-2024 by Matt \"MateoConLechuga\" Waltz.\n");
     LOG_PRINT("\n");
     LOG_PRINT("    This program utilizes the following neat libraries:\n");
     LOG_PRINT("        zx0,zx7: (c) 2012-2022 by Einar Saukas.\n");

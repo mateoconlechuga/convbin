@@ -71,7 +71,7 @@ It primarily is used for the TI-84+CE and related calculator series, however can
         auto: Tries all compression modes to find the best one.
 
     Credits:
-        (c) 2017-2023 by Matt "MateoConLechuga" Waltz.
+        (c) 2017-2024 by Matt "MateoConLechuga" Waltz.
 
         This program utilizes the following neat libraries:
             zx0,zx7: (c) 2012-2022 by Einar Saukas.
