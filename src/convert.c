@@ -575,6 +575,9 @@ int convert_zip(struct input *input, struct output *output)
     mz_zip_writer_finalize_archive(&archive);
     mz_zip_writer_end(&archive);
 
+    LOG_PRINT("[success] %lu files added to %s.\n",
+        (unsigned long)input->nr_files, archive_path);
+
     return 0;
 }
 
