@@ -58,9 +58,12 @@ It primarily is used for the TI-84+CE and related calculator series, however can
         bin: raw binary.
         8xp: TI Program.
         8xv: TI AppVar.
+        8xp-compressed: Compressed TI Program.
         8xg: TI Group. Input format must be 8x.
         8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.
-        8xp-compressed: Compressed TI Program.
+        b83: Pack input files into TI-83 Premium CE bundle.
+        b84: Pack input files into TI-84 Plus CE bundle.
+        zip: Pack input files into zip archive.
 
     Compression formats:
         Below is a list of available compression formats, listed as
@@ -75,4 +78,4 @@ It primarily is used for the TI-84+CE and related calculator series, however can
 
         This program utilizes the following neat libraries:
             zx0,zx7: (c) 2012-2022 by Einar Saukas.
-
+            miniz: (c) 2010-2014 by Rich Geldreich.

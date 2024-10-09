@@ -40,8 +40,8 @@ extern "C" {
 
 #include "compress.h"
 
-#define INPUT_MAX_NUM 16
-#define INPUT_MAX_SIZE 0x80000
+#define INPUT_MAX_NUM 128
+#define INPUT_MAX_SIZE (1024 * 512)
 
 typedef enum
 {

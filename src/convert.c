@@ -31,8 +31,7 @@
 #include "convert.h"
 #include "extract.h"
 #include "log.h"
-
-#include <string.h>
+#include "deps/miniz/miniz.h"
 
 static int convert_build_data(struct input *input,
                               uint8_t *data,
@@ -360,7 +359,7 @@ int convert_bin(struct input *input, struct output_file *file)
         file->compression);
 }
 
-int convert_input_to_output(struct input *input, struct output *output)
+int convert_normal(struct input *input, struct output *output)
 {
     struct output_file *file = &output->file;
     unsigned int i;
@@ -450,4 +449,146 @@ int convert_input_to_output(struct input *input, struct output *output)
     }
 
     return 0;
+}
+
+int convert_zip(struct input *input, struct output *output)
+{
+    const char *archive_path = output->file.name;
+    mz_zip_archive archive;
+    mz_zip_archive_file_stat stat;
+    size_t i;
+    uint32_t checksum = 0;
+
+    if (!archive_path || strlen(archive_path) < 1)
+    {
+        LOG_ERROR("Invalid archive filepath.\n");
+        return -1;
+    }
+
+    memset(&archive, 0, sizeof archive);
+
+    if (!mz_zip_writer_init_file(&archive, archive_path, 0))
+    {
+        LOG_ERROR("Could not initialize archive filepath.\n");
+        return -1;
+    }
+
+    if (output->file.format == OFORMAT_B83 ||
+        output->file.format == OFORMAT_B84)
+    {
+        static const char b83metadata[] =
+            "bundle_identifier:TI Bundle\r\n"
+            "bundle_format_version:1\r\n"
+            "bundle_target_device:83CE\r\n"
+            "bundle_target_type:CUSTOM\r\n"
+            "bundle_comments:Created by convbin " VERSION_STRING "\r\n";
+        static const char b84metadata[] =
+            "bundle_identifier:TI Bundle\r\n"
+            "bundle_format_version:1\r\n"
+            "bundle_target_device:84CE\r\n"
+            "bundle_target_type:CUSTOM\r\n"
+            "bundle_comments:Created by convbin" VERSION_STRING "\r\n";
+
+        if (!mz_zip_writer_add_mem(
+            &archive,
+            "METADATA",
+            output->file.format == OFORMAT_B83 ? b83metadata : b84metadata,
+            (output->file.format == OFORMAT_B83 ? sizeof b83metadata : sizeof b84metadata) - 1,
+            MZ_BEST_COMPRESSION))
+        {
+            LOG_ERROR("Could not add bundle metadata.\n");
+            return -1;
+        }
+
+        if (!mz_zip_reader_file_stat(&archive, 0, &stat))
+        {
+            LOG_ERROR("Could not stat bundle metadata.\n");
+            return -1;
+        }
+
+        LOG_DEBUG("metadata checksum: %x\n", stat.m_crc32);
+        checksum += stat.m_crc32;
+    }
+
+    for (i = 0; i < input->nr_files; ++i)
+    {
+        const char *filepath = input->files[i].name;
+        const char *basename;
+
+        basename = strrchr(filepath, '/');
+        if (!basename)
+        {
+            basename = strrchr(filepath, '\\');
+        }
+        if (!basename)
+        {
+            basename = filepath;
+        }
+        else
+        {
+            basename += 1;
+        }
+
+        if (!mz_zip_writer_add_file(
+            &archive,
+            basename,
+            filepath,
+            "",
+            0,
+            MZ_BEST_COMPRESSION))
+        {
+            LOG_ERROR("Could not add archive entry.\n");
+            return -1;
+        }
+
+        if (!mz_zip_reader_file_stat(&archive, i + 1, &stat))
+        {
+            LOG_ERROR("Could not stat archive entry.\n");
+            return -1;
+        }
+
+        LOG_DEBUG("entry checksum: %x\n", stat.m_crc32);
+        checksum += stat.m_crc32;
+    }
+
+    if (output->file.format == OFORMAT_B83 ||
+        output->file.format == OFORMAT_B84)
+    {
+        char checksum_str[11];
+        const size_t checksum_size =
+            sprintf(checksum_str, "%x\r\n", checksum);
+
+        LOG_DEBUG("checksum: %x\n", checksum);
+
+        if (!mz_zip_writer_add_mem(
+            &archive,
+            "_CHECKSUM",
+            checksum_str,
+            checksum_size,
+            MZ_BEST_COMPRESSION))
+        {
+            LOG_ERROR("Could not add bundle checksum.\n");
+            return -1;
+        }
+    }
+
+    mz_zip_writer_finalize_archive(&archive);
+    mz_zip_writer_end(&archive);
+
+    return 0;
+}
+
+int convert_input_to_output(struct input *input, struct output *output)
+{
+    /* if a bundle, zip input files directly */
+    if (output->file.format == OFORMAT_B84 ||
+        output->file.format == OFORMAT_B83 ||
+        output->file.format == OFORMAT_ZIP)
+    {
+        return convert_zip(input, output);
+    }
+    else
+    {
+        return convert_normal(input, output);
+    }
 }

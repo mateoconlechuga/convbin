@@ -96,9 +96,12 @@ static void options_show(const char *prgm)
     LOG_PRINT("    bin: raw binary.\n");
     LOG_PRINT("    8xp: TI Program.\n");
     LOG_PRINT("    8xv: TI AppVar.\n");
+    LOG_PRINT("    8xp-compressed: Compressed TI Program.\n");
     LOG_PRINT("    8xg: TI Group. Input format must be 8x.\n");
     LOG_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
-    LOG_PRINT("    8xp-compressed: Compressed TI Program.\n");
+    LOG_PRINT("    b83: Pack input files into TI-83 Premium CE bundle.\n");
+    LOG_PRINT("    b84: Pack input files into TI-84 Plus CE bundle.\n");
+    LOG_PRINT("    zip: Pack input files into zip archive.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Compression formats:\n");
     LOG_PRINT("    Below is a list of available compression formats, listed as\n");
@@ -113,6 +116,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("\n");
     LOG_PRINT("    This program utilizes the following neat libraries:\n");
     LOG_PRINT("        zx0,zx7: (c) 2012-2022 by Einar Saukas.\n");
+    LOG_PRINT("        miniz: (c) 2010-2014 by Rich Geldreich.\n");
 }
 
 static iformat_t options_parse_input_format(const char *str)
@@ -206,6 +210,18 @@ static oformat_t options_parse_output_format(const char *str)
     else if (!strcmp(str, "8xp-compressed"))
     {
         format = OFORMAT_8XP_COMPRESSED;
+    }
+    else if (!strcmp(str, "b83"))
+    {
+        format = OFORMAT_B83;
+    }
+    else if (!strcmp(str, "b84"))
+    {
+        format = OFORMAT_B84;
+    }
+    else if (!strcmp(str, "zip"))
+    {
+        format = OFORMAT_ZIP;
     }
     else
     {
