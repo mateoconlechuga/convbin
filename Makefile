@@ -78,6 +78,7 @@ SOURCES := $(SRCDIR)/main.c \
            $(SRCDIR)/asm/zx7_decompressor.c \
            $(SRCDIR)/asm/zx0_decompressor.c \
            $(SRCDIR)/asm/extractor.c \
+           $(DEPDIR)/miniz/miniz.c \
            $(DEPDIR)/zx/zx7/compress.c \
            $(DEPDIR)/zx/zx7/optimize.c \
            $(DEPDIR)/zx/zx0/compress.c \
