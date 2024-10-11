@@ -47,4 +47,8 @@
 ../bin/convbin --iformat csv --input inputs/csv.csv --oformat asm --output test.asm.test --name TEST || { exit 1; }
 ../bin/convbin --iformat csv --input inputs/csv.csv --oformat ice --output test.ice.test --name TEST || { exit 1; }
 ../bin/convbin --iformat csv --input inputs/csv.csv --oformat 8xp --output test.8xp.test --name TEST || { exit 1; }
+../bin/convbin --input inputs/small.bin --input inputs/large.bin --oformat zip --output test.zip.test || { exit 1; }
+../bin/convbin --input inputs/small.bin --input inputs/large.bin --oformat b83 --output test.b83.test || { exit 1; }
+../bin/convbin --input inputs/small.bin --input inputs/large.bin --oformat b84 --output test.b84.test || { exit 1; }
 ../bin/convbin --iformat bin --input inputs/small.bin --oformat c --output test.8xp.test --name super_long_name_that_apparently_people_like_to_use_for_their_variable_names_even_though_it_is_basically_unreadable_but_hey_who_cares_the_user_gets_what_the_user_wants || { exit 1; }
+

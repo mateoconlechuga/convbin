@@ -454,8 +454,8 @@ int convert_normal(struct input *input, struct output *output)
 int convert_zip(struct input *input, struct output *output)
 {
     const char *archive_path = output->file.name;
-    mz_zip_archive archive;
-    mz_zip_archive_file_stat stat;
+    static mz_zip_archive archive;
+    static mz_zip_archive_file_stat stat;
     size_t i;
     uint32_t checksum = 0;
 
@@ -464,8 +464,6 @@ int convert_zip(struct input *input, struct output *output)
         LOG_ERROR("Invalid archive filepath.\n");
         return -1;
     }
-
-    memset(&archive, 0, sizeof archive);
 
     if (!mz_zip_writer_init_file(&archive, archive_path, 0))
     {
@@ -541,14 +539,18 @@ int convert_zip(struct input *input, struct output *output)
             return -1;
         }
 
-        if (!mz_zip_reader_file_stat(&archive, i + 1, &stat))
+        /* compute checksum only if b83 or b84 */
+        if (output->file.format != OFORMAT_ZIP)
         {
-            LOG_ERROR("Could not stat archive entry.\n");
-            return -1;
-        }
+            if (!mz_zip_reader_file_stat(&archive, i + 1, &stat))
+            {
+                LOG_ERROR("Could not stat archive entry.\n");
+                return -1;
+            }
 
-        LOG_DEBUG("entry checksum: %x\n", stat.m_crc32);
-        checksum += stat.m_crc32;
+            LOG_DEBUG("entry checksum: %x\n", stat.m_crc32);
+            checksum += stat.m_crc32;
+        }
     }
 
     if (output->file.format == OFORMAT_B83 ||
