@@ -9,19 +9,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ubuntu, macos, windows]
+        runs-on: [ubuntu-20.04, macos-13, windows-latest]
         config: [Release]
         include:
           - nul: /dev/null
-          - runs-on: macos
+          - runs-on: macos-13
             os-name: macos
-          - runs-on: windows
+          - runs-on: windows-latest
             os-name: windows
             exe: .exe
-          - runs-on: ubuntu
+          - runs-on: ubuntu-20.04
             os-name: linux
 
-    runs-on: ${{matrix.runs-on}}-latest
+    runs-on: ${{matrix.runs-on}}
     steps:
 
       - name: Checkout project
