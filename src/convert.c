@@ -485,7 +485,7 @@ int convert_zip(struct input *input, struct output *output)
             "bundle_format_version:1\r\n"
             "bundle_target_device:84CE\r\n"
             "bundle_target_type:CUSTOM\r\n"
-            "bundle_comments:Created by convbin" VERSION_STRING "\r\n";
+            "bundle_comments:Created by convbin " VERSION_STRING "\r\n";
 
         if (!mz_zip_writer_add_mem(
             &archive,
