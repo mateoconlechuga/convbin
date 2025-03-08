@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ubuntu-20.04, macos-13, windows-latest]
+        runs-on: [ubuntu-22.04, macos-13, windows-latest]
         config: [Release]
         include:
           - nul: /dev/null
@@ -18,7 +18,7 @@ jobs:
           - runs-on: windows-latest
             os-name: windows
             exe: .exe
-          - runs-on: ubuntu-20.04
+          - runs-on: ubuntu-22.04
             os-name: linux
 
     runs-on: ${{matrix.runs-on}}
@@ -88,7 +88,7 @@ jobs:
     steps:
 
       - name: Checkout project
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 1
