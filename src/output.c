@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -198,4 +198,3 @@ void output_set_varname(struct output *output, const char *varname)
 
     output->file.var.name[len] = '\0';
 }
-

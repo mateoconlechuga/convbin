@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,8 +40,8 @@ extern "C" {
 
 #include "compress.h"
 
-#define INPUT_MAX_NUM 128
-#define INPUT_MAX_SIZE (1024 * 512)
+#define INPUT_MAX_NUM 256
+#define INPUT_MAX_SIZE (1024 * 1024 * 4)
 
 typedef enum
 {

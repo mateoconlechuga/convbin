@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -100,6 +100,11 @@ struct ti8x_var
 #define TI8X_VARLOOKUP_LEN 9
 
 #define TI8X_TYPE_APPVAR 0x15
+
+#define TI8EK_HEADER_LEN 71
+#define TI8EK_SIGNATURE "**TIFL**"
+#define TI8EK_SIGNATURE_LEN 8
+#define TI8EK_VERSION 0x05
 
 extern const unsigned char ti8x_file_header[11];
 

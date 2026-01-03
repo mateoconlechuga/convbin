@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,6 +54,8 @@ typedef enum
     OFORMAT_8XG,
     OFORMAT_8XG_AUTO_EXTRACT,
     OFORMAT_8XP_COMPRESSED,
+    OFORMAT_8EK,
+    OFORMAT_8XV_SPLIT,
     OFORMAT_B84,
     OFORMAT_B83,
     OFORMAT_ZIP,

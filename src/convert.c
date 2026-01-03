@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,6 +32,8 @@
 #include "extract.h"
 #include "log.h"
 #include "deps/miniz/miniz.h"
+
+#include <time.h>
 
 static int convert_build_data(struct input *input,
                               uint8_t *data,
@@ -349,6 +351,178 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
     return 0;
 }
 
+static int convert_8ek(struct input *input, struct output_file *file)
+{
+    static uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *ti8ek;
+    size_t size = 0;
+    size_t name_len;
+    time_t now;
+    struct tm *timeinfo;
+    int ret;
+
+    if (file->compression != COMPRESS_NONE)
+    {
+        LOG_WARNING("Ignoring compression mode!\n");
+    }
+
+    ret = convert_build_data(input, data, &size,
+                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    ti8ek = file->data;
+    file->size = TI8EK_HEADER_LEN + size;
+
+    now = time(NULL);
+    timeinfo = localtime(&now);
+
+    memcpy(ti8ek, TI8EK_SIGNATURE, TI8EK_SIGNATURE_LEN);
+    ti8ek[8] = TI8EK_VERSION;
+    ti8ek[9] = 0x00;
+    ti8ek[10] = 0x00;
+    ti8ek[11] = 0x00;
+    ti8ek[12] = timeinfo->tm_mday;
+    ti8ek[13] = timeinfo->tm_mon + 1;
+    ti8ek[14] = (timeinfo->tm_year + 1900) & 0xff;
+
+    name_len = strlen(file->var.name);
+    if (name_len > TI8X_VAR_NAME_LEN)
+    {
+        name_len = TI8X_VAR_NAME_LEN;
+    }
+
+    ti8ek[15] = name_len;
+    memcpy(ti8ek + 16, file->var.name, name_len);
+    memset(ti8ek + 16 + name_len, 0, TI8X_VAR_NAME_LEN - name_len);
+
+    memset(ti8ek + 24, 0, 23);
+
+    ti8ek[47] = 0x73;
+    ti8ek[48] = 0x24;
+
+    memset(ti8ek + 49, 0, 23);
+
+    ti8ek[72] = 0x13;
+    ti8ek[73] = (size >> 0) & 0xff;
+    ti8ek[74] = (size >> 8) & 0xff;
+    ti8ek[75] = (size >> 16) & 0xff;
+    ti8ek[76] = (size >> 24) & 0xff;
+
+    memcpy(ti8ek + TI8EK_HEADER_LEN, data, size);
+
+    return 0;
+}
+
+static int convert_8xv_split(struct input *input, struct output_file *file)
+{
+    static uint8_t data[INPUT_MAX_SIZE];
+    size_t size = 0;
+    size_t total_size;
+    size_t appvar_size;
+    size_t base_name_len;
+    unsigned int num_appvars;
+    unsigned int i;
+    char outname[4096];
+    char *ext_pos;
+    int ret;
+
+    if (file->compression != COMPRESS_NONE)
+    {
+        LOG_WARNING("Ignoring compression mode!\n");
+    }
+
+    ret = convert_build_data(input, data, &size,
+                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    total_size = size;
+
+    appvar_size = file->var.maxsize;
+    num_appvars = (total_size + appvar_size - 1) / appvar_size;
+
+    if (num_appvars > 99)
+    {
+        LOG_ERROR("Data too large, would require more than 99 AppVars.\n");
+        return -1;
+    }
+
+    base_name_len = strlen(file->var.name);
+    if (num_appvars > 9 && base_name_len > TI8X_VAR_NAME_LEN - 2)
+    {
+        base_name_len = TI8X_VAR_NAME_LEN - 2; /* Need 2 chars for 10-99 */
+    }
+    else if (base_name_len > TI8X_VAR_NAME_LEN - 1)
+    {
+        base_name_len = TI8X_VAR_NAME_LEN - 1; /* Need 1 char for 0-9 */
+    }
+
+    memset(outname, 0, sizeof outname);
+    strncpy(outname, file->name, sizeof outname - 1);
+    ext_pos = strrchr(outname, '.');
+    if (!ext_pos || strcmp(ext_pos, ".8xv") != 0)
+    {
+        ext_pos = outname + strlen(outname);
+        strcpy(ext_pos, ".8xv");
+    }
+
+    for (i = 0; i < num_appvars; ++i)
+    {
+        struct output_file appvarfile = {0};
+        size_t offset = i * appvar_size;
+        size_t chunk_size = appvar_size;
+        char var_name[TI8X_VAR_NAME_LEN + 1];
+        char temp_outname[4096];
+        char index_str[16];
+
+        if (offset + chunk_size > total_size)
+        {
+            chunk_size = total_size - offset;
+        }
+
+        memset(var_name, 0, sizeof var_name);
+        strncpy(var_name, file->var.name, base_name_len);
+        sprintf(index_str, "%u", i);
+        strncat(var_name, index_str, TI8X_VAR_NAME_LEN - base_name_len);
+        
+        strncpy(temp_outname, outname, ext_pos - outname);
+        temp_outname[ext_pos - outname] = '\0';
+        sprintf(temp_outname + strlen(temp_outname), ".%u.8xv", i);
+
+        appvarfile.name = temp_outname;
+        appvarfile.format = OFORMAT_8XV;
+        appvarfile.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
+        strncpy(appvarfile.var.name, var_name, TI8X_VAR_NAME_LEN);
+        appvarfile.var.type = TI8X_TYPE_APPVAR;
+        appvarfile.var.archive = true;
+        appvarfile.append = false;
+
+        ret = convert_build_8x(data + offset, chunk_size, &appvarfile);
+        if (ret != 0)
+        {
+            return ret;
+        }
+
+        ret = output_write_file(&appvarfile);
+        if (ret != 0)
+        {
+            return ret;
+        }
+
+        LOG_PRINT("[success] %s (%s), %lu bytes.\n",
+            appvarfile.name,
+            var_name,
+            (unsigned long)appvarfile.size);
+    }
+
+    return 0;
+}
+
 int convert_bin(struct input *input, struct output_file *file)
 {
     return convert_build_data(input,
@@ -396,6 +570,13 @@ int convert_normal(struct input *input, struct output *output)
         case OFORMAT_8XG_AUTO_EXTRACT:
             ret = convert_auto_8xg(input, file);
             break;
+
+        case OFORMAT_8EK:
+            ret = convert_8ek(input, file);
+            break;
+
+        case OFORMAT_8XV_SPLIT:
+            return convert_8xv_split(input, file);
 
         default:
             ret = -1;

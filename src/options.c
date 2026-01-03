@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 Matt "MateoConLechuga" Waltz
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -95,7 +95,9 @@ static void options_show(const char *prgm)
     LOG_PRINT("    ice: ICE source.\n");
     LOG_PRINT("    bin: raw binary.\n");
     LOG_PRINT("    8xp: TI Program.\n");
+    LOG_PRINT("    8ek: TI Application.\n");
     LOG_PRINT("    8xv: TI AppVar.\n");
+    LOG_PRINT("    8xv-split: Split input across multiple TI Appvars.\n");
     LOG_PRINT("    8xp-compressed: Compressed TI Program.\n");
     LOG_PRINT("    8xg: TI Group. Input format must be 8x.\n");
     LOG_PRINT("    8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.\n");
@@ -112,7 +114,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("    auto: Tries all compression modes to find the best one.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Credits:\n");
-    LOG_PRINT("    (c) 2017-2024 by Matt \"MateoConLechuga\" Waltz.\n");
+    LOG_PRINT("    (c) 2017-2026 by Matt \"MateoConLechuga\" Waltz.\n");
     LOG_PRINT("\n");
     LOG_PRINT("    This program utilizes the following neat libraries:\n");
     LOG_PRINT("        zx0,zx7: (c) 2012-2022 by Einar Saukas.\n");
@@ -195,9 +197,17 @@ static oformat_t options_parse_output_format(const char *str)
     {
         format = OFORMAT_8XV;
     }
+    else if (!strcmp(str, "8xv-split"))
+    {
+        format = OFORMAT_8XV_SPLIT;
+    }
     else if (!strcmp(str, "8xg"))
     {
         format = OFORMAT_8XG;
+    }
+    else if (!strcmp(str, "8ek"))
+    {
+        format = OFORMAT_8EK;
     }
     else if (!strcmp(str, "8xg-auto-extract"))
     {
@@ -269,6 +279,7 @@ static int options_validate_format(const struct options *options)
         oformat == OFORMAT_8XP ||
         oformat == OFORMAT_8XV ||
         oformat == OFORMAT_8XG ||
+        oformat == OFORMAT_8EK ||
         oformat == OFORMAT_8XP_COMPRESSED)
     {
         if (options->output.file.var.name[0] == 0)
@@ -280,6 +291,7 @@ static int options_validate_format(const struct options *options)
         if (oformat == OFORMAT_8XP ||
             oformat == OFORMAT_8XV ||
             oformat == OFORMAT_8XG ||
+            oformat == OFORMAT_8EK ||
             oformat == OFORMAT_8XP_COMPRESSED)
         {
             if (strlen(options->output.file.var.name) > TI8X_VAR_NAME_LEN)
@@ -291,6 +303,7 @@ static int options_validate_format(const struct options *options)
     }
 
     if (oformat == OFORMAT_8XP ||
+        oformat == OFORMAT_8EK ||
         oformat == OFORMAT_8XP_COMPRESSED)
     {
         if (isdigit(options->output.file.var.name[0]))

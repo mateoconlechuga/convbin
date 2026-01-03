@@ -57,7 +57,9 @@ It primarily is used for the TI-84+CE and related calculator series, however can
         ice: ICE source.
         bin: raw binary.
         8xp: TI Program.
+        8ek: TI Application.
         8xv: TI AppVar.
+        8xv-split: Split input across multiple TI Appvars.
         8xp-compressed: Compressed TI Program.
         8xg: TI Group. Input format must be 8x.
         8xg-auto-extract: TI Auto-Extracting Group. Input format must be 8x.
@@ -74,7 +76,7 @@ It primarily is used for the TI-84+CE and related calculator series, however can
         auto: Tries all compression modes to find the best one.
 
     Credits:
-        (c) 2017-2024 by Matt "MateoConLechuga" Waltz.
+        (c) 2017-2026 by Matt "MateoConLechuga" Waltz.
 
         This program utilizes the following neat libraries:
             zx0,zx7: (c) 2012-2022 by Einar Saukas.
