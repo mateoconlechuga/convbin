@@ -9,16 +9,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runs-on: [ubuntu-22.04, macos-13, windows-latest]
+        runs-on: [ubuntu, macos, windows]
         config: [Release]
         include:
           - nul: /dev/null
-          - runs-on: macos-13
+          - runs-on: macos
             os-name: macos
-          - runs-on: windows-latest
+          - runs-on: windows
             os-name: windows
             exe: .exe
-          - runs-on: ubuntu-22.04
+          - runs-on: ubuntu
             os-name: linux
 
     runs-on: ${{matrix.runs-on}}
@@ -72,11 +72,11 @@ jobs:
           cd ${{github.workspace}}/macos && zip -r9 macos-convbin.zip *
 
       - name: Update nightly release
-        uses: pyTooling/Actions/releaser@main
+        uses: softprops/action-gh-release@5122b4edc95f85501a71628a57dc180a03ec7588
         with:
-          tag: nightly
-          rm: true
-          token: ${{secrets.GITHUB_TOKEN}}
+          tag_name: nightly
+          name: convbin
+          prerelease: true
           files: |
             linux/linux-convbin.zip
             windows/windows-convbin.zip
