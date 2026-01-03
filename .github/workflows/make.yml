@@ -21,7 +21,7 @@ jobs:
           - runs-on: ubuntu
             os-name: linux
 
-    runs-on: ${{matrix.runs-on}}
+    runs-on: ${{matrix.runs-on}}-latest
     steps:
 
       - name: Checkout project
