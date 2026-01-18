@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
  *
@@ -28,65 +29,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef OUTPUT_H
-#define OUTPUT_H
+#ifndef ELF_H
+#define ELF_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "compress.h"
-#include "ti8x.h"
+#define MAX_APP_RELOC_SIZE (4 * 1024 * 1024)
 
-#define MAX_OUTPUT_SIZE 0x1000000
-#define MAX_COMMENT_SIZE 42
-
-typedef enum
+struct app_reloc_table
 {
-    OFORMAT_C,
-    OFORMAT_ASM,
-    OFORMAT_BIN,
-    OFORMAT_ICE,
-    OFORMAT_8XP,
-    OFORMAT_8XV,
-    OFORMAT_8XG,
-    OFORMAT_8XG_AUTO_EXTRACT,
-    OFORMAT_8XP_COMPRESSED,
-    OFORMAT_8EK,
-    OFORMAT_8XV_SPLIT,
-    OFORMAT_B84,
-    OFORMAT_B83,
-    OFORMAT_ZIP,
-    OFORMAT_INVALID,
-} oformat_t;
-
-struct output_file
-{
-    const char *name;
-    struct ti8x_var var;
-    uint8_t data[MAX_OUTPUT_SIZE];
-    char comment[MAX_COMMENT_SIZE];
+    uint8_t *data;
     size_t size;
-    size_t compressed_size;
-    size_t uncompressed_size;
-    compress_mode_t compression;
-    compress_mode_t ti8xp_compression;
-    oformat_t format;
-    bool append;
-    bool uppercase;
-    bool compressed;
 };
 
-struct output
-{
-    struct output_file file;
-};
-
-void output_set_varname(struct output *output, const char *varname);
-
-int output_write_file(const struct output_file *file);
+int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table);
 
 #ifdef __cplusplus
 }

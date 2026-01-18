@@ -151,6 +151,7 @@ int output_write_file(const struct output_file *file)
         case OFORMAT_8XV:
         case OFORMAT_8XP:
         case OFORMAT_8XG:
+        case OFORMAT_8EK:
         case OFORMAT_8XG_AUTO_EXTRACT:
         case OFORMAT_8XP_COMPRESSED:
             ret = output_bin(file->var.name, file->data, file->size, fd);
@@ -197,4 +198,5 @@ void output_set_varname(struct output *output, const char *varname)
     }
 
     output->file.var.name[len] = '\0';
+    output->file.var.namelen = len;
 }

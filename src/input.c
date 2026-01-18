@@ -30,6 +30,7 @@
 
 #include "input.h"
 #include "ti8x.h"
+#include "elf.h"
 #include "log.h"
 
 #include <errno.h>
@@ -210,6 +211,11 @@ static int input_csv(FILE *fd, uint8_t *data, size_t *size)
     return 0;
 }
 
+static int input_elf(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table)
+{
+    return elf_extract_binary(fd, data, size, reloc_table);
+}
+
 int input_read_file(struct input_file *file)
 {
     FILE *fd;
@@ -242,6 +248,10 @@ int input_read_file(struct input_file *file)
             ret = input_csv(fd, file->data, &file->size);
             break;
 
+        case IFORMAT_ELF:
+            ret = input_elf(fd, file->data, &file->size, &file->reloc_table);
+            break;
+
         default:
             LOG_ERROR("Unknown input format.\n");
             ret = -1;
@@ -262,12 +272,15 @@ int input_add_file_path(struct input *input, const char *path)
         return -1;
     }
 
-    input->files[input->nr_files].name = path;
-    input->files[input->nr_files].format = input->default_format;
-    input->files[input->nr_files].compression = input->default_compression;
+    struct input_file *f = &input->files[input->nr_files];
+
+    f->name = path;
+    f->format = input->default_format;
+    f->compression = input->default_compression;
+    f->reloc_table.data = NULL;
+    f->reloc_table.size = 0;
 
     input->nr_files++;
 
     return 0;
 }
-

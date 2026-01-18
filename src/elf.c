@@ -1,0 +1,618 @@
+/*
+ * Copyright 2017-2026 Matt "MateoConLechuga" Waltz
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "elf.h"
+#include "log.h"
+#include "input.h"
+
+#include <string.h>
+#include <stdlib.h>
+
+/* ELF32 constants */
+#define EI_NIDENT 16
+#define ELFMAG0 0x7f
+#define ELFMAG1 'E'
+#define ELFMAG2 'L'
+#define ELFMAG3 'F'
+#define ELFCLASS32 1
+#define ELFDATA2LSB 1
+#define EM_Z80 220
+#define SHT_PROGBITS 1
+#define SHT_SYMTAB 2
+#define SHT_NOBITS 8
+#define SHT_RELA 4
+#define SHF_ALLOC 0x2
+#define SHN_ABS 0xfff1
+#define R_Z80_24 5
+
+/* ELF32 structures */
+struct elf32_ehdr
+{
+    uint8_t e_ident[EI_NIDENT];
+    uint16_t e_type;
+    uint16_t e_machine;
+    uint32_t e_version;
+    uint32_t e_entry;
+    uint32_t e_phoff;
+    uint32_t e_shoff;
+    uint32_t e_flags;
+    uint16_t e_ehsize;
+    uint16_t e_phentsize;
+    uint16_t e_phnum;
+    uint16_t e_shentsize;
+    uint16_t e_shnum;
+    uint16_t e_shstrndx;
+};
+
+struct elf32_shdr
+{
+    uint32_t sh_name;
+    uint32_t sh_type;
+    uint32_t sh_flags;
+    uint32_t sh_addr;
+    uint32_t sh_offset;
+    uint32_t sh_size;
+    uint32_t sh_link;
+    uint32_t sh_info;
+    uint32_t sh_addralign;
+    uint32_t sh_entsize;
+};
+
+struct elf32_rela
+{
+    uint32_t r_offset;
+    uint32_t r_info;
+    int32_t r_addend;
+};
+
+struct elf32_sym
+{
+    uint32_t st_name;
+    uint32_t st_value;
+    uint32_t st_size;
+    uint8_t st_info;
+    uint8_t st_other;
+    uint16_t st_shndx;
+};
+
+struct section_info
+{
+    uint32_t addr;
+    uint32_t size;
+    uint32_t offset;
+    uint32_t type;
+};
+
+static uint16_t read_u16_le(const uint8_t *data)
+{
+    return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+}
+
+static uint32_t read_u32_le(const uint8_t *data)
+{
+    return (uint32_t)data[0] |
+           ((uint32_t)data[1] << 8) |
+           ((uint32_t)data[2] << 16) |
+           ((uint32_t)data[3] << 24);
+}
+
+static int read_ehdr_from_file(FILE *fd, struct elf32_ehdr *ehdr)
+{
+    uint8_t buf[52];
+    const uint8_t *p;
+
+    if (fread(buf, 1, 52, fd) != 52)
+    {
+        LOG_ERROR("Failed to read ELF header.\n");
+        return -1;
+    }
+
+    p = buf;
+    memcpy(ehdr->e_ident, p, EI_NIDENT);
+    p += EI_NIDENT;
+
+    /* Verify magic */
+    if (ehdr->e_ident[0] != ELFMAG0 || ehdr->e_ident[1] != ELFMAG1 ||
+        ehdr->e_ident[2] != ELFMAG2 || ehdr->e_ident[3] != ELFMAG3)
+    {
+        LOG_ERROR("Invalid ELF magic number.\n");
+        return -1;
+    }
+
+    /* Verify 32-bit little-endian */
+    if (ehdr->e_ident[4] != ELFCLASS32)
+    {
+        LOG_ERROR("Only 32-bit ELF files supported.\n");
+        return -1;
+    }
+    if (ehdr->e_ident[5] != ELFDATA2LSB)
+    {
+        LOG_ERROR("Only little-endian ELF files supported.\n");
+        return -1;
+    }
+
+    ehdr->e_type = read_u16_le(p);
+    p += 2;
+    ehdr->e_machine = read_u16_le(p);
+    p += 2;
+    ehdr->e_version = read_u32_le(p);
+    p += 4;
+    ehdr->e_entry = read_u32_le(p);
+    p += 4;
+    ehdr->e_phoff = read_u32_le(p);
+    p += 4;
+    ehdr->e_shoff = read_u32_le(p);
+    p += 4;
+    ehdr->e_flags = read_u32_le(p);
+    p += 4;
+    ehdr->e_ehsize = read_u16_le(p);
+    p += 2;
+    ehdr->e_phentsize = read_u16_le(p);
+    p += 2;
+    ehdr->e_phnum = read_u16_le(p);
+    p += 2;
+    ehdr->e_shentsize = read_u16_le(p);
+    p += 2;
+    ehdr->e_shnum = read_u16_le(p);
+    p += 2;
+    ehdr->e_shstrndx = read_u16_le(p);
+
+    return 0;
+}
+
+static int read_shdr_from_file(FILE *fd, uint32_t offset, struct elf32_shdr *shdr)
+{
+    uint8_t buf[40];
+    const uint8_t *p;
+
+    if (fseek(fd, offset, SEEK_SET) != 0)
+    {
+        LOG_ERROR("Failed to seek to section header.\n");
+        return -1;
+    }
+
+    if (fread(buf, 1, 40, fd) != 40)
+    {
+        LOG_ERROR("Failed to read section header.\n");
+        return -1;
+    }
+
+    p = buf;
+    shdr->sh_name = read_u32_le(p);
+    p += 4;
+    shdr->sh_type = read_u32_le(p);
+    p += 4;
+    shdr->sh_flags = read_u32_le(p);
+    p += 4;
+    shdr->sh_addr = read_u32_le(p);
+    p += 4;
+    shdr->sh_offset = read_u32_le(p);
+    p += 4;
+    shdr->sh_size = read_u32_le(p);
+    p += 4;
+    shdr->sh_link = read_u32_le(p);
+    p += 4;
+    shdr->sh_info = read_u32_le(p);
+    p += 4;
+    shdr->sh_addralign = read_u32_le(p);
+    p += 4;
+    shdr->sh_entsize = read_u32_le(p);
+
+    return 0;
+}
+
+static int read_rela(const uint8_t *data, struct elf32_rela *rela)
+{
+    const uint8_t *p = data;
+
+    rela->r_offset = read_u32_le(p);
+    p += 4;
+    rela->r_info = read_u32_le(p);
+    p += 4;
+    rela->r_addend = (int32_t)read_u32_le(p);
+
+    return 0;
+}
+
+static int read_sym(const uint8_t *data, struct elf32_sym *sym)
+{
+    const uint8_t *p = data;
+
+    sym->st_name = read_u32_le(p);
+    p += 4;
+    sym->st_value = read_u32_le(p);
+    p += 4;
+    sym->st_size = read_u32_le(p);
+    p += 4;
+    sym->st_info = *p;
+    p += 1;
+    sym->st_other = *p;
+    p += 1;
+    sym->st_shndx = read_u16_le(p);
+
+    return 0;
+}
+
+static int section_compare(const void *a, const void *b)
+{
+    const struct section_info *sa = (const struct section_info *)a;
+    const struct section_info *sb = (const struct section_info *)b;
+
+    if (sa->addr < sb->addr)
+        return -1;
+    if (sa->addr > sb->addr)
+        return 1;
+    return 0;
+}
+
+static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
+                               const struct elf32_ehdr *ehdr,
+                               struct app_reloc_table *reloc_table)
+{
+    uint32_t i;
+    struct elf32_shdr shstrtab_hdr;
+    uint8_t *reloc_data = NULL;
+    size_t reloc_count = 0;
+    uint32_t skipped_abs_count = 0;
+
+    if (reloc_table == NULL)
+    {
+        return 0;
+    }
+
+    reloc_table->data = NULL;
+    reloc_table->size = 0;
+
+    reloc_data = malloc(MAX_APP_RELOC_SIZE);
+    if (reloc_data == NULL)
+    {
+        LOG_ERROR("Failed to allocate relocation table.\n");
+        return -1;
+    }
+
+    if (ehdr->e_shstrndx >= ehdr->e_shnum)
+    {
+        free(reloc_data);
+        return 0;
+    }
+
+    if (read_shdr_from_file(fd, ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize, &shstrtab_hdr) < 0)
+    {
+        free(reloc_data);
+        return 0;
+    }
+
+    for (i = 0; i < ehdr->e_shnum; i++)
+    {
+        struct elf32_shdr shdr;
+        uint32_t shdr_offset = ehdr->e_shoff + i * ehdr->e_shentsize;
+        uint8_t *rela_data;
+        uint8_t *symtab_data = NULL;
+        struct elf32_shdr symtab_shdr;
+        uint32_t j;
+
+        if (read_shdr_from_file(fd, shdr_offset, &shdr) < 0)
+        {
+            continue;
+        }
+
+        if (shdr.sh_type != SHT_RELA)
+        {
+            continue;
+        }
+
+        LOG_DEBUG("Extracting relocations from section\n");
+
+        /* Read the symbol table referenced by sh_link */
+        if (shdr.sh_link >= ehdr->e_shnum)
+        {
+            LOG_ERROR("Invalid symbol table index in relocation section.\n");
+            free(reloc_data);
+            return -1;
+        }
+
+        if (read_shdr_from_file(fd, ehdr->e_shoff + shdr.sh_link * ehdr->e_shentsize, &symtab_shdr) < 0)
+        {
+            LOG_ERROR("Failed to read symbol table header.\n");
+            free(reloc_data);
+            return -1;
+        }
+
+        if (symtab_shdr.sh_type != SHT_SYMTAB)
+        {
+            LOG_ERROR("sh_link does not point to a symbol table.\n");
+            free(reloc_data);
+            return -1;
+        }
+
+        /* Read entire symbol table */
+        symtab_data = malloc(symtab_shdr.sh_size);
+        if (symtab_data == NULL)
+        {
+            LOG_ERROR("Failed to allocate memory for symbol table.\n");
+            free(reloc_data);
+            return -1;
+        }
+
+        if (fseek(fd, symtab_shdr.sh_offset, SEEK_SET) != 0 ||
+            fread(symtab_data, 1, symtab_shdr.sh_size, fd) != symtab_shdr.sh_size)
+        {
+            LOG_ERROR("Failed to read symbol table.\n");
+            free(symtab_data);
+            free(reloc_data);
+            return -1;
+        }
+
+        /* Read entire relocation section */
+        rela_data = malloc(shdr.sh_size);
+        if (rela_data == NULL)
+        {
+            LOG_ERROR("Failed to allocate memory for relocation section.\n");
+            free(symtab_data);
+            free(reloc_data);
+            return -1;
+        }
+
+        if (fseek(fd, shdr.sh_offset, SEEK_SET) != 0 ||
+            fread(rela_data, 1, shdr.sh_size, fd) != shdr.sh_size)
+        {
+            LOG_ERROR("Failed to read relocation section.\n");
+            free(rela_data);
+            free(symtab_data);
+            free(reloc_data);
+            return -1;
+        }
+
+        /* Process each relocation entry */
+        for (j = 0; j < shdr.sh_size; j += 12)
+        {
+            struct elf32_rela rela;
+            struct elf32_sym sym;
+            uint32_t r_type;
+            uint32_t r_sym;
+            uint32_t hole_offset;
+            uint32_t current_value;
+            uint32_t unrelocated_value;
+            uint8_t *entry;
+
+            read_rela(rela_data + j, &rela);
+
+            /* Extract relocation type and symbol index */
+            r_type = rela.r_info & 0xFF;
+            r_sym = rela.r_info >> 8;
+
+            if (r_type != R_Z80_24)
+            {
+                LOG_ERROR("Unsupported relocation type: %u (expected R_Z80_24)\n", r_type);
+                free(rela_data);
+                free(symtab_data);
+                free(reloc_data);
+                return -1;
+            }
+
+            /* Read the symbol this relocation refers to */
+            if (r_sym * sizeof(struct elf32_sym) >= symtab_shdr.sh_size)
+            {
+                LOG_ERROR("Symbol index %u out of bounds.\n", r_sym);
+                free(rela_data);
+                free(symtab_data);
+                free(reloc_data);
+                return -1;
+            }
+
+            read_sym(symtab_data + r_sym * 16, &sym);
+
+            /* Skip relocations to absolute symbols */
+            if (sym.st_shndx == SHN_ABS)
+            {
+                LOG_DEBUG("  Skipping relocation at 0x%06X (absolute symbol)\n", rela.r_offset);
+                skipped_abs_count++;
+                continue;
+            }
+
+            /* Calculate hole offset in output data */
+            if (rela.r_offset < base_addr)
+            {
+                LOG_ERROR("Relocation offset 0x%06X below base address 0x%06X\n",
+                         rela.r_offset, base_addr);
+                free(rela_data);
+                free(symtab_data);
+                free(reloc_data);
+                return -1;
+            }
+
+            hole_offset = rela.r_offset - base_addr;
+
+            /* Read current 24-bit value from the data */
+            current_value = data[hole_offset] |
+                          (data[hole_offset + 1] << 8) |
+                          (data[hole_offset + 2] << 16);
+
+            /* Subtract addend to get unrelocated value */
+            unrelocated_value = (current_value - rela.r_addend) & 0xFFFFFF;
+
+            /* Skip relocations to values outside range */
+            if (unrelocated_value >= 0x400000)
+            {
+                LOG_DEBUG("  Skipping relocation at 0x%06X (outside range)\n", rela.r_offset);
+                skipped_abs_count++;
+                continue;
+            }
+
+            LOG_DEBUG("  Reloc at 0x%06X: offset=0x%06X\n", hole_offset, unrelocated_value);
+
+            /* Write unrelocated value back to data */
+            data[hole_offset] = unrelocated_value;
+            data[hole_offset + 1] = unrelocated_value >> 8;
+            data[hole_offset + 2] = unrelocated_value >> 16;
+
+            /* Check if we've exceeded maximum relocation table size */
+            if ((reloc_count + 1) * 6 > MAX_APP_RELOC_SIZE)
+            {
+                LOG_ERROR("Relocation table exceeded maximum size.\n");
+                free(rela_data);
+                free(symtab_data);
+                free(reloc_data);
+                return -1;
+            }
+
+            /* Write directly to relocation table */
+            entry = reloc_data + reloc_count * 6;
+            entry[0] = hole_offset;
+            entry[1] = hole_offset >> 8;
+            entry[2] = hole_offset >> 16;
+            entry[3] = unrelocated_value;
+            entry[4] = unrelocated_value >> 8;
+            entry[5] = unrelocated_value >> 16;
+            reloc_count++;
+        }
+
+        free(rela_data);
+        free(symtab_data);
+    }
+
+    LOG_DEBUG("Skipped %u absolute symbol relocations\n", skipped_abs_count);
+
+    reloc_table->data = reloc_data;
+    reloc_table->size = reloc_count * 6;
+
+    return 0;
+}
+
+int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table)
+{
+    struct elf32_ehdr ehdr;
+    struct section_info *sections = NULL;
+    uint32_t num_sections = 0;
+    uint32_t min_addr = 0xFFFFFFFF;
+    uint32_t max_addr = 0;
+    uint32_t i;
+    int ret = -1;
+
+    if (fd == NULL || data == NULL || size == NULL)
+    {
+        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        return -1;
+    }
+
+    if (fseek(fd, 0, SEEK_SET) != 0)
+    {
+        LOG_ERROR("Failed to seek to beginning of file.\n");
+        return -1;
+    }
+
+    if (read_ehdr_from_file(fd, &ehdr) < 0)
+    {
+        return -1;
+    }
+
+    if (ehdr.e_shoff == 0 || ehdr.e_shnum == 0)
+    {
+        LOG_ERROR("No section headers in ELF file.\n");
+        return -1;
+    }
+
+    sections = (struct section_info *)malloc(ehdr.e_shnum * sizeof(struct section_info));
+    if (sections == NULL)
+    {
+        LOG_ERROR("Memory allocation failed.\n");
+        return -1;
+    }
+
+    for (i = 0; i < ehdr.e_shnum; i++)
+    {
+        struct elf32_shdr shdr;
+        uint32_t shdr_offset = ehdr.e_shoff + i * ehdr.e_shentsize;
+
+        if (read_shdr_from_file(fd, shdr_offset, &shdr) < 0)
+        {
+            goto cleanup;
+        }
+
+        if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type == SHT_PROGBITS && shdr.sh_size > 0)
+        {
+            sections[num_sections].addr = shdr.sh_addr;
+            sections[num_sections].size = shdr.sh_size;
+            sections[num_sections].offset = shdr.sh_offset;
+            sections[num_sections].type = shdr.sh_type;
+            num_sections++;
+
+            if (shdr.sh_addr < min_addr)
+                min_addr = shdr.sh_addr;
+            if (shdr.sh_addr + shdr.sh_size > max_addr)
+                max_addr = shdr.sh_addr + shdr.sh_size;
+        }
+    }
+
+    if (num_sections == 0)
+    {
+        LOG_ERROR("No loadable sections found.\n");
+        goto cleanup;
+    }
+
+    qsort(sections, num_sections, sizeof(struct section_info), section_compare);
+
+    *size = max_addr - min_addr;
+    if (*size > INPUT_MAX_SIZE)
+    {
+        LOG_ERROR("Output too large: %u bytes.\n", (unsigned int)*size);
+        goto cleanup;
+    }
+
+    memset(data, 0, *size);
+
+    for (i = 0; i < num_sections; i++)
+    {
+        uint32_t dest_offset = sections[i].addr - min_addr;
+
+        if (fseek(fd, sections[i].offset, SEEK_SET) != 0)
+        {
+            LOG_ERROR("Failed to seek to section data.\n");
+            goto cleanup;
+        }
+
+        if (fread(data + dest_offset, 1, sections[i].size, fd) != sections[i].size)
+        {
+            LOG_ERROR("Failed to read section data.\n");
+            goto cleanup;
+        }
+    }
+
+    if (extract_relocations(fd, data, min_addr, &ehdr, reloc_table) < 0)
+    {
+        goto cleanup;
+    }
+
+    ret = 0;
+
+cleanup:
+    free(sections);
+    return ret;
+}

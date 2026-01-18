@@ -31,8 +31,9 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include "elf.h"
+
 #include <stdlib.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,6 +50,7 @@ typedef enum
     IFORMAT_TI8X_DATA,
     IFORMAT_TI8X_DATA_VAR,
     IFORMAT_CSV,
+    IFORMAT_ELF,
     IFORMAT_INVALID,
 } iformat_t;
 
@@ -59,6 +61,7 @@ struct input_file
     compress_mode_t compression;
     size_t size;
     uint8_t data[INPUT_MAX_SIZE];
+    struct app_reloc_table reloc_table;
 };
 
 struct input

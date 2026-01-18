@@ -84,7 +84,8 @@ static void options_show(const char *prgm)
     LOG_PRINT("\n");
     LOG_PRINT("    bin: Interprets as raw binary.\n");
     LOG_PRINT("    csv: Interprets as csv (comma separated values).\n");
-    LOG_PRINT("    8x: Interprets the TI 8x* data section.\n");
+    LOG_PRINT("    elf: Interprets as eZ80 ELF object file.\n");
+    LOG_PRINT("    8x:  Interprets the TI 8x* data section.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Output formats:\n");
     LOG_PRINT("    Below is a list of available output formats, listed as\n");
@@ -136,6 +137,10 @@ static iformat_t options_parse_input_format(const char *str)
     else if (!strcmp(str, "csv"))
     {
         format = IFORMAT_CSV;
+    }
+    else if (!strcmp(str, "elf"))
+    {
+        format = IFORMAT_ELF;
     }
     else
     {
@@ -382,6 +387,7 @@ static void options_set_default(struct options *options)
     options->output.file.format = OFORMAT_INVALID;
     options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
     options->output.file.var.archive = false;
+    options->output.file.var.namelen = 0;
     options->output.file.size = 0;
     options->output.file.compressed_size = 0;
     options->output.file.uncompressed_size = 0;

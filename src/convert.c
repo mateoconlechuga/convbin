@@ -113,7 +113,6 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
     size_t data_size;
     size_t varb_size;
     size_t var_size;
-    size_t name_size;
     uint8_t *ti8x;
 
     if (size > file->var.maxsize)
@@ -122,7 +121,6 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
         return -1;
     }
 
-    name_size = strlen(file->var.name);
     file_size = size + TI8X_DATA + TI8X_CHECKSUM_LEN;
     data_size = size + TI8X_VAR_HEADER_LEN + TI8X_VARB_SIZE_LEN;
     var_size = size + TI8X_VARB_SIZE_LEN;
@@ -131,12 +129,9 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
     ti8x = file->data;
     file->size = file_size;
 
-    if (name_size > TI8X_VAR_NAME_LEN)
-        name_size = TI8X_VAR_NAME_LEN;
-
     memcpy(ti8x + TI8X_COMMENT, file->comment, MAX_COMMENT_SIZE);
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
-    memcpy(ti8x + TI8X_NAME, file->var.name, name_size);
+    memcpy(ti8x + TI8X_NAME, file->var.name, file->var.namelen);
     memcpy(ti8x + TI8X_DATA, data, size);
 
     ti8x[TI8X_VAR_HEADER] = TI8X_MAGIC;
@@ -252,10 +247,12 @@ static int convert_8xp(struct input *input, struct output_file *file)
         for (i = 0; i < num_appvars; ++i)
         {
             size_t name_size = strlen(file->var.name);
-            struct output_file appvarfile;
+            static struct output_file appvarfile;
 
             if (name_size > TI8X_VAR_NAME_LEN)
+            {
                 name_size = TI8X_VAR_NAME_LEN;
+            }
 
             appvar_names[i][0] = TI8X_TYPE_APPVAR;
             memcpy(&appvar_names[i][1], file->var.name, name_size);
@@ -353,65 +350,192 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
 
 static int convert_8ek(struct input *input, struct output_file *file)
 {
-    static uint8_t data[INPUT_MAX_SIZE];
-    uint8_t *ti8ek;
-    size_t size = 0;
-    size_t name_len;
-    time_t now;
-    struct tm *timeinfo;
-    int ret;
+    uint8_t *input_data;
+    const uint8_t *reloc_table;
+    uint8_t *output_data;
+    uint8_t *ptr;
+    uint8_t *app_header_start;
+    size_t input_size = 0;
+    size_t app_total_size = 0;
+    size_t app_data_size;
+    size_t reloc_size = 0;
+    size_t i;
 
     if (file->compression != COMPRESS_NONE)
     {
         LOG_WARNING("Ignoring compression mode!\n");
     }
 
-    ret = convert_build_data(input, data, &size,
-                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
-    if (ret < 0)
+    if (input->nr_files != 1)
     {
-        return ret;
+        LOG_ERROR("8ek format requires exactly one input file.\n");
+        return -1;
     }
 
-    ti8ek = file->data;
-    file->size = TI8EK_HEADER_LEN + size;
+    reloc_size = input->files[0].reloc_table.size;
+    reloc_table = input->files[0].reloc_table.data;
+    input_data = input->files[0].data;
+    input_size = input->files[0].size;
 
-    now = time(NULL);
-    timeinfo = localtime(&now);
+    output_data = file->data;
 
-    memcpy(ti8ek, TI8EK_SIGNATURE, TI8EK_SIGNATURE_LEN);
-    ti8ek[8] = TI8EK_VERSION;
-    ti8ek[9] = 0x00;
-    ti8ek[10] = 0x00;
-    ti8ek[11] = 0x00;
-    ti8ek[12] = timeinfo->tm_mday;
-    ti8ek[13] = timeinfo->tm_mon + 1;
-    ti8ek[14] = (timeinfo->tm_year + 1900) & 0xff;
+    app_total_size = input_size + reloc_size;
+    app_data_size =
+        TI8EK_APP_HEADER_SIZE +
+        TI8EK_APP_METADATA_SIZE +
+        reloc_size +
+        input_size +
+        TI8EK_APP_SIGNATURE_FIELD_SIZE +
+        TI8EK_APP_SIGNATURE_TYPE_SIZE +
+        TI8EK_APP_SIGNATURE_SIZE;
 
-    name_len = strlen(file->var.name);
-    if (name_len > TI8X_VAR_NAME_LEN)
+    /* File Header */
+    ptr = &output_data[TI8X_FILE_HEADER];
+    *ptr++ = '*';
+    *ptr++ = '*';
+    *ptr++ = 'T';
+    *ptr++ = 'I';
+    *ptr++ = 'F';
+    *ptr++ = 'L';
+    *ptr++ = '*';
+    *ptr++ = '*';
+    *ptr++ = 0x05;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = 0x00;
+    *ptr++ = file->var.namelen;
+    for (i = 0; i < file->var.namelen; ++i)
     {
-        name_len = TI8X_VAR_NAME_LEN;
+        *ptr++ = file->var.name[i];
+    }
+    ptr = &output_data[0x30];
+    *ptr++ = 0x73;
+    *ptr++ = 0x24;
+    ptr = &output_data[0x49];
+    *ptr++ = 0x13;
+    ptr = &output_data[TI8X_DATA];
+    *ptr++ = app_data_size >> 0;
+    *ptr++ = app_data_size >> 8;
+    *ptr++ = app_data_size >> 16;
+    *ptr++ = app_data_size >> 24;
+
+    /* Application Header */
+    ptr = app_header_start = &output_data[TI8EK_APP_HEADER_OFFSET];
+    *ptr++ = 0x81;
+    *ptr++ = 0x0F;
+    *ptr++ = app_total_size >> 24;
+    *ptr++ = app_total_size >> 16;
+    *ptr++ = app_total_size >> 8;
+    *ptr++ = app_total_size >> 0;
+    *ptr++ = 0x81;
+    *ptr++ = 0x12;
+    *ptr++ = 0x13;
+    *ptr++ = 0x0F;
+    *ptr++ = 0x81;
+    *ptr++ = 0x2D;
+    *ptr++ = 0x0B;
+    *ptr++ = '5';
+    *ptr++ = '.';
+    *ptr++ = '0';
+    *ptr++ = '.';
+    *ptr++ = '0';
+    *ptr++ = '.';
+    *ptr++ = '0';
+    *ptr++ = '0';
+    *ptr++ = '8';
+    *ptr++ = '9';
+    *ptr++ = 0x00;
+    *ptr++ = 0x81;
+    *ptr++ = 0x32;
+    *ptr++ = 0x59;
+    *ptr++ = 0x00;
+    *ptr++ = 0x81;
+    *ptr++ = 0x40 | file->var.namelen;
+    for (i = 0; i < file->var.namelen; ++i)
+    {
+        *ptr++ = file->var.name[i];
+    }
+    *ptr++ = 0x81;
+    *ptr++ = 0xA1;
+    *ptr++ = 0x07;
+    *ptr++ = 0x03;
+    *ptr++ = 0x26;
+    *ptr++ = 0x09;
+    *ptr++ = 0x04;
+    *ptr++ = 0x21;
+    *ptr++ = 0xBB;
+    *ptr++ = 0x6E;
+    *ptr++ = 0xDC;
+    *ptr++ = 0x00;
+    *ptr++ = 0x0D;
+    *ptr = TI8EK_APP_HEADER_SIZE - (ptr - app_header_start);
+    ptr = &output_data[TI8EK_APP_HEADER_SIZE_FIELD_OFFSET];
+    *ptr++ = 0x81;
+    *ptr++ = 0x7F;
+    *ptr++ = app_total_size >> 24;
+    *ptr++ = app_total_size >> 16;
+    *ptr++ = app_total_size >> 8;
+    *ptr++ = app_total_size >> 0;
+
+    /* Application Metadata */
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET];
+    *ptr++ = 'e';
+    *ptr++ = 'Z';
+    *ptr++ = '8';
+    ptr = &output_data[TI8EK_APP_METADATA_NAME_OFFSET];
+    for (i = 0; i < file->var.namelen; ++i)
+    {
+        *ptr++ = file->var.name[i];
+    }
+    ptr = &output_data[TI8EK_APP_METADATA_FLAGS_OFFSET];
+    *ptr++ = (1 << 0);
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x12];
+    *ptr++ = reloc_size;
+    *ptr++ = reloc_size >> 8;
+    *ptr++ = reloc_size >> 16;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x15];
+    *ptr++ = 0;
+    *ptr++ = 0;
+    *ptr++ = 0;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x18];
+    *ptr++ = 0;
+    *ptr++ = 0;
+    *ptr++ = 0;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x1B];
+    *ptr++ = reloc_size;
+    *ptr++ = reloc_size >> 8;
+    *ptr++ = reloc_size >> 16;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x24];
+    *ptr++ = reloc_size;
+    *ptr++ = reloc_size >> 8;
+    *ptr++ = reloc_size >> 16;
+    ptr = &output_data[TI8EK_APP_METADATA_RELOC_OFFSET];
+    if (reloc_size > 0)
+    {
+        memcpy(ptr, reloc_table, reloc_size);
+        ptr += reloc_size;
     }
 
-    ti8ek[15] = name_len;
-    memcpy(ti8ek + 16, file->var.name, name_len);
-    memset(ti8ek + 16 + name_len, 0, TI8X_VAR_NAME_LEN - name_len);
+    memcpy(ptr, input_data, input_size);
+    ptr += input_size;
 
-    memset(ti8ek + 24, 0, 23);
+    *ptr++ = 0x02;
+    *ptr++ = 0x3E;
+    *ptr++ = 0x01;
+    *ptr++ = 0x00;
+    for (i = 0; i < TI8EK_APP_SIGNATURE_SIZE; ++i)
+    {
+        *ptr++ = 0xFF;
+    }
 
-    ti8ek[47] = 0x73;
-    ti8ek[48] = 0x24;
-
-    memset(ti8ek + 49, 0, 23);
-
-    ti8ek[72] = 0x13;
-    ti8ek[73] = (size >> 0) & 0xff;
-    ti8ek[74] = (size >> 8) & 0xff;
-    ti8ek[75] = (size >> 16) & 0xff;
-    ti8ek[76] = (size >> 24) & 0xff;
-
-    memcpy(ti8ek + TI8EK_HEADER_LEN, data, size);
+    file->size =
+        TI8X_FILE_HEADER_LEN +
+        TI8X_VAR_HEADER_LEN +
+        app_data_size;
 
     return 0;
 }
@@ -452,7 +576,7 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
         return -1;
     }
 
-    base_name_len = strlen(file->var.name);
+    base_name_len = file->var.namelen;
     if (num_appvars > 9 && base_name_len > TI8X_VAR_NAME_LEN - 2)
     {
         base_name_len = TI8X_VAR_NAME_LEN - 2; /* Need 2 chars for 10-99 */
@@ -473,7 +597,7 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
 
     for (i = 0; i < num_appvars; ++i)
     {
-        struct output_file appvarfile = {0};
+        struct output_file appvarfile = { 0 };
         size_t offset = i * appvar_size;
         size_t chunk_size = appvar_size;
         char var_name[TI8X_VAR_NAME_LEN + 1];
@@ -624,9 +748,19 @@ int convert_normal(struct input *input, struct output *output)
     }
     else
     {
-        LOG_PRINT("[success] %s, %lu bytes.\n",
-            file->name,
-            (unsigned long)file->size);
+        if (file->format == OFORMAT_8EK)
+        {
+            LOG_PRINT("[success] %s, %lu bytes. (%lu relocations)\n",
+                file->name,
+                (unsigned long)file->size,
+                (unsigned long)(input->files[0].reloc_table.size / 6));
+        }
+        else
+        {
+            LOG_PRINT("[success] %s, %lu bytes.\n",
+                file->name,
+                (unsigned long)file->size);
+        }
     }
 
     return 0;

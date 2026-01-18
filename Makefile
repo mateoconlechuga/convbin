@@ -74,6 +74,7 @@ SOURCES := $(SRCDIR)/main.c \
            $(SRCDIR)/extract.c \
            $(SRCDIR)/options.c \
            $(SRCDIR)/ti8x.c \
+           $(SRCDIR)/elf.c \
            $(SRCDIR)/log.c \
            $(SRCDIR)/asm/zx7_decompressor.c \
            $(SRCDIR)/asm/zx0_decompressor.c \
