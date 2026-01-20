@@ -85,7 +85,8 @@ static void options_show(const char *prgm)
     LOG_PRINT("    bin: Interprets as raw binary.\n");
     LOG_PRINT("    csv: Interprets as csv (comma separated values).\n");
     LOG_PRINT("    elf: Interprets as eZ80 ELF object file.\n");
-    LOG_PRINT("    8x:  Interprets the TI 8x* data section.\n");
+    LOG_PRINT("    8ek: Interprets as TI 8ek application section.\n");
+    LOG_PRINT("    8x:  Interprets as TI 8x* data section.\n");
     LOG_PRINT("\n");
     LOG_PRINT("Output formats:\n");
     LOG_PRINT("    Below is a list of available output formats, listed as\n");
@@ -141,6 +142,10 @@ static iformat_t options_parse_input_format(const char *str)
     else if (!strcmp(str, "elf"))
     {
         format = IFORMAT_ELF;
+    }
+    else if (!strcmp(str, "8ek"))
+    {
+        format = IFORMAT_TI8EK;
     }
     else
     {

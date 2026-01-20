@@ -37,74 +37,74 @@
 #include <string.h>
 #include <ctype.h>
 
-static int input_bin(FILE *fd, uint8_t *data, size_t *size)
+static int input_bin(FILE *fd, uint8_t *data, size_t *size, size_t offset)
 {
-    size_t s = 0;
+    size_t bytes_read;
 
     if (fd == NULL || data == NULL || size == NULL)
     {
-        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
+        LOG_ERROR("Invalid param in '%s'.\n", __func__);
         return -1;
     }
 
-    for (;;)
-    {
-        int c = fgetc(fd);
-        if (c == EOF)
-        {
-            break;
-        }
-
-        data[s++] = (uint8_t)c;
-        if (s >= INPUT_MAX_SIZE)
-        {
-            LOG_ERROR("Input file too large.\n");
-            return -1;
-        }
-    }
-
-    *size = s;
-
-    return 0;
-}
-
-static int input_ti8x(FILE *fd, uint8_t *data, size_t *size, bool header)
-{
-    size_t s = 0;
-    int ret;
-
-    if (fd == NULL || data == NULL || size == NULL)
-    {
-        LOG_ERROR("Invalid param in \'%s\'.\n", __func__);
-        return -1;
-    }
-
-    ret = fseek(fd, header ? TI8X_VAR_HEADER : TI8X_DATA, SEEK_SET);
-    if (ret != 0)
+    if (fseek(fd, offset, SEEK_SET) != 0)
     {
         LOG_ERROR("Input seek failed.\n");
         return -1;
     }
 
-    for (;;)
-    {
-        int c = fgetc(fd);
-        if (c == EOF)
-        {
-            break;
-        }
+    bytes_read = fread(data, 1, INPUT_MAX_SIZE, fd);
 
-        data[s++] = (uint8_t)c;
-        if (s >= INPUT_MAX_SIZE)
-        {
-            LOG_ERROR("Input file too large.\n");
-            return -1;
-        }
+    if (bytes_read == 0 && ferror(fd))
+    {
+        LOG_ERROR("Input read failed.\n");
+        return -1;
     }
 
-    if (s >= TI8X_CHECKSUM_LEN)
+    if (bytes_read == INPUT_MAX_SIZE && fgetc(fd) != EOF)
     {
-        s -= TI8X_CHECKSUM_LEN;
+        LOG_ERROR("Input file too large.\n");
+        return -1;
+    }
+
+    *size = bytes_read;
+
+    return 0;
+}
+
+static int input_ti8x(FILE *fd, uint8_t *data, size_t *size, size_t offset)
+{
+    size_t bytes_read;
+
+    if (fd == NULL || data == NULL || size == NULL)
+    {
+        LOG_ERROR("Invalid param in '%s'.\n", __func__);
+        return -1;
+    }
+
+    if (fseek(fd, offset, SEEK_SET) != 0)
+    {
+        LOG_ERROR("Input seek failed.\n");
+        return -1;
+    }
+
+    bytes_read = fread(data, 1, INPUT_MAX_SIZE, fd);
+    
+    if (bytes_read == 0 && ferror(fd))
+    {
+        LOG_ERROR("Input read failed.\n");
+        return -1;
+    }
+
+    if (bytes_read == INPUT_MAX_SIZE && fgetc(fd) != EOF)
+    {
+        LOG_ERROR("Input file too large.\n");
+        return -1;
+    }
+
+    if (bytes_read >= TI8X_CHECKSUM_LEN)
+    {
+        bytes_read -= TI8X_CHECKSUM_LEN;
     }
     else
     {
@@ -112,19 +112,9 @@ static int input_ti8x(FILE *fd, uint8_t *data, size_t *size, bool header)
         return -1;
     }
 
-    *size = s;
+    *size = bytes_read;
 
     return 0;
-}
-
-static int input_ti8x_data(FILE *fd, uint8_t *data, size_t *size)
-{
-    return input_ti8x(fd, data, size, false);
-}
-
-static int input_ti8x_data_var(FILE *fd, uint8_t *data, size_t *size)
-{
-    return input_ti8x(fd, data, size, true);
 }
 
 static char *input_csv_line(FILE *fd)
@@ -233,15 +223,19 @@ int input_read_file(struct input_file *file)
     switch (file->format)
     {
         case IFORMAT_BIN:
-            ret = input_bin(fd, file->data, &file->size);
+            ret = input_bin(fd, file->data, &file->size, 0);
             break;
 
         case IFORMAT_TI8X_DATA:
-            ret = input_ti8x_data(fd, file->data, &file->size);
+            ret = input_ti8x(fd, file->data, &file->size, TI8X_DATA);
             break;
 
         case IFORMAT_TI8X_DATA_VAR:
-            ret = input_ti8x_data_var(fd, file->data, &file->size);
+            ret = input_ti8x(fd, file->data, &file->size, TI8X_VAR_HEADER);
+            break;
+
+        case IFORMAT_TI8EK:
+            ret = input_bin(fd, file->data, &file->size, TI8EK_APP_HEADER_OFFSET);
             break;
 
         case IFORMAT_CSV:

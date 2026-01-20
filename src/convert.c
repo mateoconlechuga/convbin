@@ -549,7 +549,7 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
     size_t base_name_len;
     unsigned int num_appvars;
     unsigned int i;
-    char outname[4096];
+    static char outname[4096];
     char *ext_pos;
     int ret;
 
@@ -597,11 +597,11 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
 
     for (i = 0; i < num_appvars; ++i)
     {
-        struct output_file appvarfile = { 0 };
+        static struct output_file appvarfile = { 0 };
         size_t offset = i * appvar_size;
         size_t chunk_size = appvar_size;
         char var_name[TI8X_VAR_NAME_LEN + 1];
-        char temp_outname[4096];
+        static char temp_outname[4096];
         char index_str[16];
 
         if (offset + chunk_size > total_size)

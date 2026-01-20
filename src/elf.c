@@ -44,6 +44,7 @@
 #define ELFCLASS32 1
 #define ELFDATA2LSB 1
 #define EM_Z80 220
+#define PT_LOAD 1
 #define SHT_PROGBITS 1
 #define SHT_SYMTAB 2
 #define SHT_NOBITS 8
@@ -85,6 +86,18 @@ struct elf32_shdr
     uint32_t sh_entsize;
 };
 
+struct elf32_phdr
+{
+    uint32_t p_type;
+    uint32_t p_offset;
+    uint32_t p_vaddr;
+    uint32_t p_paddr;
+    uint32_t p_filesz;
+    uint32_t p_memsz;
+    uint32_t p_flags;
+    uint32_t p_align;
+};
+
 struct elf32_rela
 {
     uint32_t r_offset;
@@ -102,12 +115,11 @@ struct elf32_sym
     uint16_t st_shndx;
 };
 
-struct section_info
+struct segment_info
 {
-    uint32_t addr;
-    uint32_t size;
+    uint32_t paddr;
+    uint32_t filesz;
     uint32_t offset;
-    uint32_t type;
 };
 
 static uint16_t read_u16_le(const uint8_t *data)
@@ -228,6 +240,43 @@ static int read_shdr_from_file(FILE *fd, uint32_t offset, struct elf32_shdr *shd
     return 0;
 }
 
+static int read_phdr_from_file(FILE *fd, uint32_t offset, struct elf32_phdr *phdr)
+{
+    uint8_t buf[32];
+    const uint8_t *p;
+
+    if (fseek(fd, offset, SEEK_SET) != 0)
+    {
+        LOG_ERROR("Failed to seek to program header.\n");
+        return -1;
+    }
+
+    if (fread(buf, 1, 32, fd) != 32)
+    {
+        LOG_ERROR("Failed to read program header.\n");
+        return -1;
+    }
+
+    p = buf;
+    phdr->p_type = read_u32_le(p);
+    p += 4;
+    phdr->p_offset = read_u32_le(p);
+    p += 4;
+    phdr->p_vaddr = read_u32_le(p);
+    p += 4;
+    phdr->p_paddr = read_u32_le(p);
+    p += 4;
+    phdr->p_filesz = read_u32_le(p);
+    p += 4;
+    phdr->p_memsz = read_u32_le(p);
+    p += 4;
+    phdr->p_flags = read_u32_le(p);
+    p += 4;
+    phdr->p_align = read_u32_le(p);
+
+    return 0;
+}
+
 static int read_rela(const uint8_t *data, struct elf32_rela *rela)
 {
     const uint8_t *p = data;
@@ -260,14 +309,14 @@ static int read_sym(const uint8_t *data, struct elf32_sym *sym)
     return 0;
 }
 
-static int section_compare(const void *a, const void *b)
+static int segment_compare(const void *a, const void *b)
 {
-    const struct section_info *sa = (const struct section_info *)a;
-    const struct section_info *sb = (const struct section_info *)b;
+    const struct segment_info *sa = (const struct segment_info *)a;
+    const struct segment_info *sb = (const struct segment_info *)b;
 
-    if (sa->addr < sb->addr)
+    if (sa->paddr < sb->paddr)
         return -1;
-    if (sa->addr > sb->addr)
+    if (sa->paddr > sb->paddr)
         return 1;
     return 0;
 }
@@ -509,10 +558,10 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table)
 {
     struct elf32_ehdr ehdr;
-    struct section_info *sections = NULL;
-    uint32_t num_sections = 0;
-    uint32_t min_addr = 0xFFFFFFFF;
-    uint32_t max_addr = 0;
+    struct segment_info *segments = NULL;
+    uint32_t num_segments = 0;
+    uint32_t min_paddr = 0xFFFFFFFF;
+    uint32_t max_paddr = 0;
     uint32_t i;
     int ret = -1;
 
@@ -533,79 +582,83 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         return -1;
     }
 
-    if (ehdr.e_shoff == 0 || ehdr.e_shnum == 0)
+    if (ehdr.e_phoff == 0 || ehdr.e_phnum == 0)
     {
-        LOG_ERROR("No section headers in ELF file.\n");
+        LOG_ERROR("No program headers in ELF file.\n");
         return -1;
     }
 
-    sections = (struct section_info *)malloc(ehdr.e_shnum * sizeof(struct section_info));
-    if (sections == NULL)
+    segments = (struct segment_info *)malloc(ehdr.e_phnum * sizeof(struct segment_info));
+    if (segments == NULL)
     {
         LOG_ERROR("Memory allocation failed.\n");
         return -1;
     }
 
-    for (i = 0; i < ehdr.e_shnum; i++)
+    /* Iterate through program headers to find PT_LOAD segments */
+    for (i = 0; i < ehdr.e_phnum; i++)
     {
-        struct elf32_shdr shdr;
-        uint32_t shdr_offset = ehdr.e_shoff + i * ehdr.e_shentsize;
+        struct elf32_phdr phdr;
+        uint32_t phdr_offset = ehdr.e_phoff + i * ehdr.e_phentsize;
 
-        if (read_shdr_from_file(fd, shdr_offset, &shdr) < 0)
+        if (read_phdr_from_file(fd, phdr_offset, &phdr) < 0)
         {
             goto cleanup;
         }
 
-        if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type == SHT_PROGBITS && shdr.sh_size > 0)
+        /* Only process PT_LOAD segments with file size > 0 */
+        if (phdr.p_type == PT_LOAD && phdr.p_filesz > 0)
         {
-            sections[num_sections].addr = shdr.sh_addr;
-            sections[num_sections].size = shdr.sh_size;
-            sections[num_sections].offset = shdr.sh_offset;
-            sections[num_sections].type = shdr.sh_type;
-            num_sections++;
+            segments[num_segments].paddr = phdr.p_paddr;
+            segments[num_segments].filesz = phdr.p_filesz;
+            segments[num_segments].offset = phdr.p_offset;
+            num_segments++;
 
-            if (shdr.sh_addr < min_addr)
-                min_addr = shdr.sh_addr;
-            if (shdr.sh_addr + shdr.sh_size > max_addr)
-                max_addr = shdr.sh_addr + shdr.sh_size;
+            if (phdr.p_paddr < min_paddr)
+                min_paddr = phdr.p_paddr;
+            if (phdr.p_paddr + phdr.p_filesz > max_paddr)
+                max_paddr = phdr.p_paddr + phdr.p_filesz;
         }
     }
 
-    if (num_sections == 0)
+    if (num_segments == 0)
     {
-        LOG_ERROR("No loadable sections found.\n");
+        LOG_ERROR("No loadable segments found.\n");
         goto cleanup;
     }
 
-    qsort(sections, num_sections, sizeof(struct section_info), section_compare);
+    /* Sort segments by physical address */
+    qsort(segments, num_segments, sizeof(struct segment_info), segment_compare);
 
-    *size = max_addr - min_addr;
+    *size = max_paddr - min_paddr;
     if (*size > INPUT_MAX_SIZE)
     {
         LOG_ERROR("Output too large: %u bytes.\n", (unsigned int)*size);
         goto cleanup;
     }
 
+    /* Zero-fill the output buffer */
     memset(data, 0, *size);
 
-    for (i = 0; i < num_sections; i++)
+    /* Copy each segment's data to the output buffer */
+    for (i = 0; i < num_segments; i++)
     {
-        uint32_t dest_offset = sections[i].addr - min_addr;
+        uint32_t dest_offset = segments[i].paddr - min_paddr;
 
-        if (fseek(fd, sections[i].offset, SEEK_SET) != 0)
+        if (fseek(fd, segments[i].offset, SEEK_SET) != 0)
         {
-            LOG_ERROR("Failed to seek to section data.\n");
+            LOG_ERROR("Failed to seek to segment data.\n");
             goto cleanup;
         }
 
-        if (fread(data + dest_offset, 1, sections[i].size, fd) != sections[i].size)
+        if (fread(data + dest_offset, 1, segments[i].filesz, fd) != segments[i].filesz)
         {
-            LOG_ERROR("Failed to read section data.\n");
+            LOG_ERROR("Failed to read segment data.\n");
             goto cleanup;
         }
     }
 
-    if (extract_relocations(fd, data, min_addr, &ehdr, reloc_table) < 0)
+    if (extract_relocations(fd, data, min_paddr, &ehdr, reloc_table) < 0)
     {
         goto cleanup;
     }
@@ -613,6 +666,6 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
     ret = 0;
 
 cleanup:
-    free(sections);
+    free(segments);
     return ret;
 }
