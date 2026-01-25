@@ -75,6 +75,7 @@ static void options_show(const char *prgm)
     LOG_PRINT("    -h, --help                 Show this screen.\n");
     LOG_PRINT("    -v, --version              Show the program version.\n");
     LOG_PRINT("    -b, --comment              Custom comment for TI 8x* outputs.\n");
+    LOG_PRINT("    -d, --description          Custom description for TI 8ek outputs.\n");
     LOG_PRINT("    -l, --log-level <level>    Set program logging level.\n");
     LOG_PRINT("                               0=none, 1=error, 2=warning, 3=normal\n");
     LOG_PRINT("\n");
@@ -417,6 +418,24 @@ static void options_set_comment(struct options *options, const char *comment)
     }
 }
 
+static void options_set_description(struct options *options, const char *description)
+{
+    if (description != NULL)
+    {
+        size_t size = strlen(description);
+
+        if (size > MAX_DESCRIPTION_SIZE)
+        {
+            LOG_WARNING("Truncated description.\n");
+            size = MAX_DESCRIPTION_SIZE;
+        }
+
+        memcpy(options->output.file.description, optarg, size);
+
+        options->output.file.description_size = size;
+    }
+}
+
 static void options_configure(struct options *options)
 {
     if (options->input.nr_files == 1)
@@ -467,6 +486,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {"maxvarsize",   required_argument, 0, 'm'},
             {"name",         required_argument, 0, 'n'},
             {"comment",      required_argument, 0, 'b'},
+            {"description",  required_argument, 0, 'd'},
             {"archive",      no_argument,       0, 'r'},
             {"uppercase",    no_argument,       0, 'u'},
             {"append",       no_argument,       0, 'a'},
@@ -476,7 +496,7 @@ int options_get(int argc, char *argv[], struct options *options)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "b:e:i:o:j:k:p:c:m:n:l:ruahv", long_options, NULL);
+        c = getopt_long(argc, argv, "b:e:i:o:j:k:p:c:m:n:l:d:ruahv", long_options, NULL);
         if (c < 0)
             break;
 
@@ -531,6 +551,10 @@ int options_get(int argc, char *argv[], struct options *options)
 
             case 'b':
                 options_set_comment(options, optarg);
+                break;
+
+            case 'd':
+                options_set_description(options, optarg);
                 break;
 
             case 'm':

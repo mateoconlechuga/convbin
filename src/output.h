@@ -42,6 +42,7 @@ extern "C" {
 
 #define MAX_OUTPUT_SIZE 0x1000000
 #define MAX_COMMENT_SIZE 42
+#define MAX_DESCRIPTION_SIZE 42
 
 typedef enum
 {
@@ -68,6 +69,8 @@ struct output_file
     struct ti8x_var var;
     uint8_t data[MAX_OUTPUT_SIZE];
     char comment[MAX_COMMENT_SIZE];
+    char description[MAX_DESCRIPTION_SIZE + 1];
+    size_t description_size;
     size_t size;
     size_t compressed_size;
     size_t uncompressed_size;

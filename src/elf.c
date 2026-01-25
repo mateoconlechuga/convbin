@@ -379,7 +379,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 
         LOG_DEBUG("Extracting relocations from section\n");
 
-        /* Read the symbol table referenced by sh_link */
         if (shdr.sh_link >= ehdr->e_shnum)
         {
             LOG_ERROR("Invalid symbol table index in relocation section.\n");
@@ -401,7 +400,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
             return -1;
         }
 
-        /* Read entire symbol table */
         symtab_data = malloc(symtab_shdr.sh_size);
         if (symtab_data == NULL)
         {
@@ -419,7 +417,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
             return -1;
         }
 
-        /* Read entire relocation section */
         rela_data = malloc(shdr.sh_size);
         if (rela_data == NULL)
         {
@@ -439,7 +436,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
             return -1;
         }
 
-        /* Process each relocation entry */
         for (j = 0; j < shdr.sh_size; j += 12)
         {
             struct elf32_rela rela;
@@ -453,7 +449,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 
             read_rela(rela_data + j, &rela);
 
-            /* Extract relocation type and symbol index */
             r_type = rela.r_info & 0xFF;
             r_sym = rela.r_info >> 8;
 
@@ -466,7 +461,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                 return -1;
             }
 
-            /* Read the symbol this relocation refers to */
             if (r_sym * sizeof(struct elf32_sym) >= symtab_shdr.sh_size)
             {
                 LOG_ERROR("Symbol index %u out of bounds.\n", r_sym);
@@ -478,7 +472,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 
             read_sym(symtab_data + r_sym * 16, &sym);
 
-            /* Skip relocations to absolute symbols */
             if (sym.st_shndx == SHN_ABS)
             {
                 LOG_DEBUG("  Skipping relocation at 0x%06X (absolute symbol)\n", rela.r_offset);
@@ -486,7 +479,6 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                 continue;
             }
 
-            /* Calculate hole offset in output data */
             if (rela.r_offset < base_addr)
             {
                 LOG_ERROR("Relocation offset 0x%06X below base address 0x%06X\n",
@@ -499,15 +491,13 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 
             hole_offset = rela.r_offset - base_addr;
 
-            /* Read current 24-bit value from the data */
-            current_value = data[hole_offset] |
-                          (data[hole_offset + 1] << 8) |
-                          (data[hole_offset + 2] << 16);
+            current_value =
+                (data[hole_offset + 0] << 0) |
+                (data[hole_offset + 1] << 8) |
+                (data[hole_offset + 2] << 16);
 
-            /* Subtract addend to get unrelocated value */
             unrelocated_value = (current_value - rela.r_addend) & 0xFFFFFF;
 
-            /* Skip relocations to values outside range */
             if (unrelocated_value >= 0x400000)
             {
                 LOG_DEBUG("  Skipping relocation at 0x%06X (outside range)\n", rela.r_offset);
@@ -517,12 +507,10 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
 
             LOG_DEBUG("  Reloc at 0x%06X: offset=0x%06X\n", hole_offset, unrelocated_value);
 
-            /* Write unrelocated value back to data */
-            data[hole_offset] = unrelocated_value;
-            data[hole_offset + 1] = unrelocated_value >> 8;
-            data[hole_offset + 2] = unrelocated_value >> 16;
+            data[hole_offset + 0] = 0xFF;
+            data[hole_offset + 1] = 0xFF;
+            data[hole_offset + 2] = 0xFF;
 
-            /* Check if we've exceeded maximum relocation table size */
             if ((reloc_count + 1) * 6 > MAX_APP_RELOC_SIZE)
             {
                 LOG_ERROR("Relocation table exceeded maximum size.\n");
@@ -532,9 +520,8 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                 return -1;
             }
 
-            /* Write directly to relocation table */
             entry = reloc_data + reloc_count * 6;
-            entry[0] = hole_offset;
+            entry[0] = hole_offset >> 0;
             entry[1] = hole_offset >> 8;
             entry[2] = hole_offset >> 16;
             entry[3] = unrelocated_value;
@@ -595,7 +582,6 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         return -1;
     }
 
-    /* Iterate through program headers to find PT_LOAD segments */
     for (i = 0; i < ehdr.e_phnum; i++)
     {
         struct elf32_phdr phdr;
@@ -606,9 +592,19 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
             goto cleanup;
         }
 
-        /* Only process PT_LOAD segments with file size > 0 */
         if (phdr.p_type == PT_LOAD && phdr.p_filesz > 0)
         {
+            uint32_t segment_end;
+            
+            if (phdr.p_paddr > UINT32_MAX - phdr.p_filesz)
+            {
+                LOG_ERROR("Segment address overflow at paddr 0x%X + size 0x%X.\n",
+                         phdr.p_paddr, phdr.p_filesz);
+                goto cleanup;
+            }
+            
+            segment_end = phdr.p_paddr + phdr.p_filesz;
+            
             segments[num_segments].paddr = phdr.p_paddr;
             segments[num_segments].filesz = phdr.p_filesz;
             segments[num_segments].offset = phdr.p_offset;
@@ -616,8 +612,8 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
 
             if (phdr.p_paddr < min_paddr)
                 min_paddr = phdr.p_paddr;
-            if (phdr.p_paddr + phdr.p_filesz > max_paddr)
-                max_paddr = phdr.p_paddr + phdr.p_filesz;
+            if (segment_end > max_paddr)
+                max_paddr = segment_end;
         }
     }
 
@@ -627,8 +623,13 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         goto cleanup;
     }
 
-    /* Sort segments by physical address */
     qsort(segments, num_segments, sizeof(struct segment_info), segment_compare);
+
+    if (max_paddr < min_paddr)
+    {
+        LOG_ERROR("Invalid segment address range (max < min).\n");
+        goto cleanup;
+    }
 
     *size = max_paddr - min_paddr;
     if (*size > INPUT_MAX_SIZE)
@@ -637,13 +638,17 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         goto cleanup;
     }
 
-    /* Zero-fill the output buffer */
     memset(data, 0, *size);
 
-    /* Copy each segment's data to the output buffer */
     for (i = 0; i < num_segments; i++)
     {
         uint32_t dest_offset = segments[i].paddr - min_paddr;
+
+        if (dest_offset + segments[i].filesz > *size)
+        {
+            LOG_ERROR("Segment data exceeds output buffer bounds.\n");
+            goto cleanup;
+        }
 
         if (fseek(fd, segments[i].offset, SEEK_SET) != 0)
         {

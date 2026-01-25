@@ -379,12 +379,11 @@ static int convert_8ek(struct input *input, struct output_file *file)
 
     output_data = file->data;
 
-    app_total_size = input_size + reloc_size;
+    app_total_size = input_size + reloc_size + file->description_size + (file->description_size ? 1 : 0);
     app_data_size =
         TI8EK_APP_HEADER_SIZE +
         TI8EK_APP_METADATA_SIZE +
-        reloc_size +
-        input_size +
+        app_total_size +
         TI8EK_APP_SIGNATURE_FIELD_SIZE +
         TI8EK_APP_SIGNATURE_TYPE_SIZE +
         TI8EK_APP_SIGNATURE_SIZE;
@@ -494,26 +493,19 @@ static int convert_8ek(struct input *input, struct output_file *file)
     ptr = &output_data[TI8EK_APP_METADATA_FLAGS_OFFSET];
     *ptr++ = (1 << 0);
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x12];
-    *ptr++ = reloc_size;
+    *ptr++ = reloc_size >> 0;
     *ptr++ = reloc_size >> 8;
     *ptr++ = reloc_size >> 16;
-    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x15];
-    *ptr++ = 0;
-    *ptr++ = 0;
-    *ptr++ = 0;
-    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x18];
-    *ptr++ = 0;
-    *ptr++ = 0;
-    *ptr++ = 0;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x1B];
-    *ptr++ = reloc_size;
+    *ptr++ = reloc_size >> 0;
     *ptr++ = reloc_size >> 8;
     *ptr++ = reloc_size >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x24];
-    *ptr++ = reloc_size;
-    *ptr++ = reloc_size >> 8;
-    *ptr++ = reloc_size >> 16;
+    *ptr++ = (reloc_size + input_size) >> 0;
+    *ptr++ = (reloc_size + input_size) >> 8;
+    *ptr++ = (reloc_size + input_size) >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_RELOC_OFFSET];
+
     if (reloc_size > 0)
     {
         memcpy(ptr, reloc_table, reloc_size);
@@ -522,6 +514,13 @@ static int convert_8ek(struct input *input, struct output_file *file)
 
     memcpy(ptr, input_data, input_size);
     ptr += input_size;
+
+    if (file->description_size > 0)
+    {
+        memcpy(ptr, file->description, file->description_size);
+        ptr += file->description_size;
+        *ptr++ = 0x00;
+    }
 
     *ptr++ = 0x02;
     *ptr++ = 0x3E;
@@ -622,6 +621,7 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
         appvarfile.format = OFORMAT_8XV;
         appvarfile.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
         strncpy(appvarfile.var.name, var_name, TI8X_VAR_NAME_LEN);
+        appvarfile.var.namelen = strlen(var_name);
         appvarfile.var.type = TI8X_TYPE_APPVAR;
         appvarfile.var.archive = true;
         appvarfile.append = false;
