@@ -360,6 +360,7 @@ static int convert_8ek(struct input *input, struct output_file *file)
     size_t app_data_size;
     size_t reloc_size = 0;
     size_t i;
+    uint32_t tmp;
 
     if (file->compression != COMPRESS_NONE)
     {
@@ -493,17 +494,20 @@ static int convert_8ek(struct input *input, struct output_file *file)
     ptr = &output_data[TI8EK_APP_METADATA_FLAGS_OFFSET];
     *ptr++ = (1 << 0);
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x12];
-    *ptr++ = reloc_size >> 0;
-    *ptr++ = reloc_size >> 8;
-    *ptr++ = reloc_size >> 16;
+    tmp = 0x2A + reloc_size;
+    *ptr++ = tmp >> 0;
+    *ptr++ = tmp >> 8;
+    *ptr++ = tmp >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x1B];
-    *ptr++ = reloc_size >> 0;
-    *ptr++ = reloc_size >> 8;
-    *ptr++ = reloc_size >> 16;
+    tmp = 0x2A + reloc_size;
+    *ptr++ = tmp >> 0;
+    *ptr++ = tmp >> 8;
+    *ptr++ = tmp >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x24];
-    *ptr++ = (reloc_size + input_size) >> 0;
-    *ptr++ = (reloc_size + input_size) >> 8;
-    *ptr++ = (reloc_size + input_size) >> 16;
+    tmp = 0x2A + reloc_size + input_size;
+    *ptr++ = tmp >> 0;
+    *ptr++ = tmp >> 8;
+    *ptr++ = tmp >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_RELOC_OFFSET];
 
     if (reloc_size > 0)

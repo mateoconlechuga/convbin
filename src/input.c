@@ -257,7 +257,6 @@ int input_read_file(struct input_file *file)
     return ret;
 }
 
-
 int input_add_file_path(struct input *input, const char *path)
 {
     if (input->nr_files >= INPUT_MAX_NUM)

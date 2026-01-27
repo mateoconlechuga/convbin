@@ -122,6 +122,14 @@ struct segment_info
     uint32_t offset;
 };
 
+struct section_mapping
+{
+    uint32_t section_addr;
+    uint32_t segment_offset;
+    uint32_t section_idx;
+    uint32_t section_size;
+};
+
 static uint16_t read_u16_le(const uint8_t *data)
 {
     return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
@@ -321,15 +329,81 @@ static int segment_compare(const void *a, const void *b)
     return 0;
 }
 
+static int build_section_mapping(FILE *fd, const struct elf32_ehdr *ehdr,
+                                 const struct segment_info *segments,
+                                 uint32_t num_segments,
+                                 uint32_t base_addr,
+                                 struct section_mapping **out_mappings,
+                                 uint32_t *out_count)
+{
+    struct section_mapping *mappings;
+    uint32_t mapping_count = 0;
+    uint32_t i;
+
+    mappings = malloc(ehdr->e_shnum * sizeof(struct section_mapping));
+    if (mappings == NULL)
+    {
+        LOG_ERROR("Failed to allocate section mappings.\n");
+        return -1;
+    }
+
+    /* Build mapping for each section */
+    for (i = 0; i < ehdr->e_shnum; i++)
+    {
+        struct elf32_shdr shdr;
+        uint32_t shdr_offset = ehdr->e_shoff + i * ehdr->e_shentsize;
+        uint32_t j;
+
+        if (read_shdr_from_file(fd, shdr_offset, &shdr) < 0)
+        {
+            continue;
+        }
+
+        /* Skip non-allocated sections */
+        if (!(shdr.sh_flags & SHF_ALLOC))
+        {
+            continue;
+        }
+
+        /* Find which segment contains this section */
+        for (j = 0; j < num_segments; j++)
+        {
+            uint32_t seg_start = segments[j].paddr;
+            uint32_t seg_end = seg_start + segments[j].filesz;
+
+            /* Check if section address falls within this segment */
+            if (shdr.sh_addr >= seg_start && shdr.sh_addr < seg_end)
+            {
+                mappings[mapping_count].section_addr = shdr.sh_addr;
+                mappings[mapping_count].segment_offset = shdr.sh_addr - base_addr;
+                mappings[mapping_count].section_idx = i;
+                mappings[mapping_count].section_size = shdr.sh_size;
+                mapping_count++;
+                LOG_DEBUG("Section %u at 0x%06X maps to offset 0x%06X (size 0x%X)\n",
+                         i, shdr.sh_addr, shdr.sh_addr - base_addr, shdr.sh_size);
+                break;
+            }
+        }
+    }
+
+    *out_mappings = mappings;
+    *out_count = mapping_count;
+    return 0;
+}
+
 static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                                const struct elf32_ehdr *ehdr,
+                               const struct segment_info *segments,
+                               uint32_t num_segments,
                                struct app_reloc_table *reloc_table)
 {
     uint32_t i;
-    struct elf32_shdr shstrtab_hdr;
+    struct section_mapping *section_mappings = NULL;
+    uint32_t section_mapping_count = 0;
     uint8_t *reloc_data = NULL;
     size_t reloc_count = 0;
     uint32_t skipped_abs_count = 0;
+    int ret = -1;
 
     if (reloc_table == NULL)
     {
@@ -339,33 +413,33 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
     reloc_table->data = NULL;
     reloc_table->size = 0;
 
+    /* Build section-to-segment mapping */
+    if (build_section_mapping(fd, ehdr, segments, num_segments, base_addr,
+                             &section_mappings, &section_mapping_count) < 0)
+    {
+        return -1;
+    }
+
     reloc_data = malloc(MAX_APP_RELOC_SIZE);
     if (reloc_data == NULL)
     {
         LOG_ERROR("Failed to allocate relocation table.\n");
+        free(section_mappings);
         return -1;
     }
 
-    if (ehdr->e_shstrndx >= ehdr->e_shnum)
-    {
-        free(reloc_data);
-        return 0;
-    }
-
-    if (read_shdr_from_file(fd, ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize, &shstrtab_hdr) < 0)
-    {
-        free(reloc_data);
-        return 0;
-    }
-
+    /* Process each relocation section */
     for (i = 0; i < ehdr->e_shnum; i++)
     {
         struct elf32_shdr shdr;
+        struct elf32_shdr target_shdr;
         uint32_t shdr_offset = ehdr->e_shoff + i * ehdr->e_shentsize;
         uint8_t *rela_data;
         uint8_t *symtab_data = NULL;
         struct elf32_shdr symtab_shdr;
+        uint32_t target_section_offset = 0;
         uint32_t j;
+        int found_mapping = 0;
 
         if (read_shdr_from_file(fd, shdr_offset, &shdr) < 0)
         {
@@ -377,35 +451,63 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
             continue;
         }
 
-        LOG_DEBUG("Extracting relocations from section\n");
+        /* sh_info contains the section index that relocations apply to */
+        if (shdr.sh_info >= ehdr->e_shnum)
+        {
+            LOG_ERROR("Invalid target section index in relocation section.\n");
+            goto cleanup;
+        }
 
+        /* Read the target section header */
+        if (read_shdr_from_file(fd, ehdr->e_shoff + shdr.sh_info * ehdr->e_shentsize, &target_shdr) < 0)
+        {
+            LOG_ERROR("Failed to read target section header.\n");
+            goto cleanup;
+        }
+
+        /* Find the mapping for the target section */
+        for (j = 0; j < section_mapping_count; j++)
+        {
+            if (section_mappings[j].section_idx == shdr.sh_info)
+            {
+                target_section_offset = section_mappings[j].segment_offset;
+                found_mapping = 1;
+                LOG_DEBUG("Processing relocations for section %u (offset 0x%06X)\n",
+                         shdr.sh_info, target_section_offset);
+                break;
+            }
+        }
+
+        if (!found_mapping)
+        {
+            LOG_DEBUG("Skipping relocations for non-loaded section %u\n", shdr.sh_info);
+            continue;
+        }
+
+        /* Read symbol table */
         if (shdr.sh_link >= ehdr->e_shnum)
         {
             LOG_ERROR("Invalid symbol table index in relocation section.\n");
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
         if (read_shdr_from_file(fd, ehdr->e_shoff + shdr.sh_link * ehdr->e_shentsize, &symtab_shdr) < 0)
         {
             LOG_ERROR("Failed to read symbol table header.\n");
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
         if (symtab_shdr.sh_type != SHT_SYMTAB)
         {
             LOG_ERROR("sh_link does not point to a symbol table.\n");
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
         symtab_data = malloc(symtab_shdr.sh_size);
         if (symtab_data == NULL)
         {
             LOG_ERROR("Failed to allocate memory for symbol table.\n");
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
         if (fseek(fd, symtab_shdr.sh_offset, SEEK_SET) != 0 ||
@@ -413,17 +515,16 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
         {
             LOG_ERROR("Failed to read symbol table.\n");
             free(symtab_data);
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
+        /* Read relocation entries */
         rela_data = malloc(shdr.sh_size);
         if (rela_data == NULL)
         {
             LOG_ERROR("Failed to allocate memory for relocation section.\n");
             free(symtab_data);
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
         if (fseek(fd, shdr.sh_offset, SEEK_SET) != 0 ||
@@ -432,10 +533,10 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
             LOG_ERROR("Failed to read relocation section.\n");
             free(rela_data);
             free(symtab_data);
-            free(reloc_data);
-            return -1;
+            goto cleanup;
         }
 
+        /* Process each relocation entry */
         for (j = 0; j < shdr.sh_size; j += 12)
         {
             struct elf32_rela rela;
@@ -457,50 +558,47 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                 LOG_ERROR("Unsupported relocation type: %u (expected R_Z80_24)\n", r_type);
                 free(rela_data);
                 free(symtab_data);
-                free(reloc_data);
-                return -1;
+                goto cleanup;
             }
 
-            if (r_sym * sizeof(struct elf32_sym) >= symtab_shdr.sh_size)
+            if (r_sym * 16 >= symtab_shdr.sh_size)
             {
                 LOG_ERROR("Symbol index %u out of bounds.\n", r_sym);
                 free(rela_data);
                 free(symtab_data);
-                free(reloc_data);
-                return -1;
+                goto cleanup;
             }
 
             read_sym(symtab_data + r_sym * 16, &sym);
 
             if (sym.st_shndx == SHN_ABS)
             {
-                LOG_DEBUG("  Skipping relocation at 0x%06X (absolute symbol)\n", rela.r_offset);
+                LOG_DEBUG("  Skipping relocation (absolute symbol)\n");
                 skipped_abs_count++;
                 continue;
             }
 
-            if (rela.r_offset < base_addr)
+            /* Calculate offset in the binary using section-relative offset */
+            hole_offset = target_section_offset + (rela.r_offset - target_shdr.sh_addr);
+
+            if (hole_offset + 2 >= INPUT_MAX_SIZE)
             {
-                LOG_ERROR("Relocation offset 0x%06X below base address 0x%06X\n",
-                         rela.r_offset, base_addr);
+                LOG_ERROR("Relocation offset 0x%06X out of bounds\n", hole_offset);
                 free(rela_data);
                 free(symtab_data);
-                free(reloc_data);
-                return -1;
+                goto cleanup;
             }
-
-            hole_offset = rela.r_offset - base_addr;
 
             current_value =
                 (data[hole_offset + 0] << 0) |
                 (data[hole_offset + 1] << 8) |
                 (data[hole_offset + 2] << 16);
 
-            unrelocated_value = (current_value - rela.r_addend) & 0xFFFFFF;
+            unrelocated_value = (current_value - base_addr) & 0xFFFFFF;
 
             if (unrelocated_value >= 0x400000)
             {
-                LOG_DEBUG("  Skipping relocation at 0x%06X (outside range)\n", rela.r_offset);
+                LOG_DEBUG("  Skipping relocation (outside range)\n");
                 skipped_abs_count++;
                 continue;
             }
@@ -516,8 +614,7 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
                 LOG_ERROR("Relocation table exceeded maximum size.\n");
                 free(rela_data);
                 free(symtab_data);
-                free(reloc_data);
-                return -1;
+                goto cleanup;
             }
 
             entry = reloc_data + reloc_count * 6;
@@ -534,12 +631,19 @@ static int extract_relocations(FILE *fd, uint8_t *data, uint32_t base_addr,
         free(symtab_data);
     }
 
-    LOG_DEBUG("Skipped %u absolute symbol relocations\n", skipped_abs_count);
+    LOG_DEBUG("Processed %zu relocations, skipped %u\n", reloc_count, skipped_abs_count);
 
     reloc_table->data = reloc_data;
     reloc_table->size = reloc_count * 6;
+    ret = 0;
 
-    return 0;
+cleanup:
+    free(section_mappings);
+    if (ret < 0)
+    {
+        free(reloc_data);
+    }
+    return ret;
 }
 
 int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table)
@@ -575,7 +679,7 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         return -1;
     }
 
-    segments = (struct segment_info *)malloc(ehdr.e_phnum * sizeof(struct segment_info));
+    segments = malloc(ehdr.e_phnum * sizeof(struct segment_info));
     if (segments == NULL)
     {
         LOG_ERROR("Memory allocation failed.\n");
@@ -663,7 +767,7 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
         }
     }
 
-    if (extract_relocations(fd, data, min_paddr, &ehdr, reloc_table) < 0)
+    if (extract_relocations(fd, data, min_paddr, &ehdr, segments, num_segments, reloc_table) < 0)
     {
         goto cleanup;
     }
