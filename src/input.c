@@ -181,14 +181,15 @@ static int input_csv(FILE *fd, uint8_t *data, size_t *size)
         while (token)
         {
             long int value = strtol(token, NULL, 0);
-            data[s++] = (uint8_t)(value < 0 || value > 255 ? 255 : value);
 
-            if (s > INPUT_MAX_SIZE)
+            if (s >= INPUT_MAX_SIZE)
             {
                 LOG_ERROR("Exceeded maximum csv values.\n");
                 free(line);
                 return -1;
             }
+
+            data[s++] = (uint8_t)(value < 0 || value > 255 ? 255 : value);
 
             token = strtok(NULL, ",");
         }

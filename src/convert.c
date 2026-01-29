@@ -209,7 +209,7 @@ static int convert_8xp(struct input *input, struct output_file *file)
 
     if (size > file->var.maxsize)
     {
-        unsigned int num_appvars = (size / file->var.maxsize) + 1;
+        unsigned int num_appvars = (size + file->var.maxsize - 1) / file->var.maxsize;
         char appvar_names[10][10];
         unsigned int offset = TI8X_ASMCOMP_LEN;
         size_t tmpsize;
@@ -249,23 +249,29 @@ static int convert_8xp(struct input *input, struct output_file *file)
             size_t name_size = strlen(file->var.name);
             static struct output_file appvarfile;
 
-            if (name_size > TI8X_VAR_NAME_LEN)
+            if (name_size > TI8X_VAR_NAME_LEN - 1)
             {
-                name_size = TI8X_VAR_NAME_LEN;
+                name_size = TI8X_VAR_NAME_LEN - 1;
             }
 
             appvar_names[i][0] = TI8X_TYPE_APPVAR;
             memcpy(&appvar_names[i][1], file->var.name, name_size);
-            appvar_names[i][name_size] = '0' + i;
+            appvar_names[i][name_size + 1] = '0' + i;
             outname[pos] = '0' + i;
 
             appvarfile.name = outname;
             appvarfile.format = OFORMAT_8XV;
             appvarfile.var.maxsize = file->var.maxsize;
-            memcpy(&appvarfile.var.name, &appvar_names[i][1], 9);
+            memset(appvarfile.var.name, 0, sizeof appvarfile.var.name);
+            memcpy(&appvarfile.var.name, &appvar_names[i][1], name_size);
+            appvarfile.var.name[name_size] = '0' + i;
+            appvarfile.var.namelen = name_size + 1;
             appvarfile.var.type = TI8X_TYPE_APPVAR;
             appvarfile.var.archive = true;
             appvarfile.append = false;
+            memset(appvarfile.comment, 0, MAX_COMMENT_SIZE);
+            memset(appvarfile.description, 0, MAX_DESCRIPTION_SIZE + 1);
+            appvarfile.description_size = 0;
 
             ret = convert_build_8x(data + offset, tmpsize, &appvarfile);
             if (ret == 0)

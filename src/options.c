@@ -398,9 +398,11 @@ static void options_set_default(struct options *options)
     options->output.file.compressed_size = 0;
     options->output.file.uncompressed_size = 0;
     options->output.file.ti8xp_compression = COMPRESS_ZX7;
+    options->output.file.description_size = 0;
 
     memset(options->output.file.var.name, 0, TI8X_VAR_MAX_NAME_LEN + 1);
     memset(options->output.file.comment, 0, MAX_COMMENT_SIZE);
+    memset(options->output.file.description, 0, MAX_DESCRIPTION_SIZE + 1);
 }
 
 static void options_set_comment(struct options *options, const char *comment)
@@ -414,7 +416,7 @@ static void options_set_comment(struct options *options, const char *comment)
             size = MAX_COMMENT_SIZE;
         }
 
-        memcpy(options->output.file.comment, optarg, size);
+        memcpy(options->output.file.comment, comment, size);
     }
 }
 
@@ -430,7 +432,7 @@ static void options_set_description(struct options *options, const char *descrip
             size = MAX_DESCRIPTION_SIZE;
         }
 
-        memcpy(options->output.file.description, optarg, size);
+        memcpy(options->output.file.description, description, size);
 
         options->output.file.description_size = size;
     }

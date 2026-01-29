@@ -187,9 +187,9 @@ void output_set_varname(struct output *output, const char *varname)
 
     for (i = 0; i < len; ++i)
     {
-        if (output->file.uppercase && isalpha(varname[i]))
+        if (output->file.uppercase && isalpha((unsigned char)varname[i]))
         {
-            output->file.var.name[i] = toupper(varname[i]);
+            output->file.var.name[i] = toupper((unsigned char)varname[i]);
         }
         else
         {
