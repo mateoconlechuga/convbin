@@ -118,6 +118,7 @@ struct elf32_sym
 struct segment_info
 {
     uint32_t paddr;
+    uint32_t vaddr;
     uint32_t filesz;
     uint32_t offset;
 };
@@ -368,19 +369,22 @@ static int build_section_mapping(FILE *fd, const struct elf32_ehdr *ehdr,
         /* Find which segment contains this section */
         for (j = 0; j < num_segments; j++)
         {
-            uint32_t seg_start = segments[j].paddr;
+            uint32_t seg_start = segments[j].vaddr;
             uint32_t seg_end = seg_start + segments[j].filesz;
 
             /* Check if section address falls within this segment */
             if (shdr.sh_addr >= seg_start && shdr.sh_addr < seg_end)
             {
+                uint32_t segment_base_offset = segments[j].paddr - base_addr;
+
                 mappings[mapping_count].section_addr = shdr.sh_addr;
-                mappings[mapping_count].segment_offset = shdr.sh_addr - base_addr;
+                mappings[mapping_count].segment_offset =
+                    segment_base_offset + (shdr.sh_addr - seg_start);
                 mappings[mapping_count].section_idx = i;
                 mappings[mapping_count].section_size = shdr.sh_size;
                 mapping_count++;
                 LOG_DEBUG("Section %u at 0x%06X maps to offset 0x%06X (size 0x%X)\n",
-                         i, shdr.sh_addr, shdr.sh_addr - base_addr, shdr.sh_size);
+                         i, shdr.sh_addr, mappings[mapping_count].segment_offset, shdr.sh_size);
                 break;
             }
         }
@@ -710,6 +714,7 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
             segment_end = phdr.p_paddr + phdr.p_filesz;
             
             segments[num_segments].paddr = phdr.p_paddr;
+            segments[num_segments].vaddr = phdr.p_vaddr;
             segments[num_segments].filesz = phdr.p_filesz;
             segments[num_segments].offset = phdr.p_offset;
             num_segments++;
