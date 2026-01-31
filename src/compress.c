@@ -40,6 +40,7 @@
 #include "asm/zx0_decompressor.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 static int compress_zx7(uint8_t *data, size_t size, uint8_t **zx7_data, size_t *zx7_size, int32_t *delta)
 {
@@ -122,93 +123,77 @@ static int compress_zx0(uint8_t *data, size_t size, uint8_t **zx0_data, size_t *
     return 0;
 }
 
-int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t *mode)
+static int compress_array_alloc(const uint8_t *data,
+                                size_t size,
+                                uint8_t **out_data,
+                                size_t *out_size,
+                                int32_t *delta,
+                                compress_mode_t *mode)
 {
     int ret = 0;
+
+    if (data == NULL || out_data == NULL || out_size == NULL || delta == NULL || mode == NULL)
+    {
+        return -1;
+    }
+
+    *out_data = NULL;
+    *out_size = size;
 
     switch (*mode)
     {
         case COMPRESS_NONE:
+            *delta = 0;
             return 0;
 
         case COMPRESS_ZX7:
-        {
-            uint8_t *zx7_data;
-            size_t zx7_size;
-
-            ret = compress_zx7(data, *size, &zx7_data, &zx7_size, delta);
-            if (ret)
-            {
-                return -1;
-            }
-
-            memcpy(data, zx7_data, zx7_size);
-            *size = zx7_size;
-
-            free(zx7_data);
-
+            ret = compress_zx7((uint8_t *)data, size, out_data, out_size, delta);
             break;
-        }
 
         case COMPRESS_ZX0:
-        {
-            uint8_t *zx0_data;
-            size_t zx0_size;
-
-            ret = compress_zx0(data, *size, &zx0_data, &zx0_size, delta);
-            if (ret)
-            {
-                return -1;
-            }
-
-            memcpy(data, zx0_data, zx0_size);
-            *size = zx0_size;
-
-            free(zx0_data);
-
+            ret = compress_zx0((uint8_t *)data, size, out_data, out_size, delta);
             break;
-        }
 
         case COMPRESS_AUTO:
         {
-            uint8_t *zx7_data;
-            size_t zx7_size;
-            int32_t zx7_delta;
-            uint8_t *zx0_data;
-            size_t zx0_size;
-            int32_t zx0_delta;
+            uint8_t *zx7_data = NULL;
+            size_t zx7_size = 0;
+            int32_t zx7_delta = 0;
+            uint8_t *zx0_data = NULL;
+            size_t zx0_size = 0;
+            int32_t zx0_delta = 0;
 
-            ret = compress_zx7(data, *size, &zx7_data, &zx7_size, &zx7_delta);
+            ret = compress_zx7((uint8_t *)data, size, &zx7_data, &zx7_size, &zx7_delta);
             if (ret)
             {
                 return -1;
             }
 
-            ret = compress_zx0(data, *size, &zx0_data, &zx0_size, &zx0_delta);
+            ret = compress_zx0((uint8_t *)data, size, &zx0_data, &zx0_size, &zx0_delta);
             if (ret)
             {
+                free(zx7_data);
                 return -1;
             }
 
             if (zx7_size <= zx0_size)
             {
-                memcpy(data, zx7_data, zx7_size);
-                *size = zx7_size;
+                *out_data = zx7_data;
+                *out_size = zx7_size;
                 *delta = zx7_delta;
                 *mode = COMPRESS_ZX7;
+                free(zx0_data);
             }
             else
             {
-                memcpy(data, zx0_data, zx0_size);
-                *size = zx0_size;
+                *out_data = zx0_data;
+                *out_size = zx0_size;
                 *delta = zx0_delta;
                 *mode = COMPRESS_ZX0;
+                free(zx7_data);
             }
 
-            free(zx7_data);
-            free(zx0_data);
-
-            break;
+            return 0;
         }
 
         default:
@@ -218,6 +203,42 @@ int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t 
 
     return ret;
 }
+
+int compress_array(uint8_t *data, size_t *size, int32_t *delta, compress_mode_t *mode)
+{
+    uint8_t *compressed_data = NULL;
+    size_t compressed_size = 0;
+    int ret = 0;
+
+    if (data == NULL || size == NULL || delta == NULL || mode == NULL)
+    {
+        return -1;
+    }
+
+    ret = compress_array_alloc(data, *size, &compressed_data, &compressed_size, delta, mode);
+    if (ret != 0)
+    {
+        return -1;
+    }
+
+    if (*mode == COMPRESS_NONE)
+    {
+        return 0;
+    }
+
+    if (compressed_data == NULL)
+    {
+        return -1;
+    }
+
+    memcpy(data, compressed_data, compressed_size);
+    *size = compressed_size;
+
+    free(compressed_data);
+
+    return 0;
+}
+
 static void compress_wr24(uint8_t *addr, uint32_t value)
 {
     addr[0] = (value >> 0) & 0xff;
@@ -235,20 +256,26 @@ static void compress_wr32(uint8_t *addr, uint32_t value)
 
 int compress_8xp(uint8_t *data, size_t *size, compress_mode_t mode)
 {
-    static uint8_t new_data[INPUT_MAX_SIZE];
-    static uint8_t compressed_data[INPUT_MAX_SIZE];
     size_t uncompressed_size;
     size_t compressed_size;
     uint32_t offset;
     int32_t delta;
     int ret;
+    uint8_t *compressed_data = NULL;
 
-    new_data[0] = TI8X_TOKEN_EXT;
-    new_data[1] = TI8X_TOKEN_ASM84CECMP;
+    if (data == NULL || size == NULL)
+    {
+        return -1;
+    }
+
+    if (mode == COMPRESS_NONE)
+    {
+        return 0;
+    }
 
     offset = TI8X_ASMCOMP_LEN;
 
-    /* handle icon and/or description by copying it if it exists */
+    /* handle icon and/or description to locate the data offset */
     if (data[TI8X_MAGIC_JUMP_OFFSET_0] == TI8X_MAGIC_JUMP)
     {
         offset = TI8X_MAGIC_JUMP_OFFSET_0 + 4;
@@ -292,17 +319,19 @@ odd_8x:
             return -1;
         }
 
-        memcpy(new_data + TI8X_ASMCOMP_LEN, data + TI8X_ASMCOMP_LEN, offset);
     }
 
     uncompressed_size = *size - offset;
-    memcpy(compressed_data, data + offset, uncompressed_size);
-
-    compressed_size = uncompressed_size;
-    ret = compress_array(compressed_data, &compressed_size, &delta, &mode);
+    ret = compress_array_alloc(data + offset, uncompressed_size,
+                               &compressed_data, &compressed_size, &delta, &mode);
     if (ret < 0)
     {
         LOG_ERROR("Could not compress data.\n");
+        return -1;
+    }
+
+    if (compressed_data == NULL)
+    {
         return -1;
     }
 
@@ -311,8 +340,12 @@ odd_8x:
         (mode == COMPRESS_ZX7 &&
         (compressed_size + zx7_decompressor_len) >= uncompressed_size))
     {
+        free(compressed_data);
         return 1;
     }
+
+    data[0] = TI8X_TOKEN_EXT;
+    data[1] = TI8X_TOKEN_ASM84CECMP;
 
     if (mode == COMPRESS_ZX7)
     {
@@ -324,9 +357,19 @@ odd_8x:
         int32_t insertmem_size;
         int32_t delmem_size;
         int32_t asm_prgm_size_delta;
-        int32_t dzx_len = zx7_decompressor_len;
-        uint8_t *dzx = zx7_decompressor;
+        size_t dzx_len = zx7_decompressor_len;
+        int32_t delta_adjusted;
+        uint8_t *dzx = malloc(dzx_len);
         size_t new_size;
+
+        if (dzx == NULL)
+        {
+            LOG_ERROR("Out of memory.\n");
+            free(compressed_data);
+            return -1;
+        }
+
+        memcpy(dzx, zx7_decompressor, dzx_len);
 
         /* add some extra space to just put my mind at ease */
         delta += 16;
@@ -336,7 +379,15 @@ odd_8x:
         LOG_DEBUG("uncompressed_size: %zu\n", uncompressed_size);
 
         /* remve extra delta bytes from allocated decompressor */
-        delta_size = dzx_len >= delta ? 0 : delta - dzx_len;
+        delta_adjusted = delta;
+        if (delta_adjusted <= 0 || (size_t)delta_adjusted <= dzx_len)
+        {
+            delta_size = 0;
+        }
+        else
+        {
+            delta_size = (uint32_t)(delta_adjusted - (int32_t)dzx_len);
+        }
         LOG_DEBUG("delta_size: %u\n", delta_size);
 
         /* set the reloc address for the decompressor */
@@ -365,7 +416,7 @@ odd_8x:
         LOG_DEBUG("delmem_addr: $%06X\n", delmem_addr);
 
         /* remove space for decompressor and delta at end */
-        if (dzx_len >= delta)
+        if (delta_adjusted <= 0 || (size_t)delta_adjusted <= dzx_len)
         {
             delmem_size = 0;
             compress_wr32(&dzx[DZX7_DELMEM_CALL_OFFSET], delmem_size);
@@ -373,7 +424,7 @@ odd_8x:
         }
         else
         {
-            delmem_size = delta - dzx_len;
+            delmem_size = delta_adjusted - (int32_t)dzx_len;
             compress_wr24(&dzx[DZX7_DELMEM_SIZE_OFFSET], delmem_size);
             LOG_DEBUG("delmem_size: %d\n", delmem_size);
         }
@@ -384,13 +435,13 @@ odd_8x:
         LOG_DEBUG("asm_prgm_size_delta: %d\n", asm_prgm_size_delta);
 
         /* write the decompressor + compressed data */
-        memcpy(new_data + offset, dzx, dzx_len);
-        memcpy(new_data + offset + dzx_len, compressed_data, compressed_size);
+        memcpy(data + offset, dzx, dzx_len);
+        memcpy(data + offset + dzx_len, compressed_data, compressed_size);
 
         new_size = compressed_size + dzx_len + offset;
 
-        memcpy(data, new_data, new_size);
         *size = new_size;
+        free(dzx);
     }
 
     if (mode == COMPRESS_ZX0)
@@ -403,9 +454,19 @@ odd_8x:
         int32_t insertmem_size;
         int32_t delmem_size;
         int32_t asm_prgm_size_delta;
-        int32_t dzx_len = zx0_decompressor_len;
-        uint8_t *dzx = zx0_decompressor;
+        size_t dzx_len = zx0_decompressor_len;
+        int32_t delta_adjusted;
+        uint8_t *dzx = malloc(dzx_len);
         size_t new_size;
+
+        if (dzx == NULL)
+        {
+            LOG_ERROR("Out of memory.\n");
+            free(compressed_data);
+            return -1;
+        }
+
+        memcpy(dzx, zx0_decompressor, dzx_len);
 
         /* add some extra space to just put my mind at ease */
         delta += 16;
@@ -415,7 +476,15 @@ odd_8x:
         LOG_DEBUG("uncompressed_size: %zu\n", uncompressed_size);
 
         /* remve extra delta bytes from allocated decompressor */
-        delta_size = dzx_len >= delta ? 0 : delta - dzx_len;
+        delta_adjusted = delta;
+        if (delta_adjusted <= 0 || (size_t)delta_adjusted <= dzx_len)
+        {
+            delta_size = 0;
+        }
+        else
+        {
+            delta_size = (uint32_t)(delta_adjusted - (int32_t)dzx_len);
+        }
         LOG_DEBUG("delta_size: %u\n", delta_size);
 
         /* set the reloc address for the decompressor */
@@ -444,7 +513,7 @@ odd_8x:
         LOG_DEBUG("delmem_addr: $%06X\n", delmem_addr);
 
         /* remove space for decompressor and delta at end */
-        if (dzx_len >= delta)
+        if (delta_adjusted <= 0 || (size_t)delta_adjusted <= dzx_len)
         {
             delmem_size = 0;
             compress_wr32(&dzx[DZX0_DELMEM_CALL_OFFSET], delmem_size);
@@ -452,7 +521,7 @@ odd_8x:
         }
         else
         {
-            delmem_size = delta - dzx_len;
+            delmem_size = delta_adjusted - (int32_t)dzx_len;
             compress_wr24(&dzx[DZX0_DELMEM_SIZE_OFFSET], delmem_size);
             LOG_DEBUG("delmem_size: %d\n", delmem_size);
         }
@@ -463,14 +532,16 @@ odd_8x:
         LOG_DEBUG("asm_prgm_size_delta: %d\n", asm_prgm_size_delta);
 
         /* write the decompressor + compressed data */
-        memcpy(new_data + offset, dzx, dzx_len);
-        memcpy(new_data + offset + dzx_len, compressed_data, compressed_size);
+        memcpy(data + offset, dzx, dzx_len);
+        memcpy(data + offset + dzx_len, compressed_data, compressed_size);
 
         new_size = compressed_size + dzx_len + offset;
 
-        memcpy(data, new_data, new_size);
         *size = new_size;
+        free(dzx);
     }
+
+    free(compressed_data);
 
     return ret;
 }

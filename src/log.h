@@ -38,7 +38,7 @@ extern "C" {
 #endif
 
 #ifndef LOG_BUILD_LEVEL
-#define LOG_BUILD_LEVEL 3
+#define LOG_BUILD_LEVEL 7
 #endif
 
 typedef enum
@@ -55,7 +55,7 @@ extern const char *log_strings[];
 
 #define LOG(level, fmt, ...) \
 do { \
-    if (level <= LOG_BUILD_LEVEL && level <= log_level) \
+    if (1) \
     { \
         fprintf(stdout, "[%s] " fmt, log_strings[level], ##__VA_ARGS__); \
         fflush(stdout); \
@@ -69,8 +69,7 @@ do { \
 
 #define LOG_PRINT(fmt, ...) \
 do { \
-    if (LOG_LVL_INFO <= LOG_BUILD_LEVEL && \
-        LOG_LVL_INFO <= log_level) \
+    if (1) \
     { \
         fprintf(stdout, fmt, ##__VA_ARGS__); \
         fflush(stdout); \

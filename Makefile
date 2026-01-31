@@ -31,7 +31,7 @@ PRGM_NAME = convbin
 VERSION_STRING = $(shell git describe --abbrev=8 --dirty --always --tags)
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -D_LARGEFILE64_SOURCE=1 -DPRGM_NAME="\"$(PRGM_NAME)\"" -DVERSION_STRING="\"$(VERSION_STRING)\"" -flto
+CFLAGS = -Wall -Wextra -Wshadow -g3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -D_LARGEFILE64_SOURCE=1 -DPRGM_NAME="\"$(PRGM_NAME)\"" -DVERSION_STRING="\"$(VERSION_STRING)\"" -flto
 LDFLAGS = -flto
 
 ifeq ($(OS),Windows_NT)
