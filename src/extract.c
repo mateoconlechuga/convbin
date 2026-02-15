@@ -45,7 +45,7 @@ static void extract_write_word(uint8_t *addr, unsigned int value)
 
 int extract_8xp_to_8xv(uint8_t *data,
                        size_t *size,
-                       char appvar_names[10][10],
+                       const char (*appvar_names)[10],
                        unsigned int num_appvars)
 {
     unsigned int extractorsize;
@@ -54,7 +54,7 @@ int extract_8xp_to_8xv(uint8_t *data,
     unsigned int i;
     size_t new_size;
 
-    if (data == NULL || size == NULL)
+    if (data == NULL || size == NULL || appvar_names == NULL)
     {
         return -1;
     }

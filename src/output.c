@@ -113,16 +113,70 @@ static int output_ice(const char *name, const unsigned char *data, size_t size, 
 
 static int output_bin(const char *name, const unsigned char *data, size_t size, FILE *fd)
 {
-    int ret = fwrite(data, size, 1, fd);
+    size_t ret = fwrite(data, 1, size, fd);
     (void)name;
 
-    return ret == 1 ? 0 : -1;
+    return ret == size ? 0 : -1;
+}
+
+int output_reserve_data(struct output_file *file, size_t capacity)
+{
+    uint8_t *tmp;
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    if (capacity <= file->data_capacity)
+    {
+        return 0;
+    }
+
+    tmp = realloc(file->data, capacity == 0 ? 1 : capacity);
+    if (tmp == NULL)
+    {
+        LOG_ERROR("Out of memory.\n");
+        return -1;
+    }
+
+    file->data = tmp;
+    file->data_capacity = capacity;
+
+    return 0;
+}
+
+void output_free(struct output *output)
+{
+    if (output == NULL)
+    {
+        return;
+    }
+
+    if (output->file.data != NULL)
+    {
+        free(output->file.data);
+        output->file.data = NULL;
+    }
+
+    output->file.data_capacity = 0;
 }
 
 int output_write_file(const struct output_file *file)
 {
     FILE *fd;
     int ret;
+
+    if (file == NULL)
+    {
+        return -1;
+    }
+
+    if (file->size > 0 && file->data == NULL)
+    {
+        LOG_ERROR("No output data buffer.\n");
+        return -1;
+    }
 
     fd = fopen(file->name, file->append ? "ab" : "wb");
     if (fd == NULL)

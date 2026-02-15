@@ -693,10 +693,11 @@ cleanup:
     return ret;
 }
 
-int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table)
+int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_table *reloc_table)
 {
     struct elf32_ehdr ehdr;
     struct segment_info *segments = NULL;
+    uint8_t *buffer = NULL;
     uint32_t num_segments = 0;
     uint32_t min_paddr = 0xFFFFFFFF;
     uint32_t max_paddr = 0;
@@ -799,13 +800,14 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
     }
 
     *size = max_paddr - min_paddr;
-    if (*size > INPUT_MAX_SIZE)
+    buffer = malloc(*size == 0 ? 1 : *size);
+    if (buffer == NULL)
     {
-        LOG_ERROR("Output too large: %u bytes.\n", (unsigned int)*size);
+        LOG_ERROR("Memory allocation failed.\n");
         goto cleanup;
     }
 
-    memset(data, 0, *size);
+    memset(buffer, 0, *size);
 
     for (i = 0; i < num_segments; i++)
     {
@@ -823,21 +825,24 @@ int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_t
             goto cleanup;
         }
 
-        if (fread(data + dest_offset, 1, segments[i].filesz, fd) != segments[i].filesz)
+        if (fread(buffer + dest_offset, 1, segments[i].filesz, fd) != segments[i].filesz)
         {
             LOG_ERROR("Failed to read segment data.\n");
             goto cleanup;
         }
     }
 
-    if (extract_relocations(fd, data, *size, min_paddr, &ehdr, segments, num_segments, reloc_table) < 0)
+    if (extract_relocations(fd, buffer, *size, min_paddr, &ehdr, segments, num_segments, reloc_table) < 0)
     {
         goto cleanup;
     }
 
+    *data = buffer;
+    buffer = NULL;
     ret = 0;
 
 cleanup:
+    free(buffer);
     free(segments);
     return ret;
 }

@@ -40,7 +40,6 @@ extern "C" {
 #include "compress.h"
 #include "ti8x.h"
 
-#define MAX_OUTPUT_SIZE 0x1000000
 #define MAX_COMMENT_SIZE 42
 #define MAX_DESCRIPTION_SIZE 42
 
@@ -67,7 +66,8 @@ struct output_file
 {
     const char *name;
     struct ti8x_var var;
-    uint8_t data[MAX_OUTPUT_SIZE];
+    uint8_t *data;
+    size_t data_capacity;
     char comment[MAX_COMMENT_SIZE];
     char description[MAX_DESCRIPTION_SIZE + 1];
     size_t description_size;
@@ -88,6 +88,10 @@ struct output
 };
 
 void output_set_varname(struct output *output, const char *varname);
+
+int output_reserve_data(struct output_file *file, size_t capacity);
+
+void output_free(struct output *output);
 
 int output_write_file(const struct output_file *file);
 

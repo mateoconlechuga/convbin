@@ -42,7 +42,6 @@ extern "C" {
 #include "compress.h"
 
 #define INPUT_MAX_NUM 256
-#define INPUT_MAX_SIZE (1024 * 1024 * 4)
 
 typedef enum
 {
@@ -61,7 +60,7 @@ struct input_file
     iformat_t format;
     compress_mode_t compression;
     size_t size;
-    uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *data;
     struct app_reloc_table reloc_table;
 };
 
@@ -76,6 +75,8 @@ struct input
 int input_read_file(struct input_file *file);
 
 int input_add_file_path(struct input *input, const char *path);
+
+void input_free_files(struct input *input);
 
 #ifdef __cplusplus
 }

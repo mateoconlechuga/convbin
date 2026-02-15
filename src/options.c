@@ -328,22 +328,45 @@ static int options_validate_format(const struct options *options)
 
 static int options_validate(const struct options *options)
 {
+    uint32_t i;
+
     if (options->input.nr_files == 0)
     {
         LOG_ERROR("Unknown input file(s).\n");
         return OPTIONS_FAILED;
     }
 
-    if (options->input.files[0].format == IFORMAT_INVALID)
+    for (i = 0; i < options->input.nr_files; ++i)
     {
-        LOG_ERROR("Invalid input format mode.\n");
-        return OPTIONS_FAILED;
+        if (options->input.files[i].format == IFORMAT_INVALID)
+        {
+            LOG_ERROR("Invalid input format mode at input %u.\n",
+                (unsigned int)(i + 1));
+            return OPTIONS_FAILED;
+        }
+
+        if (options->input.files[i].compression == COMPRESS_INVALID)
+        {
+            LOG_ERROR("Invalid input compression mode at input %u.\n",
+                (unsigned int)(i + 1));
+            return OPTIONS_FAILED;
+        }
     }
 
-    if (options->input.files[0].compression == COMPRESS_INVALID)
+    if (options->output.file.format == OFORMAT_8XG ||
+        options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
     {
-        LOG_ERROR("Invalid input compression mode.\n");
-        return OPTIONS_FAILED;
+        for (i = 0; i < options->input.nr_files; ++i)
+        {
+            if (options->input.files[i].format != IFORMAT_TI8X_DATA)
+            {
+                LOG_ERROR("Output format %s requires TI variable inputs.\n",
+                    options->output.file.format == OFORMAT_8XG ? "8xg" : "8xg-auto-extract");
+                LOG_ERROR("Set --iformat 8x before input %u.\n",
+                    (unsigned int)(i + 1));
+                return OPTIONS_FAILED;
+            }
+        }
     }
 
     if (options->output.file.name == NULL)
@@ -394,6 +417,8 @@ static void options_set_default(struct options *options)
     options->output.file.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
     options->output.file.var.archive = false;
     options->output.file.var.namelen = 0;
+    options->output.file.data = NULL;
+    options->output.file.data_capacity = 0;
     options->output.file.size = 0;
     options->output.file.compressed_size = 0;
     options->output.file.uncompressed_size = 0;
@@ -440,6 +465,9 @@ static void options_set_description(struct options *options, const char *descrip
 
 static void options_configure(struct options *options)
 {
+    size_t i;
+    uint32_t j;
+
     if (options->input.nr_files == 1)
     {
         options->input.files[0].format = options->input.default_format;
@@ -451,11 +479,21 @@ static void options_configure(struct options *options)
     if (options->output.file.format == OFORMAT_8XG ||
         options->output.file.format == OFORMAT_8XG_AUTO_EXTRACT)
     {
-        uint32_t i;
-
-        for (i = 0; i < options->input.nr_files; ++i)
+        for (j = 0; j < options->input.nr_files; ++j)
         {
-            options->input.files[i].format = IFORMAT_TI8X_DATA_VAR;
+            options->input.files[j].format = IFORMAT_TI8X_DATA_VAR;
+        }
+    }
+
+    if (options->output.file.uppercase)
+    {
+        for (i = 0; i < options->output.file.var.namelen; ++i)
+        {
+            if (isalpha((unsigned char)options->output.file.var.name[i]))
+            {
+                options->output.file.var.name[i] =
+                    toupper((unsigned char)options->output.file.var.name[i]);
+            }
         }
     }
 }
@@ -586,7 +624,15 @@ int options_get(int argc, char *argv[], struct options *options)
         }
     }
 
+    {
+        int ret = options_validate(options);
+        if (ret != OPTIONS_SUCCESS)
+        {
+            return ret;
+        }
+    }
+
     options_configure(options);
 
-    return options_validate(options);
+    return OPTIONS_SUCCESS;
 }

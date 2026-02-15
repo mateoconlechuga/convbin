@@ -40,7 +40,7 @@ extern "C" {
 
 int extract_8xp_to_8xv(uint8_t *data,
                        size_t *size,
-                       char appvar_names[10][10],
+                       const char (*appvar_names)[10],
                        unsigned int num_appvars);
 
 #ifdef __cplusplus

@@ -30,11 +30,15 @@
 
 #include "options.h"
 #include "convert.h"
+#include "input.h"
+#include "output.h"
 
 int main(int argc, char *argv[])
 {
     static struct options options;
     int ret;
+    int exit_code;
+
 
     ret = options_get(argc, argv, &options);
     if (ret == OPTIONS_SUCCESS)
@@ -42,5 +46,10 @@ int main(int argc, char *argv[])
         ret = convert_input_to_output(&options.input, &options.output);
     }
 
-    return ret == OPTIONS_IGNORE ? 0 : ret;
+    exit_code = ret == OPTIONS_IGNORE ? 0 : ret;
+
+    output_free(&options.output);
+    input_free_files(&options.input);
+
+    return exit_code;
 }

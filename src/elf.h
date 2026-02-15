@@ -46,7 +46,7 @@ struct app_reloc_table
     size_t size;
 };
 
-int elf_extract_binary(FILE *fd, uint8_t *data, size_t *size, struct app_reloc_table *reloc_table);
+int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_table *reloc_table);
 
 #ifdef __cplusplus
 }

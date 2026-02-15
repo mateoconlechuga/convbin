@@ -33,6 +33,9 @@
 #include "log.h"
 #include "deps/miniz/miniz.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 static int convert_build_data(struct input *input,
@@ -68,7 +71,7 @@ static int convert_build_data(struct input *input,
             }
         }
 
-        if (tmp_size + file->size >= INPUT_MAX_SIZE)
+        if (tmp_size > max_size || file->size > max_size - tmp_size)
         {
             LOG_ERROR("Input too large.\n");
             return -1;
@@ -106,6 +109,64 @@ static int convert_build_data(struct input *input,
     return 0;
 }
 
+static int convert_total_input_size(const struct input *input, size_t *total_size)
+{
+    size_t total = 0;
+    uint32_t i;
+
+    if (input == NULL || total_size == NULL)
+    {
+        return -1;
+    }
+
+    for (i = 0; i < input->nr_files; ++i)
+    {
+        if (total > SIZE_MAX - input->files[i].size)
+        {
+            LOG_ERROR("Input too large.\n");
+            return -1;
+        }
+        total += input->files[i].size;
+    }
+
+    *total_size = total;
+    return 0;
+}
+
+static int convert_alloc_input_buffer(const struct input *input,
+                                      uint8_t **data,
+                                      size_t *capacity)
+{
+    size_t total_size = 0;
+    size_t alloc_size;
+    uint8_t *buffer;
+
+    if (input == NULL || data == NULL)
+    {
+        return -1;
+    }
+
+    if (convert_total_input_size(input, &total_size) != 0)
+    {
+        return -1;
+    }
+
+    alloc_size = total_size == 0 ? 1 : total_size;
+    buffer = malloc(alloc_size);
+    if (buffer == NULL)
+    {
+        LOG_ERROR("Out of memory.\n");
+        return -1;
+    }
+
+    *data = buffer;
+    if (capacity != NULL)
+    {
+        *capacity = total_size;
+    }
+    return 0;
+}
+
 static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file)
 {
     uint16_t checksum;
@@ -126,8 +187,14 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
     var_size = size + TI8X_VARB_SIZE_LEN;
     varb_size = size;
 
+    if (output_reserve_data(file, file_size) != 0)
+    {
+        return -1;
+    }
+
     ti8x = file->data;
     file->size = file_size;
+    memset(ti8x, 0, file_size);
 
     memcpy(ti8x + TI8X_COMMENT, file->comment, MAX_COMMENT_SIZE);
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
@@ -160,25 +227,347 @@ static int convert_build_8x(uint8_t *data, size_t size, struct output_file *file
 
 static int convert_8x(struct input *input, struct output_file *file)
 {
-    static uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *data;
+    size_t capacity = 0;
     size_t size = 0;
     int ret;
 
-    ret = convert_build_data(input, data, &size,
-                             INPUT_MAX_SIZE, file, file->compression);
-    if (ret < 0)
+    ret = convert_alloc_input_buffer(input, &data, &capacity);
+    if (ret != 0)
     {
         return ret;
     }
 
-    ret = convert_build_8x(data, size, file);
+    ret = convert_build_data(input, data, &size,
+                             capacity, file, file->compression);
+    if (ret < 0)
+    {
+        free(data);
+        return ret;
+    }
 
+    ret = convert_build_8x(data, size, file);
+    free(data);
+
+    return ret;
+}
+
+static int convert_split_output_name(const char *base_name,
+                                     unsigned int index,
+                                     bool append_suffix,
+                                     char *out_name,
+                                     size_t out_name_size)
+{
+    char index_str[16];
+    size_t index_len;
+    size_t required_len;
+
+    if (base_name == NULL || out_name == NULL || out_name_size == 0)
+    {
+        return -1;
+    }
+
+    sprintf(index_str, "%u", index);
+    index_len = strlen(index_str);
+
+    if (append_suffix)
+    {
+        size_t base_len = strlen(base_name);
+        required_len = base_len + 1 + index_len + 4 + 1;
+        if (required_len > out_name_size)
+        {
+            LOG_ERROR("Output path too long for split appvar file.\n");
+            return -1;
+        }
+
+        memcpy(out_name, base_name, base_len);
+        out_name[base_len] = '\0';
+        strcat(out_name, ".");
+        strcat(out_name, index_str);
+        strcat(out_name, ".8xv");
+    }
+    else
+    {
+        const char *ext_pos = strrchr(base_name, '.');
+        size_t base_len = strlen(base_name);
+
+        if (ext_pos != NULL && strcmp(ext_pos, ".8xv") == 0)
+        {
+            base_len = (size_t)(ext_pos - base_name);
+        }
+
+        required_len = base_len + 1 + index_len + 4 + 1;
+        if (required_len > out_name_size)
+        {
+            LOG_ERROR("Output path too long for split appvar file.\n");
+            return -1;
+        }
+
+        memcpy(out_name, base_name, base_len);
+        out_name[base_len] = '\0';
+        strcat(out_name, ".");
+        strcat(out_name, index_str);
+        strcat(out_name, ".8xv");
+    }
+
+    return 0;
+}
+
+static int convert_split_append_written_path(char ***paths,
+                                             unsigned int *count,
+                                             const char *path)
+{
+    char **new_paths;
+    char *path_copy;
+    size_t len;
+
+    if (paths == NULL || count == NULL || path == NULL)
+    {
+        return -1;
+    }
+
+    new_paths = realloc(*paths, (size_t)(*count + 1) * sizeof(*new_paths));
+    if (new_paths == NULL)
+    {
+        LOG_ERROR("Out of memory.\n");
+        return -1;
+    }
+    *paths = new_paths;
+
+    len = strlen(path);
+    path_copy = malloc(len + 1);
+    if (path_copy == NULL)
+    {
+        LOG_ERROR("Out of memory.\n");
+        return -1;
+    }
+
+    memcpy(path_copy, path, len + 1);
+    (*paths)[*count] = path_copy;
+    (*count)++;
+
+    return 0;
+}
+
+static void convert_split_cleanup_written_paths(char **paths,
+                                                unsigned int count,
+                                                bool remove_files)
+{
+    unsigned int i;
+
+    if (paths == NULL)
+    {
+        return;
+    }
+
+    for (i = 0; i < count; ++i)
+    {
+        if (paths[i] != NULL)
+        {
+            if (remove_files)
+            {
+                remove(paths[i]);
+            }
+            free(paths[i]);
+        }
+    }
+
+    free(paths);
+}
+
+static int convert_split_var_name(const char *base_name,
+                                  unsigned int index,
+                                  char out_name[TI8X_VAR_NAME_LEN + 1],
+                                  size_t *out_len)
+{
+    char index_str[16];
+    size_t index_len;
+    size_t base_len;
+
+    if (base_name == NULL || out_name == NULL || out_len == NULL)
+    {
+        return -1;
+    }
+
+    sprintf(index_str, "%u", index);
+    index_len = strlen(index_str);
+    if (index_len >= TI8X_VAR_NAME_LEN + 1)
+    {
+        LOG_ERROR("AppVar index too large.\n");
+        return -1;
+    }
+
+    base_len = strlen(base_name);
+    if (base_len > TI8X_VAR_NAME_LEN - index_len)
+    {
+        base_len = TI8X_VAR_NAME_LEN - index_len;
+    }
+
+    memset(out_name, 0, TI8X_VAR_NAME_LEN + 1);
+    memcpy(out_name, base_name, base_len);
+    memcpy(out_name + base_len, index_str, index_len);
+
+    *out_len = base_len + index_len;
+
+    return 0;
+}
+
+static int convert_write_split_appvars(const uint8_t *data,
+                                       size_t data_size,
+                                       size_t appvar_size,
+                                       const struct output_file *file,
+                                       unsigned int max_appvars,
+                                       bool append_output_suffix,
+                                       char (*appvar_names)[10],
+                                       unsigned int *out_num_appvars)
+{
+    struct output_file appvarfile;
+    char **written_paths = NULL;
+    unsigned int num_appvars;
+    unsigned int written_count = 0;
+    unsigned int i;
+    int ret = -1;
+
+    if (data == NULL || file == NULL || appvar_size == 0)
+    {
+        LOG_ERROR("Invalid split appvar params.\n");
+        return -1;
+    }
+
+    if (data_size == 0)
+    {
+        LOG_ERROR("Input too small for split appvars.\n");
+        return -1;
+    }
+
+    num_appvars = (unsigned int)((data_size + appvar_size - 1) / appvar_size);
+    if (num_appvars > max_appvars)
+    {
+        if (max_appvars == 99)
+        {
+            LOG_ERROR("Data too large, would require more than 99 AppVars.\n");
+        }
+        else
+        {
+            LOG_ERROR("Input too large.\n");
+        }
+        return -1;
+    }
+
+    if (num_appvars == 1)
+    {
+        LOG_WARNING("Input too large; split across 1 appvar...\n");
+    }
+    else
+    {
+        LOG_WARNING("Input too large; split across %u appvars...\n",
+            num_appvars);
+    }
+
+    if (appvar_names != NULL)
+    {
+        memset(appvar_names, 0, num_appvars * sizeof *appvar_names);
+    }
+
+    memset(&appvarfile, 0, sizeof appvarfile);
+
+    for (i = 0; i < num_appvars; ++i)
+    {
+        size_t offset = (size_t)i * appvar_size;
+        size_t chunk_size = appvar_size;
+        char outname[4096];
+        char var_name[TI8X_VAR_NAME_LEN + 1];
+        size_t var_name_len;
+
+        if (offset + chunk_size > data_size)
+        {
+            chunk_size = data_size - offset;
+        }
+
+        ret = convert_split_output_name(file->name, i,
+            append_output_suffix, outname, sizeof outname);
+        if (ret != 0)
+        {
+            goto fail;
+        }
+
+        ret = convert_split_var_name(file->var.name, i, var_name, &var_name_len);
+        if (ret != 0)
+        {
+            goto fail;
+        }
+
+        appvarfile.name = outname;
+        appvarfile.format = OFORMAT_8XV;
+        appvarfile.var.maxsize = appvar_size;
+        memset(appvarfile.var.name, 0, sizeof appvarfile.var.name);
+        memcpy(appvarfile.var.name, var_name, var_name_len);
+        appvarfile.var.namelen = var_name_len;
+        appvarfile.var.type = TI8X_TYPE_APPVAR;
+        appvarfile.var.archive = true;
+        appvarfile.append = false;
+
+        ret = convert_build_8x((uint8_t *)data + offset, chunk_size, &appvarfile);
+        if (ret != 0)
+        {
+            goto fail;
+        }
+
+        ret = output_write_file(&appvarfile);
+        if (ret != 0)
+        {
+            goto fail;
+        }
+
+        ret = convert_split_append_written_path(&written_paths,
+            &written_count, outname);
+        if (ret != 0)
+        {
+            goto fail;
+        }
+
+        LOG_PRINT("[success] %s (%s), %lu bytes.\n",
+            appvarfile.name,
+            var_name,
+            (unsigned long)appvarfile.size);
+
+        if (appvar_names != NULL)
+        {
+            appvar_names[i][0] = TI8X_TYPE_APPVAR;
+            memcpy(&appvar_names[i][1], var_name, var_name_len);
+        }
+    }
+
+    if (appvarfile.data != NULL)
+    {
+        free(appvarfile.data);
+        appvarfile.data = NULL;
+        appvarfile.data_capacity = 0;
+    }
+    convert_split_cleanup_written_paths(written_paths, written_count, false);
+
+    if (out_num_appvars != NULL)
+    {
+        *out_num_appvars = num_appvars;
+    }
+
+    return 0;
+
+fail:
+    if (appvarfile.data != NULL)
+    {
+        free(appvarfile.data);
+        appvarfile.data = NULL;
+        appvarfile.data_capacity = 0;
+    }
+    convert_split_cleanup_written_paths(written_paths, written_count, true);
     return ret;
 }
 
 static int convert_8xp(struct input *input, struct output_file *file)
 {
-    static uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *data;
+    size_t capacity = 0;
     size_t size = 0;
     int ret;
 
@@ -187,10 +576,17 @@ static int convert_8xp(struct input *input, struct output_file *file)
         LOG_WARNING("Ignoring compression mode!\n");
     }
 
+    ret = convert_alloc_input_buffer(input, &data, &capacity);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
     ret = convert_build_data(input, data, &size,
-        INPUT_MAX_SIZE, file, COMPRESS_NONE);
+        capacity, file, COMPRESS_NONE);
     if (ret < 0)
     {
+        free(data);
         return ret;
     }
 
@@ -200,6 +596,7 @@ static int convert_8xp(struct input *input, struct output_file *file)
         ret = compress_8xp(data, &size, file->ti8xp_compression);
         if (ret < 0)
         {
+            free(data);
             return ret;
         }
 
@@ -209,96 +606,60 @@ static int convert_8xp(struct input *input, struct output_file *file)
 
     if (size > file->var.maxsize)
     {
-        unsigned int num_appvars = (size + file->var.maxsize - 1) / file->var.maxsize;
-        char appvar_names[10][10];
-        unsigned int offset = TI8X_ASMCOMP_LEN;
-        size_t tmpsize;
-        size_t origsize;
-        unsigned int i;
-        char outname[4096];
-        int pos = 0;
+        unsigned int num_appvars;
+        char (*appvar_names)[10];
+        size_t split_offset = TI8X_ASMCOMP_LEN;
+        size_t payload_size;
 
-        memset(appvar_names, 0, sizeof appvar_names);
-        memset(outname, 0, sizeof outname);
-
-        strncpy(outname, file->name, sizeof outname - 10);
-        strncat(outname, ".0.8xv", 10);
-
-        pos = strlen(outname) - 5;
-
-        if (num_appvars == 1)
+        if (size <= split_offset)
         {
-            LOG_WARNING("Input too large; split across 1 appvar...\n");
-        }
-        else if (num_appvars > 10)
-        {
-            LOG_ERROR("Input too large.\n");
+            LOG_ERROR("Input too small for split 8xp output.\n");
+            free(data);
             return -1;
         }
-        else
+        payload_size = size - split_offset;
+
+        num_appvars = (unsigned int)((payload_size + file->var.maxsize - 1) /
+            file->var.maxsize);
+        if (num_appvars > 99)
         {
-            LOG_WARNING("Input too large; split across %u appvars...\n",
-                num_appvars);
+            LOG_ERROR("Input too large.\n");
+            free(data);
+            return -1;
         }
 
-        origsize = size;
-        tmpsize = file->var.maxsize;
-
-        for (i = 0; i < num_appvars; ++i)
+        appvar_names = calloc(num_appvars, sizeof *appvar_names);
+        if (appvar_names == NULL)
         {
-            size_t name_size = strlen(file->var.name);
-            static struct output_file appvarfile;
+            LOG_ERROR("Out of memory.\n");
+            free(data);
+            return -1;
+        }
 
-            if (name_size > TI8X_VAR_NAME_LEN - 1)
-            {
-                name_size = TI8X_VAR_NAME_LEN - 1;
-            }
+        if (data[0] != TI8X_TOKEN_EXT || data[1] != TI8X_TOKEN_ASM84CECMP)
+        {
+            LOG_WARNING("Input does not start with ASM tokens; split output will replace first two bytes.\n");
+        }
 
-            appvar_names[i][0] = TI8X_TYPE_APPVAR;
-            memcpy(&appvar_names[i][1], file->var.name, name_size);
-            appvar_names[i][name_size + 1] = '0' + i;
-            outname[pos] = '0' + i;
-
-            appvarfile.name = outname;
-            appvarfile.format = OFORMAT_8XV;
-            appvarfile.var.maxsize = file->var.maxsize;
-            memset(appvarfile.var.name, 0, sizeof appvarfile.var.name);
-            memcpy(&appvarfile.var.name, &appvar_names[i][1], name_size);
-            appvarfile.var.name[name_size] = '0' + i;
-            appvarfile.var.namelen = name_size + 1;
-            appvarfile.var.type = TI8X_TYPE_APPVAR;
-            appvarfile.var.archive = true;
-            appvarfile.append = false;
-            memset(appvarfile.comment, 0, MAX_COMMENT_SIZE);
-            memset(appvarfile.description, 0, MAX_DESCRIPTION_SIZE + 1);
-            appvarfile.description_size = 0;
-
-            ret = convert_build_8x(data + offset, tmpsize, &appvarfile);
-            if (ret == 0)
-            {
-                ret = output_write_file(&appvarfile);
-                if (ret != 0)
-                {
-                    break;
-                }
-            }
-
-            LOG_PRINT("[success] %s, %lu bytes.\n",
-                appvarfile.name,
-                (unsigned long)appvarfile.size);
-
-            offset += tmpsize;
-
-            /* handle last appvar */
-            origsize -= tmpsize;
-            if (origsize <= tmpsize)
-            {
-                tmpsize = origsize;
-            }
+        ret = convert_write_split_appvars(
+            data + split_offset,
+            payload_size,
+            file->var.maxsize,
+            file,
+            99,
+            true,
+            appvar_names,
+            &num_appvars);
+        if (ret != 0)
+        {
+            free(appvar_names);
+            free(data);
+            return ret;
         }
 
         /* write extractor program as final output */
         ret = extract_8xp_to_8xv(data, &size, appvar_names, num_appvars);
+        free(appvar_names);
         if (ret == 0)
         {
             ret = convert_build_8x(data, size, file);
@@ -309,12 +670,13 @@ static int convert_8xp(struct input *input, struct output_file *file)
         ret = convert_build_8x(data, size, file);
     }
 
+    free(data);
     return ret;
 }
 
 int convert_auto_8xg(struct input *input, struct output_file *file)
 {
-    static uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *data;
     uint8_t *ti8x;
     uint16_t checksum;
     size_t file_size;
@@ -327,18 +689,31 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
         LOG_WARNING("Ignoring compression mode!\n");
     }
 
+    ret = convert_alloc_input_buffer(input, &data, NULL);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
     ret = convert_build_data(input, data, &size,
                              file->var.maxsize, file, COMPRESS_NONE);
     if (ret < 0)
     {
+        free(data);
         return ret;
     }
 
     file_size = size + TI8X_FILE_HEADER_LEN + TI8X_CHECKSUM_LEN;
     data_size = size;
 
+    if (output_reserve_data(file, file_size) != 0)
+    {
+        return -1;
+    }
+
     ti8x = file->data;
     file->size = file_size;
+    memset(ti8x, 0, file_size);
 
     memcpy(ti8x + TI8X_FILE_HEADER, ti8x_file_header, sizeof ti8x_file_header);
     memcpy(ti8x + TI8X_VAR_HEADER, data, size);
@@ -351,6 +726,7 @@ int convert_auto_8xg(struct input *input, struct output_file *file)
     ti8x[file_size - 2] = (checksum >> 0) & 0xff;
     ti8x[file_size - 1] = (checksum >> 8) & 0xff;
 
+    free(data);
     return 0;
 }
 
@@ -367,6 +743,7 @@ static int convert_8ek(struct input *input, struct output_file *file)
     size_t reloc_size = 0;
     size_t i;
     uint32_t tmp;
+    size_t output_size;
 
     if (file->compression != COMPRESS_NONE)
     {
@@ -384,8 +761,6 @@ static int convert_8ek(struct input *input, struct output_file *file)
     input_data = input->files[0].data;
     input_size = input->files[0].size;
 
-    output_data = file->data;
-
     app_total_size = input_size + reloc_size + file->description_size + (file->description_size ? 1 : 0);
     app_data_size =
         TI8EK_APP_HEADER_SIZE +
@@ -394,6 +769,15 @@ static int convert_8ek(struct input *input, struct output_file *file)
         TI8EK_APP_SIGNATURE_FIELD_SIZE +
         TI8EK_APP_SIGNATURE_TYPE_SIZE +
         TI8EK_APP_SIGNATURE_SIZE;
+    output_size = TI8X_FILE_HEADER_LEN + TI8X_VAR_HEADER_LEN + app_data_size;
+
+    if (output_reserve_data(file, output_size) != 0)
+    {
+        return -1;
+    }
+
+    output_data = file->data;
+    memset(output_data, 0, output_size);
 
     /* File Header */
     ptr = &output_data[TI8X_FILE_HEADER];
@@ -541,25 +925,16 @@ static int convert_8ek(struct input *input, struct output_file *file)
         *ptr++ = 0xFF;
     }
 
-    file->size =
-        TI8X_FILE_HEADER_LEN +
-        TI8X_VAR_HEADER_LEN +
-        app_data_size;
+    file->size = output_size;
 
     return 0;
 }
 
 static int convert_8xv_split(struct input *input, struct output_file *file)
 {
-    static uint8_t data[INPUT_MAX_SIZE];
+    uint8_t *data;
+    size_t capacity = 0;
     size_t size = 0;
-    size_t total_size;
-    size_t appvar_size;
-    size_t base_name_len;
-    unsigned int num_appvars;
-    unsigned int i;
-    static char outname[4096];
-    char *ext_pos;
     int ret;
 
     if (file->compression != COMPRESS_NONE)
@@ -567,102 +942,67 @@ static int convert_8xv_split(struct input *input, struct output_file *file)
         LOG_WARNING("Ignoring compression mode!\n");
     }
 
-    ret = convert_build_data(input, data, &size,
-                             INPUT_MAX_SIZE, file, COMPRESS_NONE);
-    if (ret < 0)
+    ret = convert_alloc_input_buffer(input, &data, &capacity);
+    if (ret != 0)
     {
         return ret;
     }
 
-    total_size = size;
-
-    appvar_size = file->var.maxsize;
-    num_appvars = (total_size + appvar_size - 1) / appvar_size;
-
-    if (num_appvars > 99)
+    ret = convert_build_data(input, data, &size,
+                             capacity, file, COMPRESS_NONE);
+    if (ret < 0)
     {
-        LOG_ERROR("Data too large, would require more than 99 AppVars.\n");
-        return -1;
+        free(data);
+        return ret;
     }
 
-    base_name_len = file->var.namelen;
-    if (num_appvars > 9 && base_name_len > TI8X_VAR_NAME_LEN - 2)
-    {
-        base_name_len = TI8X_VAR_NAME_LEN - 2; /* Need 2 chars for 10-99 */
-    }
-    else if (base_name_len > TI8X_VAR_NAME_LEN - 1)
-    {
-        base_name_len = TI8X_VAR_NAME_LEN - 1; /* Need 1 char for 0-9 */
-    }
-
-    memset(outname, 0, sizeof outname);
-    strncpy(outname, file->name, sizeof outname - 1);
-    ext_pos = strrchr(outname, '.');
-    if (!ext_pos || strcmp(ext_pos, ".8xv") != 0)
-    {
-        ext_pos = outname + strlen(outname);
-        strcpy(ext_pos, ".8xv");
-    }
-
-    for (i = 0; i < num_appvars; ++i)
-    {
-        static struct output_file appvarfile = { 0 };
-        size_t offset = i * appvar_size;
-        size_t chunk_size = appvar_size;
-        char var_name[TI8X_VAR_NAME_LEN + 1];
-        static char temp_outname[4096];
-        char index_str[16];
-
-        if (offset + chunk_size > total_size)
-        {
-            chunk_size = total_size - offset;
-        }
-
-        memset(var_name, 0, sizeof var_name);
-        strncpy(var_name, file->var.name, base_name_len);
-        sprintf(index_str, "%u", i);
-        strncat(var_name, index_str, TI8X_VAR_NAME_LEN - base_name_len);
-        
-        strncpy(temp_outname, outname, ext_pos - outname);
-        temp_outname[ext_pos - outname] = '\0';
-        sprintf(temp_outname + strlen(temp_outname), ".%u.8xv", i);
-
-        appvarfile.name = temp_outname;
-        appvarfile.format = OFORMAT_8XV;
-        appvarfile.var.maxsize = TI8X_DEFAULT_MAXVAR_SIZE;
-        strncpy(appvarfile.var.name, var_name, TI8X_VAR_NAME_LEN);
-        appvarfile.var.namelen = strlen(var_name);
-        appvarfile.var.type = TI8X_TYPE_APPVAR;
-        appvarfile.var.archive = true;
-        appvarfile.append = false;
-
-        ret = convert_build_8x(data + offset, chunk_size, &appvarfile);
-        if (ret != 0)
-        {
-            return ret;
-        }
-
-        ret = output_write_file(&appvarfile);
-        if (ret != 0)
-        {
-            return ret;
-        }
-
-        LOG_PRINT("[success] %s (%s), %lu bytes.\n",
-            appvarfile.name,
-            var_name,
-            (unsigned long)appvarfile.size);
-    }
-
-    return 0;
+    ret = convert_write_split_appvars(
+        data,
+        size,
+        file->var.maxsize,
+        file,
+        99,
+        false,
+        NULL,
+        NULL);
+    free(data);
+    return ret;
 }
 
 int convert_bin(struct input *input, struct output_file *file)
 {
+    size_t max_size = 0;
+    uint32_t i;
+
+    for (i = 0; i < input->nr_files; ++i)
+    {
+        if (max_size > (size_t)-1 - input->files[i].size)
+        {
+            LOG_ERROR("Input too large.\n");
+            return -1;
+        }
+        max_size += input->files[i].size;
+    }
+
+    if (max_size == 0 && file->compression == COMPRESS_NONE)
+    {
+        if (output_reserve_data(file, 1) != 0)
+        {
+            return -1;
+        }
+        file->size = 0;
+        return 0;
+    }
+
+    if (output_reserve_data(file, max_size == 0 ? 1 : max_size) != 0)
+    {
+        return -1;
+    }
+
     return convert_build_data(input,
         file->data,
         &file->size,
-        MAX_OUTPUT_SIZE,
+        max_size,
         file,
         file->compression);
 }
@@ -783,6 +1123,8 @@ int convert_zip(struct input *input, struct output *output)
     static mz_zip_archive_file_stat stat;
     size_t i;
     uint32_t checksum = 0;
+    int writer_initialized = 0;
+    int ret = -1;
 
     if (!archive_path || strlen(archive_path) < 1)
     {
@@ -795,6 +1137,7 @@ int convert_zip(struct input *input, struct output *output)
         LOG_ERROR("Could not initialize archive filepath.\n");
         return -1;
     }
+    writer_initialized = 1;
 
     if (output->file.format == OFORMAT_B83 ||
         output->file.format == OFORMAT_B84)
@@ -820,13 +1163,13 @@ int convert_zip(struct input *input, struct output *output)
             MZ_BEST_COMPRESSION))
         {
             LOG_ERROR("Could not add bundle metadata.\n");
-            return -1;
+            goto cleanup;
         }
 
         if (!mz_zip_reader_file_stat(&archive, 0, &stat))
         {
             LOG_ERROR("Could not stat bundle metadata.\n");
-            return -1;
+            goto cleanup;
         }
 
         LOG_DEBUG("metadata checksum: %x\n", stat.m_crc32);
@@ -861,7 +1204,7 @@ int convert_zip(struct input *input, struct output *output)
             MZ_BEST_COMPRESSION))
         {
             LOG_ERROR("Could not add archive entry.\n");
-            return -1;
+            goto cleanup;
         }
 
         /* compute checksum only if b83 or b84 */
@@ -870,7 +1213,7 @@ int convert_zip(struct input *input, struct output *output)
             if (!mz_zip_reader_file_stat(&archive, i + 1, &stat))
             {
                 LOG_ERROR("Could not stat archive entry.\n");
-                return -1;
+                goto cleanup;
             }
 
             LOG_DEBUG("entry checksum: %x\n", stat.m_crc32);
@@ -895,17 +1238,28 @@ int convert_zip(struct input *input, struct output *output)
             MZ_BEST_COMPRESSION))
         {
             LOG_ERROR("Could not add bundle checksum.\n");
-            return -1;
+            goto cleanup;
         }
     }
 
-    mz_zip_writer_finalize_archive(&archive);
-    mz_zip_writer_end(&archive);
+    if (!mz_zip_writer_finalize_archive(&archive))
+    {
+        LOG_ERROR("Could not finalize archive.\n");
+        goto cleanup;
+    }
 
     LOG_PRINT("[success] %lu files added to %s.\n",
         (unsigned long)input->nr_files, archive_path);
 
-    return 0;
+    ret = 0;
+
+cleanup:
+    if (writer_initialized)
+    {
+        mz_zip_writer_end(&archive);
+    }
+
+    return ret;
 }
 
 int convert_input_to_output(struct input *input, struct output *output)
