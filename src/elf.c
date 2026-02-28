@@ -51,6 +51,8 @@
 #define SHT_RELA 4
 #define SHF_ALLOC 0x2
 #define SHN_ABS 0xfff1
+#define R_Z80_NONE 0
+#define R_Z80_8_PCREL 3
 #define R_Z80_24 5
 
 /* ELF32 structures */
@@ -585,6 +587,13 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
 
             if (r_type != R_Z80_24)
             {
+                /* Not handled for now, but doesn't prevent things from working */
+                if (r_type == R_Z80_NONE || r_type == R_Z80_8_PCREL)
+                {
+                    LOG_DEBUG("Ignoring relocation type: %u (%s)\n",
+                            r_type, r_type == R_Z80_NONE ? "R_Z80_NONE" : "R_Z80_8_PCREL");
+                    continue;
+                }
                 LOG_ERROR("Unsupported relocation type: %u (expected R_Z80_24)\n", r_type);
                 free(rela_data);
                 free(symtab_data);
