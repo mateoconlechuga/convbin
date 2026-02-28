@@ -332,6 +332,8 @@ int input_add_file_path(struct input *input, const char *path)
     f->data = NULL;
     f->reloc_table.data = NULL;
     f->reloc_table.size = 0;
+    f->reloc_table.init_offset = 0;
+    f->reloc_table.init_size = 0;
 
     input->nr_files++;
 

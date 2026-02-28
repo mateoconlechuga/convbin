@@ -710,6 +710,14 @@ int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_
         return -1;
     }
 
+    if (reloc_table != NULL)
+    {
+        reloc_table->data = NULL;
+        reloc_table->size = 0;
+        reloc_table->init_offset = 0;
+        reloc_table->init_size = 0;
+    }
+
     if (fseek(fd, 0, SEEK_SET) != 0)
     {
         LOG_ERROR("Failed to seek to beginning of file.\n");
@@ -829,6 +837,37 @@ int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_
         {
             LOG_ERROR("Failed to read segment data.\n");
             goto cleanup;
+        }
+    }
+
+    if (reloc_table != NULL)
+    {
+        uint32_t init_start = UINT32_MAX;
+        uint32_t init_end = 0;
+
+        for (i = 0; i < num_segments; i++)
+        {
+            if (segments[i].memsz > 0 && segments[i].vaddr != segments[i].paddr)
+            {
+                uint32_t seg_start = segments[i].paddr - min_paddr;
+                uint32_t seg_end = seg_start + segments[i].memsz;
+
+                if (seg_start < init_start)
+                {
+                    init_start = seg_start;
+                }
+
+                if (seg_end > init_end)
+                {
+                    init_end = seg_end;
+                }
+            }
+        }
+
+        if (init_start < init_end)
+        {
+            reloc_table->init_offset = init_start;
+            reloc_table->init_size = init_end - init_start;
         }
     }
 

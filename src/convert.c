@@ -736,11 +736,14 @@ static int convert_8ek(struct input *input, struct output_file *file)
     const uint8_t *reloc_table;
     uint8_t *output_data;
     uint8_t *ptr;
-    uint8_t *app_header_start;
     size_t input_size = 0;
-    size_t app_total_size = 0;
+    size_t app_payload_size = 0;
+    size_t app_extended_size = 0;
+    size_t app_master_size = 0;
     size_t app_data_size;
     size_t reloc_size = 0;
+    size_t init_data_offset = 0;
+    size_t init_data_size = 0;
     size_t i;
     uint32_t tmp;
     size_t output_size;
@@ -758,18 +761,26 @@ static int convert_8ek(struct input *input, struct output_file *file)
 
     reloc_size = input->files[0].reloc_table.size;
     reloc_table = input->files[0].reloc_table.data;
+    init_data_offset = input->files[0].reloc_table.init_offset;
+    init_data_size = input->files[0].reloc_table.init_size;
     input_data = input->files[0].data;
     input_size = input->files[0].size;
 
-    app_total_size = input_size + reloc_size + file->description_size + (file->description_size ? 1 : 0);
+    if (init_data_size > 0 && init_data_offset + init_data_size > input_size)
+    {
+        LOG_ERROR("ELF initialized data range out of bounds.\n");
+        return -1;
+    }
+
+    app_payload_size = input_size + reloc_size + file->description_size + (file->description_size ? 1 : 0);
+    app_extended_size = TI8EK_APP_METADATA_SIZE + app_payload_size;
+    app_master_size = (TI8EK_APP_HEADER_SIZE - 6) + app_extended_size;
     app_data_size =
         TI8EK_APP_HEADER_SIZE +
-        TI8EK_APP_METADATA_SIZE +
-        app_total_size +
-        TI8EK_APP_SIGNATURE_FIELD_SIZE +
-        TI8EK_APP_SIGNATURE_TYPE_SIZE +
+        app_extended_size +
+        4 + /* 0x023E field + 16-bit signature length */
         TI8EK_APP_SIGNATURE_SIZE;
-    output_size = TI8X_FILE_HEADER_LEN + TI8X_VAR_HEADER_LEN + app_data_size;
+    output_size = TI8EK_APP_HEADER_OFFSET + app_data_size;
 
     if (output_reserve_data(file, output_size) != 0)
     {
@@ -814,13 +825,13 @@ static int convert_8ek(struct input *input, struct output_file *file)
     *ptr++ = app_data_size >> 24;
 
     /* Application Header */
-    ptr = app_header_start = &output_data[TI8EK_APP_HEADER_OFFSET];
+    ptr = &output_data[TI8EK_APP_HEADER_OFFSET];
     *ptr++ = 0x81;
     *ptr++ = 0x0F;
-    *ptr++ = app_total_size >> 24;
-    *ptr++ = app_total_size >> 16;
-    *ptr++ = app_total_size >> 8;
-    *ptr++ = app_total_size >> 0;
+    *ptr++ = app_master_size >> 24;
+    *ptr++ = app_master_size >> 16;
+    *ptr++ = app_master_size >> 8;
+    *ptr++ = app_master_size >> 0;
     *ptr++ = 0x81;
     *ptr++ = 0x12;
     *ptr++ = 0x13;
@@ -862,14 +873,14 @@ static int convert_8ek(struct input *input, struct output_file *file)
     *ptr++ = 0xDC;
     *ptr++ = 0x00;
     *ptr++ = 0x0D;
-    *ptr = TI8EK_APP_HEADER_SIZE - (ptr - app_header_start);
+    *ptr = (uint8_t)(&output_data[TI8EK_APP_HEADER_SIZE_FIELD_OFFSET] - (ptr + 1));
     ptr = &output_data[TI8EK_APP_HEADER_SIZE_FIELD_OFFSET];
     *ptr++ = 0x81;
     *ptr++ = 0x7F;
-    *ptr++ = app_total_size >> 24;
-    *ptr++ = app_total_size >> 16;
-    *ptr++ = app_total_size >> 8;
-    *ptr++ = app_total_size >> 0;
+    *ptr++ = app_extended_size >> 24;
+    *ptr++ = app_extended_size >> 16;
+    *ptr++ = app_extended_size >> 8;
+    *ptr++ = app_extended_size >> 0;
 
     /* Application Metadata */
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET];
@@ -888,13 +899,23 @@ static int convert_8ek(struct input *input, struct output_file *file)
     *ptr++ = tmp >> 0;
     *ptr++ = tmp >> 8;
     *ptr++ = tmp >> 16;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x15];
+    tmp = init_data_size > 0 ? (0x2A + reloc_size + init_data_offset) : 0;
+    *ptr++ = tmp >> 0;
+    *ptr++ = tmp >> 8;
+    *ptr++ = tmp >> 16;
+    ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x18];
+    tmp = init_data_size;
+    *ptr++ = tmp >> 0;
+    *ptr++ = tmp >> 8;
+    *ptr++ = tmp >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x1B];
     tmp = 0x2A + reloc_size;
     *ptr++ = tmp >> 0;
     *ptr++ = tmp >> 8;
     *ptr++ = tmp >> 16;
     ptr = &output_data[TI8EK_APP_METADATA_OFFSET + 0x24];
-    tmp = 0x2A + reloc_size + input_size;
+    tmp = file->description_size ? (0x2A + reloc_size + input_size) : 3;
     *ptr++ = tmp >> 0;
     *ptr++ = tmp >> 8;
     *ptr++ = tmp >> 16;

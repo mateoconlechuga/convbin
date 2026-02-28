@@ -44,6 +44,8 @@ struct app_reloc_table
 {
     uint8_t *data;
     size_t size;
+    uint32_t init_offset;
+    uint32_t init_size;
 };
 
 int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_table *reloc_table);
