@@ -86,7 +86,7 @@ dzx7s_main_loop:
 ; determine number of bits used for length (Elias gamma coding)
 	push	de
 	ld	bc, 0
-	ld	de, 0
+	inc.s	de
 	ld	d, b
 dzx7s_len_size_loop:
 	inc	d
@@ -106,8 +106,8 @@ dzx7s_len_value_loop:
 ; determine offset
 	ld	e, (hl)				; load offset flag (1 bit) + offset value (7 bits)
 	inc	hl
-	sla	e
-	inc	e
+	scf
+	rl	e				; sll e since carry is set
 	jr	nc, dzx7s_offset_end		; if offset flag is set, load 4 extra bits
 	ld	d, $10				; bit marker to load 4 bits
 dzx7s_rld_next_bit:
