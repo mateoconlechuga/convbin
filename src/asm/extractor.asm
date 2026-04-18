@@ -46,6 +46,7 @@ extractentrylabel := $% - 3
 extractsizelabel := $% - 3
 	ldir
 	jp	relocaddr
+
 .relocate:
 	org	relocaddr
 extractprgm:
@@ -53,7 +54,7 @@ extractprgm:
 extracttotalsizelabel := $% - 3
 	call	ti.MemChk
 	sbc	hl,de
-	jq	c,ti.ErrMemory
+	jp	c,ti.ErrMemory
 	ld	de,.prgm_name
 	call	ti.MovFROP1
 	ld	hl,ti.userMem
@@ -71,17 +72,19 @@ extracttotalsizelabel := $% - 3
 	call	ti.Mov9ToOP1
 .find:
 	call	ti.ChkFindSym
-	jp	c,.notfound
+	jr	c,.notfound
 	call 	ti.ChkInRam
 	jr	nz,.inarc
 	call	ti.PushRealO1
 	call	ti.Arc_Unarc
 	call	ti.PopRealO1
 	jr	.find
+
 .done:
 	ld	hl,.prgm_name
 	call	ti.Mov9ToOP1
 	jp	ti.userMem
+
 .inarc:
 	ex	de,hl
 	ld	de,9
@@ -100,19 +103,18 @@ extracttotalsizelabel := $% - 3
 	push	de
 	push	hl
 	call	ti.InsertMem
-	pop	hl
-	push	hl
-	ld	de,(ti.asm_prgm_size)
-	add	hl,de
-	ld	(ti.asm_prgm_size),hl
 	pop	bc
+	ld	hl,(ti.asm_prgm_size)
+	add	hl,bc
+	ld	(ti.asm_prgm_size),hl
 	pop	de
 	pop	hl
 	ldir
 	pop	hl
-	ld	bc,9
+	ld	c,9			; ld bc, 9
 	add	hl,bc
 	jr	.loop
+
 .notfound:
 	pop	hl
 	ld	de,ti.appErr1
@@ -120,6 +122,7 @@ extracttotalsizelabel := $% - 3
 	ld	bc,12
 	ldir
 	jp	ti.ErrCustom1
+
 .prgm_name:
 	rb	9
 .missing_str:
