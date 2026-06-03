@@ -54,6 +54,9 @@
 #define R_Z80_NONE 0
 #define R_Z80_8_PCREL 3
 #define R_Z80_24 5
+#define R_Z80_BYTE0 7
+#define R_Z80_BYTE1 8
+#define R_Z80_BYTE2 9
 
 /* ELF32 structures */
 struct elf32_ehdr
@@ -321,6 +324,100 @@ static int read_sym(const uint8_t *data, struct elf32_sym *sym)
     return 0;
 }
 
+static const char *reloc_type_name(uint32_t r_type)
+{
+    switch (r_type)
+    {
+        case R_Z80_NONE:
+            return "R_Z80_NONE";
+        case R_Z80_8_PCREL:
+            return "R_Z80_8_PCREL";
+        case R_Z80_24:
+            return "R_Z80_24";
+        case R_Z80_BYTE0:
+            return "R_Z80_BYTE0";
+        case R_Z80_BYTE1:
+            return "R_Z80_BYTE1";
+        case R_Z80_BYTE2:
+            return "R_Z80_BYTE2";
+        default:
+            return "unknown";
+    }
+}
+
+static int is_z80_byte_reloc(uint32_t r_type)
+{
+    return r_type == R_Z80_BYTE0 ||
+           r_type == R_Z80_BYTE1 ||
+           r_type == R_Z80_BYTE2;
+}
+
+static int find_byte_reloc(const uint8_t *rela_data, size_t rela_count,
+                           uint32_t rela_entsize, uint32_t r_type,
+                           uint32_t r_offset, uint32_t r_sym,
+                           int32_t r_addend, size_t *index)
+{
+    size_t k;
+
+    for (k = 0; k < rela_count; k++)
+    {
+        struct elf32_rela other;
+        uint32_t other_type;
+        uint32_t other_sym;
+
+        read_rela(rela_data + k * rela_entsize, &other);
+
+        other_type = other.r_info & 0xFF;
+        other_sym = other.r_info >> 8;
+
+        if (other_type == r_type &&
+            other.r_offset == r_offset &&
+            other_sym == r_sym &&
+            other.r_addend == r_addend)
+        {
+            *index = k;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int find_byte_reloc_group(const uint8_t *rela_data, size_t rela_count,
+                                 uint32_t rela_entsize,
+                                 const struct elf32_rela *rela,
+                                 uint32_t r_type, uint32_t r_sym,
+                                 size_t *byte0_index,
+                                 size_t *byte1_index,
+                                 size_t *byte2_index)
+{
+    uint32_t byte_index;
+    uint32_t base_offset;
+
+    if (!is_z80_byte_reloc(r_type))
+    {
+        return 0;
+    }
+
+    byte_index = r_type - R_Z80_BYTE0;
+    if (rela->r_offset < byte_index)
+    {
+        return 0;
+    }
+
+    base_offset = rela->r_offset - byte_index;
+
+    return find_byte_reloc(rela_data, rela_count, rela_entsize,
+                           R_Z80_BYTE0, base_offset + 0,
+                           r_sym, rela->r_addend, byte0_index) &&
+           find_byte_reloc(rela_data, rela_count, rela_entsize,
+                           R_Z80_BYTE1, base_offset + 1,
+                           r_sym, rela->r_addend, byte1_index) &&
+           find_byte_reloc(rela_data, rela_count, rela_entsize,
+                           R_Z80_BYTE2, base_offset + 2,
+                           r_sym, rela->r_addend, byte2_index);
+}
+
 static int segment_compare(const void *a, const void *b)
 {
     const struct segment_info *sa = (const struct segment_info *)a;
@@ -439,6 +536,8 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
         struct elf32_shdr target_shdr;
         uint32_t shdr_offset = ehdr->e_shoff + i * ehdr->e_shentsize;
         uint8_t *rela_data;
+        uint8_t *rela_status = NULL;
+        size_t rela_count = 0;
         uint8_t *symtab_data = NULL;
         struct elf32_shdr symtab_shdr;
         uint32_t target_section_offset = 0;
@@ -568,6 +667,16 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
             goto cleanup;
         }
 
+        rela_count = shdr.sh_size / shdr.sh_entsize;
+        rela_status = calloc(rela_count ? rela_count : 1, 1);
+        if (rela_status == NULL)
+        {
+            LOG_ERROR("Failed to allocate relocation status table.\n");
+            free(rela_data);
+            free(symtab_data);
+            goto cleanup;
+        }
+
         /* Process each relocation entry */
         for (j = 0; j + shdr.sh_entsize <= shdr.sh_size; j += shdr.sh_entsize)
         {
@@ -578,12 +687,20 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
             uint32_t hole_offset;
             uint32_t reloc_target_value;
             uint32_t unrelocated_value;
+            size_t reloc_index = j / shdr.sh_entsize;
+            int is_byte_reloc;
             uint8_t *entry;
+
+            if (rela_status[reloc_index])
+            {
+                continue;
+            }
 
             read_rela(rela_data + j, &rela);
 
             r_type = rela.r_info & 0xFF;
             r_sym = rela.r_info >> 8;
+            is_byte_reloc = is_z80_byte_reloc(r_type);
 
             if (r_type != R_Z80_24)
             {
@@ -594,15 +711,22 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
                             r_type, r_type == R_Z80_NONE ? "R_Z80_NONE" : "R_Z80_8_PCREL");
                     continue;
                 }
-                LOG_ERROR("Unsupported relocation type: %u (expected R_Z80_24)\n", r_type);
-                free(rela_data);
-                free(symtab_data);
-                goto cleanup;
+
+                if (!is_byte_reloc)
+                {
+                    LOG_ERROR("Unsupported relocation type: %u (%s, expected R_Z80_24 or R_Z80_BYTE0/R_Z80_BYTE1/R_Z80_BYTE2)\n",
+                              r_type, reloc_type_name(r_type));
+                    free(rela_status);
+                    free(rela_data);
+                    free(symtab_data);
+                    goto cleanup;
+                }
             }
 
             if (r_sym * symtab_shdr.sh_entsize >= symtab_shdr.sh_size)
             {
                 LOG_ERROR("Symbol index %u out of bounds.\n", r_sym);
+                free(rela_status);
                 free(rela_data);
                 free(symtab_data);
                 goto cleanup;
@@ -626,6 +750,7 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
                 {
                     LOG_ERROR("Relocation offset 0x%06X before section start 0x%06X\n",
                              rela.r_offset, target_shdr.sh_addr);
+                    free(rela_status);
                     free(rela_data);
                     free(symtab_data);
                     goto cleanup;
@@ -635,6 +760,7 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
                 if (hole_offset + 2 >= data_size)
                 {
                     LOG_ERROR("Relocation offset 0x%06X out of bounds\n", hole_offset);
+                    free(rela_status);
                     free(rela_data);
                     free(symtab_data);
                     goto cleanup;
@@ -654,6 +780,55 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
                 do_relocate = 0;
             }
 
+            if (is_byte_reloc)
+            {
+                size_t byte0_index;
+                size_t byte1_index;
+                size_t byte2_index;
+
+                if (!do_relocate)
+                {
+                    LOG_DEBUG("Skipping resolved byte relocation type: %u (%s)\n",
+                              r_type, reloc_type_name(r_type));
+                    continue;
+                }
+
+                if (!find_byte_reloc_group(rela_data, rela_count, shdr.sh_entsize,
+                                           &rela, r_type, r_sym,
+                                           &byte0_index, &byte1_index, &byte2_index))
+                {
+                    LOG_ERROR("Unsupported byte relocation: %u (%s) at 0x%06X. Expected R_Z80_BYTE0/R_Z80_BYTE1/R_Z80_BYTE2 entries for the same runtime-relocated symbol and addend.\n",
+                              r_type, reloc_type_name(r_type), rela.r_offset);
+                    free(rela_status);
+                    free(rela_data);
+                    free(symtab_data);
+                    goto cleanup;
+                }
+
+                if (r_type != R_Z80_BYTE0)
+                {
+                    LOG_DEBUG("Deferring grouped byte relocation type: %u (%s)\n",
+                              r_type, reloc_type_name(r_type));
+                    rela_status[reloc_index] = 1;
+                    continue;
+                }
+
+                if (byte0_index != reloc_index)
+                {
+                    LOG_ERROR("Duplicate R_Z80_BYTE0 relocation at 0x%06X.\n",
+                              rela.r_offset);
+                    free(rela_status);
+                    free(rela_data);
+                    free(symtab_data);
+                    goto cleanup;
+                }
+
+                LOG_DEBUG("Collapsing byte relocations at 0x%06X into R_Z80_24\n",
+                          rela.r_offset);
+                rela_status[byte1_index] = 1;
+                rela_status[byte2_index] = 1;
+            }
+
             LOG_DEBUG("  reloc=%s r_off=0x%06X r_info=0x%08X r_add=%d sym=%u sym_val=0x%06X target=0x%06X unrel=0x%06X hole=0x%06X\n",
                      status, rela.r_offset, rela.r_info, rela.r_addend, r_sym, sym.st_value,
                      reloc_target_value, unrelocated_value, hole_offset);
@@ -670,6 +845,7 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
             if ((reloc_count + 1) * 6 > MAX_APP_RELOC_SIZE)
             {
                 LOG_ERROR("Relocation table exceeded maximum size.\n");
+                free(rela_status);
                 free(rela_data);
                 free(symtab_data);
                 goto cleanup;
@@ -685,6 +861,7 @@ static int extract_relocations(FILE *fd, uint8_t *data, size_t data_size, uint32
             reloc_count++;
         }
 
+        free(rela_status);
         free(rela_data);
         free(symtab_data);
     }

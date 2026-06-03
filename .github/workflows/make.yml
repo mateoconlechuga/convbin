@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [master]
+    branches: [master,R_Z80_BYTE012]
 
 jobs:
   build:
@@ -46,6 +46,7 @@ jobs:
 
   nightly-release:
     needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
 
