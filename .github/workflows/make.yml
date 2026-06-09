@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [master,R_Z80_BYTE012]
+    branches: [master]
 
 jobs:
   build:
@@ -25,7 +25,7 @@ jobs:
     steps:
 
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
@@ -38,7 +38,7 @@ jobs:
         run: make test
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{matrix.os-name}}-convbin
           path: bin/convbin${{matrix.exe}}
@@ -50,17 +50,17 @@ jobs:
     steps:
 
       - name: Download Linux
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: linux-convbin
           path: ${{github.workspace}}/linux/
       - name: Download CEdev Windows
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: windows-convbin
           path: ${{github.workspace}}/windows/
       - name: Download CEdev macOS
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: macos-convbin
           path: ${{github.workspace}}/macos/
@@ -72,7 +72,7 @@ jobs:
           cd ${{github.workspace}}/macos && zip -r9 macos-convbin.zip *
 
       - name: Update nightly release
-        uses: softprops/action-gh-release@5122b4edc95f85501a71628a57dc180a03ec7588
+        uses: softprops/action-gh-release@2bc819c87a4e63a4ac4e581a02085318bd49975a # latest as of 2026-05-01
         with:
           tag_name: nightly
           name: convbin
@@ -88,7 +88,7 @@ jobs:
     steps:
 
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: true
           fetch-depth: 1
@@ -133,7 +133,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 1
