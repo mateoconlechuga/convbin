@@ -165,7 +165,7 @@ run_test "exact_max_size_create" "truncate -s 4194304 test.input.max.bin"
 run_test "exact_max_size_convert" "../bin/convbin --iformat bin --input test.input.max.bin --oformat bin --output test.output.max.bin"
 
 # Test: Exact 4 MiB output size should match input size.
-run_test "exact_max_size_assert" "[ \"\$(wc -c < test.output.max.bin)\" = '4194304' ]"
+run_test "exact_max_size_assert" "[ \$((\$(wc -c < test.output.max.bin))) -eq 4194304 ]"
 
 # Test: Split appvar generation should succeed.
 run_test "split_appvar_generate" "../bin/convbin --iformat bin --input inputs/random_128k.bin --oformat 8xv-split --output test.split.8xv --name TEST"
@@ -267,7 +267,7 @@ run_test "append_mode_first_write" "../bin/convbin --iformat bin --input inputs/
 run_test "append_mode_second_write" "../bin/convbin --iformat bin --input inputs/small.bin --oformat bin --output test.append.bin --append"
 
 # Test: Appended file size should be double input size.
-run_test "append_mode_size_assert" "[ \"\$(wc -c < test.append.bin)\" = '904' ]"
+run_test "append_mode_size_assert" "[ \$((\$(wc -c < test.append.bin))) -eq 904 ]"
 
 # Test: Prepare payload larger than the historical 4 MiB cap.
 run_test "input_over_max_prepare" "truncate -s 4194305 test.too_big.bin"
@@ -276,7 +276,7 @@ run_test "input_over_max_prepare" "truncate -s 4194305 test.too_big.bin"
 run_test "input_over_max_convert" "../bin/convbin --iformat bin --input test.too_big.bin --oformat bin --output test.too_big.out"
 
 # Test: Oversized bin-to-bin conversion should preserve exact size.
-run_test "input_over_max_size_assert" "[ \"\$(wc -c < test.too_big.out)\" = '4194305' ]"
+run_test "input_over_max_size_assert" "[ \$((\$(wc -c < test.too_big.out))) -eq 4194305 ]"
 
 # Test: Bin-to-bin conversion should allow inputs larger than the historical 4 MiB cap.
 run_test "bin_large_unbounded_prepare" "truncate -s 5242880 test.large_unbounded.bin"
@@ -285,7 +285,7 @@ run_test "bin_large_unbounded_prepare" "truncate -s 5242880 test.large_unbounded
 run_test "bin_large_unbounded_convert" "../bin/convbin --iformat bin --input test.large_unbounded.bin --oformat bin --output test.large_unbounded.out"
 
 # Test: Large unbounded bin conversion should preserve exact size.
-run_test "bin_large_unbounded_size_assert" "[ \"\$(wc -c < test.large_unbounded.out)\" = '5242880' ]"
+run_test "bin_large_unbounded_size_assert" "[ \$((\$(wc -c < test.large_unbounded.out))) -eq 5242880 ]"
 
 # Test: Empty CSV should convert deterministically to empty binary output.
 run_test "csv_empty_prepare" "printf '' > test.empty.csv"
@@ -294,7 +294,7 @@ run_test "csv_empty_prepare" "printf '' > test.empty.csv"
 run_test "csv_empty_to_bin" "../bin/convbin --iformat csv --input test.empty.csv --oformat bin --output test.empty.bin"
 
 # Test: Empty CSV binary output should be zero bytes.
-run_test "csv_empty_to_bin_size_assert" "[ \"\$(wc -c < test.empty.bin)\" = '0' ]"
+run_test "csv_empty_to_bin_size_assert" "[ \$((\$(wc -c < test.empty.bin))) -eq 0 ]"
 
 echo
 echo "========== Test Summary =========="
