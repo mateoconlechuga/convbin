@@ -36,7 +36,6 @@ jobs:
 
       - name: Test project
         run: make test
-        continue-on-error: true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
