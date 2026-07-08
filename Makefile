@@ -31,7 +31,7 @@ PRGM_NAME = convbin
 VERSION_STRING = $(shell git describe --abbrev=8 --dirty --always --tags)
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c89 -DNDEBUG -DLOG_BUILD_LEVEL=3 -D_LARGEFILE64_SOURCE=1 -DPRGM_NAME="\"$(PRGM_NAME)\"" -DVERSION_STRING="\"$(VERSION_STRING)\"" -flto
+CFLAGS = -Wall -Wextra -Wshadow -O3 -std=c99 -DNDEBUG -DLOG_BUILD_LEVEL=3 -D_LARGEFILE64_SOURCE=1 -DPRGM_NAME="\"$(PRGM_NAME)\"" -DVERSION_STRING="\"$(VERSION_STRING)\"" -flto
 LDFLAGS = -flto
 
 ifeq ($(OS),Windows_NT)
@@ -91,6 +91,9 @@ LIBRARIES :=
 all: $(BINDIR)/$(TARGET)
 
 release: $(BINDIR)/$(TARGET)
+
+# Suppress -Wtype-limits in the bundled miniz dependency.
+$(OBJDIR)/deps/miniz/miniz.o: CFLAGS += -Wno-type-limits
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	$(Q)$(call MKDIR,$(call NATIVEPATH,$(@D)))
