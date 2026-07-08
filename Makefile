@@ -92,6 +92,9 @@ all: $(BINDIR)/$(TARGET)
 
 release: $(BINDIR)/$(TARGET)
 
+# Suppress -Wtype-limits in the bundled miniz dependency.
+$(OBJDIR)/deps/miniz/miniz.o: CFLAGS += -Wno-type-limits
+
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	$(Q)$(call MKDIR,$(call NATIVEPATH,$(@D)))
 	$(Q)$(CC) $(LDFLAGS) $(call NATIVEPATH,$^) -o $(call NATIVEPATH,$@) $(addprefix -l, $(LIBRARIES))
