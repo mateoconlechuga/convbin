@@ -941,7 +941,7 @@ int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_
         if (phdr.p_type == PT_LOAD && phdr.p_filesz > 0)
         {
             uint32_t segment_end;
-            
+
             if (phdr.p_memsz < phdr.p_filesz)
             {
                 LOG_ERROR("Segment memsz smaller than filesz at paddr 0x%X.\n",
