@@ -26,24 +26,46 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-all: zx7_decompressor.c zx0_decompressor.c extractor.c
+BINUTILS_PREFIX ?= z80-none-elf-
+AS := $(BINUTILS_PREFIX)as
+LD := $(BINUTILS_PREFIX)ld
+NM := $(BINUTILS_PREFIX)nm
+OBJCOPY := $(BINUTILS_PREFIX)objcopy
 
-zx7_decompressor.c: zx7_decompressor.asm
-	fasmg -n $< zx7_decompressor > zx7_decompressor.h
-	xxd -i zx7_decompressor > $@
-	rm -f zx7_decompressor
+BUILD_DIR := ../../obj/asm-helpers
+HELPERS := zx7_decompressor zx0_decompressor extractor
+ARRAYS := $(addsuffix .c,$(HELPERS))
+HEADERS := $(addsuffix .h,$(HELPERS))
 
-zx0_decompressor.c: zx0_decompressor.asm
-	fasmg -n $< zx0_decompressor > zx0_decompressor.h
-	xxd -i zx0_decompressor > $@
-	rm -f zx0_decompressor
+all: $(ARRAYS) $(HEADERS)
 
-extractor.c: extractor.asm
-	fasmg -n $< extractor > extractor.h
-	xxd -i extractor > $@
-	rm -f extractor
+$(ARRAYS): %.c: $(BUILD_DIR)/% Makefile
+	(cd $(BUILD_DIR) && xxd -i $*) > $@.tmp && mv $@.tmp $@
+
+zx7_decompressor.h: PREFIX := DZX7
+zx0_decompressor.h: PREFIX := DZX0
+extractor.h: PREFIX := EXTRACTOR
+
+$(HEADERS): %.h: $(BUILD_DIR)/%.sym header.awk Makefile
+	awk -v prefix=$(PREFIX) -v name=$* -f header.awk $< > $@.tmp && mv $@.tmp $@
+
+$(addprefix $(BUILD_DIR)/,$(HELPERS)): $(BUILD_DIR)/%: $(BUILD_DIR)/%.elf
+	$(OBJCOPY) -O binary -j .bootstrap -j .relocated $< $@
+
+$(HELPERS:%=$(BUILD_DIR)/%.sym): $(BUILD_DIR)/%.sym: $(BUILD_DIR)/%.elf
+	LC_ALL=C $(NM) --extern-only --defined-only --format=posix --radix=d $< > $@.tmp && mv $@.tmp $@
+
+$(HELPERS:%=$(BUILD_DIR)/%.elf): $(BUILD_DIR)/%.elf: $(BUILD_DIR)/%.o helper.ld
+	$(LD) -T helper.ld -o $@ $<
+
+$(HELPERS:%=$(BUILD_DIR)/%.o): $(BUILD_DIR)/%.o: %.s helper.inc ti84pce.inc | $(BUILD_DIR)
+	$(AS) -march=ez80+full -o $@ $<
+
+$(BUILD_DIR):
+	mkdir -p $@
 
 clean:
-	rm -f extractor.c extractor.h zx7_decompressor.c zx7_decompressor.h
+	rm -rf $(BUILD_DIR)
 
+.DELETE_ON_ERROR:
 .PHONY: all clean

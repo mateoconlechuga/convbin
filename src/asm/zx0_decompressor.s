@@ -26,41 +26,37 @@
 ; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ; POSSIBILITY OF SUCH DAMAGE.
 
-include '../deps/fasmg-ez80/ez80.inc'
-include './ti84pceg.inc'
-
-relocaddr := ti.plotSScreen
+.include "helper.inc"
 
 	ld	hl, 0
-__decompressor := $% - 3
-	ld	de, relocaddr
+bootstrap_offset DZX0_DECOMPRESSOR_OFFSET
+	ld	de, ti.plotSScreen
 	ld	bc, compresseddata - prgm
 	ldir
-	jp	relocaddr
-.relocate:
-	org	relocaddr
+	jp	ti.plotSScreen
+relocated_code
 prgm:
 	ld	hl, 0
-__insertmem_size := $% - 3
+relocated_offset DZX0_INSERTMEM_SIZE_OFFSET
 	push	hl
 	call	ti.ErrNotEnoughMem
 	call	ti.PushRealO1
 	pop	hl
 	ld	de, 0
-__insertmem_addr := $% - 3
+relocated_offset DZX0_INSERTMEM_ADDR_OFFSET
 	push	de
 	call	ti.InsertMem
 	ld	hl, 0
-__compressed_data_addr := $% - 3
+relocated_offset DZX0_COMPRESSED_DATA_ADDR_OFFSET
 	call	dzx0_standard
 	ld	hl, 0
-__delmem_addr := $% - 3
+relocated_offset DZX0_DELMEM_ADDR_OFFSET
 	ld	de, 0
-__delmem_size := $% - 3
-__delmem_call := $%
+relocated_offset DZX0_DELMEM_SIZE_OFFSET
+relocated_offset DZX0_DELMEM_CALL_OFFSET, 0
 	call	ti.DelMem
 	ld	de, 0
-__asm_prgm_size_delta := $% - 3
+relocated_offset DZX0_ASM_PRGM_SIZE_DELTA_OFFSET
 	ld	hl, (ti.asm_prgm_size)
 	add	hl, de
 	ld	(ti.asm_prgm_size), hl
@@ -79,7 +75,7 @@ dzx0_standard:
 	ld	bc, -1			; preserve default offset 1
 	push	bc
 	inc	bc
-	ld	a, $80
+	ld	a, 0x80
 dzx0s_literals:
 	call	dzx0s_elias		; obtain length
 	ldir				; copy literals
@@ -97,7 +93,7 @@ dzx0s_copy:
 	jr	nc, dzx0s_literals
 dzx0s_new_offset:
 	pop	bc			; discard last offset
-	ld	c, $fe			; prepare negative offset
+	ld	c, 0xfe			; prepare negative offset
 	call	dzx0s_elias_loop	; obtain offset MSB
 	inc	c
 	ret	z			; check end marker
@@ -130,26 +126,3 @@ dzx0s_elias_backtrack:
 compresseddata:
 
 	; actual program data is stored here
-
-macro print msg, offset
-	display msg
-	repeat 1,x:offset
-		display `x, 10
-	end repeat
-end macro
-
-display "#ifndef DZX0_H", 10
-display "#define DZX0_H", 10, 10
-print "#define DZX0_DECOMPRESSOR_OFFSET ", __decompressor
-print "#define DZX0_COMPRESSED_DATA_ADDR_OFFSET ", __compressed_data_addr
-print "#define DZX0_INSERTMEM_SIZE_OFFSET ", __insertmem_size
-print "#define DZX0_INSERTMEM_ADDR_OFFSET ", __insertmem_addr
-print "#define DZX0_DELMEM_CALL_OFFSET ", __delmem_call
-print "#define DZX0_DELMEM_ADDR_OFFSET ", __delmem_addr
-print "#define DZX0_DELMEM_SIZE_OFFSET ", __delmem_size
-print "#define DZX0_ASM_PRGM_SIZE_DELTA_OFFSET ", __asm_prgm_size_delta
-display 10
-display "extern unsigned char zx0_decompressor[];", 10
-display "extern unsigned int zx0_decompressor_len;", 10
-display 10
-display "#endif"

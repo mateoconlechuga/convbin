@@ -26,32 +26,20 @@
 ; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ; POSSIBILITY OF SUCH DAMAGE.
 
-include '../deps/fasmg-ez80/ez80.inc'
-include './ti84pceg.inc'
+.include "helper.inc"
 
-macro print msg, offset
-	display msg
-	repeat 1,x:offset
-		display `x, 10
-	end repeat
-end macro
-
-relocaddr := ti.plotSScreen
-
-extractableprgm:
 	ld	hl,0
-extractentrylabel := $% - 3
-	ld	de,relocaddr
+bootstrap_offset EXTRACTOR_ENTRY_OFFSET
+	ld	de,ti.plotSScreen
 	ld	bc,0
-extractsizelabel := $% - 3
+bootstrap_offset EXTRACTOR_PRGM_SIZE_OFFSET
 	ldir
-	jp	relocaddr
+	jp	ti.plotSScreen
 
-.relocate:
-	org	relocaddr
+relocated_code
 extractprgm:
 	ld	de,0
-extracttotalsizelabel := $% - 3
+relocated_offset EXTRACTOR_EXTRACT_SIZE_OFFSET
 	call	ti.MemChk
 	sbc	hl,de
 	jp	c,ti.ErrMemory
@@ -59,7 +47,7 @@ extracttotalsizelabel := $% - 3
 	call	ti.MovFROP1
 	ld	hl,ti.userMem
 	ld	de,(ti.asm_prgm_size)
-	call	ti.DelMem			; remove ourseleves
+	call	ti.DelMem			; remove this program
 	xor	a,a
 	sbc	hl,hl
 	ld	(ti.asm_prgm_size),hl
@@ -124,19 +112,8 @@ extracttotalsizelabel := $% - 3
 	jp	ti.ErrCustom1
 
 .prgm_name:
-	rb	9
+	.space	9
 .missing_str:
-	db	"Need AppVar",0
+	.asciz	"Need AppVar"
 extractdata:
-
-display "#ifndef EXTRACTOR_H", 10
-display "#define EXTRACTOR_H", 10, 10
-print "#define EXTRACTOR_ENTRY_OFFSET ", extractentrylabel
-print "#define EXTRACTOR_PRGM_SIZE_OFFSET ", extractsizelabel
-print "#define EXTRACTOR_EXTRACT_SIZE_OFFSET ", extracttotalsizelabel
-print "#define EXTRACTOR_APPVARS_OFFSET ", $%
-display 10
-display "extern unsigned char extractor[];", 10
-display "extern unsigned int extractor_len;", 10
-display 10
-display "#endif"
+relocated_offset EXTRACTOR_APPVARS_OFFSET, 0

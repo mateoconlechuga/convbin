@@ -81,3 +81,16 @@ It primarily is used for the TI-84+CE and related calculator series, however can
         This program utilizes the following neat libraries:
             zx0,zx7: (c) 2012-2022 by Einar Saukas.
             miniz: (c) 2010-2014 by Rich Geldreich.
+
+## Regenerating the eZ80 helpers
+
+The normal host build compiles the checked-in C arrays. After changing the
+extractor or the ZX0/ZX7 decompressor assembly, use the CE eZ80 GNU binutils
+and `xxd` to regenerate the arrays and their patch-offset headers:
+
+```sh
+make -C src/asm
+```
+
+Set `BINUTILS_PREFIX` if the eZ80 tools use a different prefix or are outside
+`PATH`.
