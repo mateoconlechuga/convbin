@@ -212,6 +212,9 @@ run_test_expect_fail "maxvarsize_too_large" "../bin/convbin --iformat bin --inpu
 # Test: 8ek output with multiple inputs should fail.
 run_test_expect_fail "8ek_multiple_inputs_fail" "../bin/convbin --iformat elf --input inputs/DEMO.obj --input inputs/DEMO.obj --oformat 8ek --output test.invalid_multi.8ek --name DEMO"
 
+# Test: Only linearly mapped segments in TI-OS's app data area request its startup copy.
+run_test "8ek_app_data_mapping" "python3 test_elf_app_data.py ../bin/convbin"
+
 # Test: 8xv-split should reject requests requiring more than 99 appvars.
 run_test "8xv_split_over_99_prepare" "truncate -s 500000 test.too_many.bin"
 

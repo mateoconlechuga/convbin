@@ -45,6 +45,9 @@
 #define ELFDATA2LSB 1
 #define EM_Z80 220
 #define PT_LOAD 1
+/* TI-OS can copy one contiguous, at most 32 KiB region to this fixed address. */
+#define CE_APP_DATA_VADDR 0x00D1187E
+#define CE_APP_DATA_SIZE 0x00008000
 #define SHT_PROGBITS 1
 #define SHT_SYMTAB 2
 #define SHT_NOBITS 8
@@ -427,6 +430,82 @@ static int segment_compare(const void *a, const void *b)
         return -1;
     if (sa->paddr > sb->paddr)
         return 1;
+    return 0;
+}
+
+static int find_app_init_data(const struct segment_info *segments,
+                              uint32_t num_segments,
+                              uint32_t base_addr,
+                              uint32_t *init_offset,
+                              uint32_t *init_size)
+{
+    uint32_t first = UINT32_MAX;
+    uint32_t last;
+    uint32_t source_start;
+    uint32_t source_end;
+    uint32_t virtual_end;
+    uint32_t i;
+
+    *init_offset = 0;
+    *init_size = 0;
+
+    for (i = 0; i < num_segments; i++)
+    {
+        if (segments[i].vaddr == CE_APP_DATA_VADDR)
+        {
+            if (first != UINT32_MAX)
+            {
+                LOG_ERROR("Multiple segments start at the TI-OS app data address.\n");
+                return -1;
+            }
+
+            first = i;
+        }
+    }
+
+    if (first == UINT32_MAX)
+    {
+        return 0;
+    }
+
+    source_start = segments[first].paddr;
+    source_end = source_start;
+    virtual_end = CE_APP_DATA_VADDR;
+    last = first;
+
+    for (i = first; i < num_segments; i++)
+    {
+        if (segments[i].paddr != source_end || segments[i].vaddr != virtual_end)
+        {
+            break;
+        }
+
+        if (segments[i].memsz > CE_APP_DATA_SIZE - (virtual_end - CE_APP_DATA_VADDR))
+        {
+            LOG_ERROR("TI-OS app data exceeds its 32 KiB destination.\n");
+            return -1;
+        }
+
+        source_end += segments[i].memsz;
+        virtual_end += segments[i].memsz;
+        last = i + 1;
+    }
+
+    for (i = 0; i < num_segments; i++)
+    {
+        uint32_t segment_end = segments[i].paddr + segments[i].memsz;
+
+        if ((i < first || i >= last) &&
+            segments[i].paddr < source_end && source_start < segment_end)
+        {
+            LOG_ERROR("Segment at paddr 0x%X overlaps the TI-OS app data source.\n",
+                      segments[i].paddr);
+            return -1;
+        }
+    }
+
+    *init_offset = source_start - base_addr;
+    *init_size = source_end - source_start;
     return 0;
 }
 
@@ -987,6 +1066,14 @@ int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_
 
     qsort(segments, num_segments, sizeof(struct segment_info), segment_compare);
 
+    if (reloc_table != NULL &&
+        find_app_init_data(segments, num_segments, min_paddr,
+                           &reloc_table->init_offset,
+                           &reloc_table->init_size) < 0)
+    {
+        goto cleanup;
+    }
+
     if (max_paddr < min_paddr)
     {
         LOG_ERROR("Invalid segment address range (max < min).\n");
@@ -1023,37 +1110,6 @@ int elf_extract_binary(FILE *fd, uint8_t **data, size_t *size, struct app_reloc_
         {
             LOG_ERROR("Failed to read segment data.\n");
             goto cleanup;
-        }
-    }
-
-    if (reloc_table != NULL)
-    {
-        uint32_t init_start = UINT32_MAX;
-        uint32_t init_end = 0;
-
-        for (i = 0; i < num_segments; i++)
-        {
-            if (segments[i].memsz > 0 && segments[i].vaddr != segments[i].paddr)
-            {
-                uint32_t seg_start = segments[i].paddr - min_paddr;
-                uint32_t seg_end = seg_start + segments[i].memsz;
-
-                if (seg_start < init_start)
-                {
-                    init_start = seg_start;
-                }
-
-                if (seg_end > init_end)
-                {
-                    init_end = seg_end;
-                }
-            }
-        }
-
-        if (init_start < init_end)
-        {
-            reloc_table->init_offset = init_start;
-            reloc_table->init_size = init_end - init_start;
         }
     }
 
